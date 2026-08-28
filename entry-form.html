@@ -281,14 +281,27 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
   // ---- EmailJSの設定 ----
   const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
   const EMAILJS_SERVICE_ID = "service_qpuxvaj";
   const EMAILJS_TEMPLATE_ID = "template_s12rno4";
   try { emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
+
+  // ---- 診断用:ライブラリが読み込めているか画面上部に一時表示 ----
+  (function(){
+    const box = document.getElementById('globalErrorBox');
+    if(box){
+      const supabaseOk = !!window.supabase;
+      const emailjsOk = !!window.emailjs;
+      if(!supabaseOk || !emailjsOk){
+        box.style.display = 'block';
+        box.textContent = `診断:Supabaseライブラリ=${supabaseOk ? 'OK' : '未読込'} / EmailJSライブラリ=${emailjsOk ? 'OK' : '未読込'}`;
+      }
+    }
+  })();
 
   window.addEventListener('error', (ev)=>{
     const msg = '予期しないエラー:' + (ev.message || '');
