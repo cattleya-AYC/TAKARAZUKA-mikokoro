@@ -354,6 +354,21 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+  window.addEventListener('error', (ev)=>{
+    const box = document.getElementById('validationMsg');
+    if(box){
+      box.style.display = 'block';
+      box.textContent = '予期しないエラー:' + (ev.message || '');
+    }
+  });
+  window.addEventListener('unhandledrejection', (ev)=>{
+    const box = document.getElementById('validationMsg');
+    if(box){
+      box.style.display = 'block';
+      box.textContent = '予期しないエラー:' + (ev.reason?.message || ev.reason || '');
+    }
+  });
+
   // ---- Supabaseの接続情報をここに設定してください ----
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
