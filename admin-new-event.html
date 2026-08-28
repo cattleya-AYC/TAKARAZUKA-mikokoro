@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>開催回 新規登録(管理者用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#161b2e; --navy-card:#222a47; --gold:#c9a961;
+    --gold-soft:#e4d3a1; --cream:#f3efe4; --rose:#c17a6f; --line:rgba(201,169,97,0.25);
+    --muted:#7d84a3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--navy-deep); color:var(--cream);
+    font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:36px 20px 18px; }
+  .eyebrow{ font-size:12px; letter-spacing:.24em; color:var(--gold-soft); text-transform:uppercase; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:22px; margin:8px 0 0; }
+
+  .prev-card{
+    max-width:480px; margin:16px auto 0; padding:14px 18px;
+    background:rgba(201,169,97,0.08); border:1px solid var(--line); border-radius:12px;
+    font-size:13px; color:#cdd2e8;
+  }
+  .prev-card b{ color:var(--gold-soft); }
+  .prev-card .empty{ color:var(--muted); }
+
+  form{ max-width:480px; margin:14px auto 0; padding:0 20px; }
+  .panel{ background:var(--navy-card); border:1px solid var(--line); border-radius:16px; padding:22px; }
+  label.field{ display:block; margin-bottom:16px; }
+  .lbl{ font-size:13px; margin-bottom:7px; display:block; color:var(--gold-soft); }
+  input[type=text], input[type=number], input[type=date], select{
+    width:100%; background:var(--navy-deep); border:1px solid var(--line);
+    color:var(--cream); border-radius:10px; padding:11px 13px; font-size:15px; font-family:inherit;
+  }
+  /* プレースホルダーは「例」であって入力済みではないことが分かるよう、はっきり暗めのグレーにする */
+  ::placeholder{ color:var(--muted); opacity:1; }
+  input[type=file]{ color:#b9bfd6; font-size:13px; }
+  .row2{ display:flex; gap:10px; }
+  .row2 > label{ flex:1; }
+  button{
+    width:100%; margin-top:6px; background:linear-gradient(135deg, var(--gold), #b08d4f);
+    color:#1a1f36; font-weight:700; border:none; border-radius:10px; padding:14px; font-size:15px; cursor:pointer;
+  }
+  button:disabled{ opacity:.5; }
+  .status{ text-align:center; font-size:13px; margin-top:14px; }
+  .status.ok{ color:#8fd19e; }
+  .status.err{ color:var(--rose); }
+  .preview{ width:100%; border-radius:10px; margin-top:8px; display:none; }
+  .note{ font-size:11.5px; color:var(--muted); margin-top:-8px; margin-bottom:14px; }
+
+  .menu-row{
+    display:flex; gap:8px; margin-bottom:8px; align-items:center;
+  }
+  .menu-row input{ flex:1; }
+  .menu-row input.price{ flex:0 0 100px; }
+  .menu-row .remove{
+    flex:0 0 auto; width:34px; height:34px; border-radius:8px;
+    background:transparent; border:1px solid var(--line); color:var(--rose);
+    display:flex; align-items:center; justify-content:center; font-size:16px; padding:0; margin:0;
+  }
+  .add-menu-btn{
+    background:transparent; border:1px dashed var(--line); color:var(--gold-soft);
+    font-weight:500; padding:10px; border-radius:10px; font-size:13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">管理者用</div>
+  <h1>新しい開催回を登録</h1>
+</div>
+
+<div class="prev-card" id="prevCard">前回の開催情報を確認中…</div>
+
+<form id="eventForm">
+  <div class="panel">
+
+    <div class="row2">
+      <label class="field">
+        <span class="lbl">第◯回</span>
+        <input type="number" name="event_number" id="eventNumberInput" required>
+      </label>
+      <label class="field">
+        <span class="lbl">組</span>
+        <select name="troupe" required>
+          <option value="">選択</option>
+          <option>花</option><option>月</option><option>雪</option><option>星</option><option>宙</option>
+        </select>
+      </label>
+    </div>
+
+    <label class="field">
+      <span class="lbl">開催日</span>
+      <input type="date" name="event_date" required>
+    </label>
+
+    <label class="field">
+      <span class="lbl">公演時間</span>
+      <select name="show_time" required>
+        <option value="">選択</option>
+        <option value="11:00">11時公演</option>
+        <option value="13:00">13時公演</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="lbl">申込締切日</span>
+      <input type="date" name="deadline" required>
+    </label>
+    <p class="note">締切日の23:59まで受付します</p>
+
+    <label class="field">
+      <span class="lbl">席種</span>
+      <select name="seat_type" id="seatTypeSelect" required>
+        <option>S席</option>
+        <option>S+席</option>
+      </select>
+    </label>
+
+    <div class="row2">
+      <label class="field">
+        <span class="lbl">定員(人)</span>
+        <input type="number" name="capacity" required>
+      </label>
+      <label class="field">
+        <span class="lbl">合計料金(円・自動計算)</span>
+        <input type="number" name="base_price" id="basePriceInput" required>
+      </label>
+    </div>
+
+    <label class="field">
+      <span class="lbl">お食事メニュー(参加決定後に選んでもらいます)</span>
+      <div id="menuList"></div>
+      <button type="button" class="add-menu-btn" id="addMenuBtn">+ メニューを追加</button>
+    </label>
+    <p class="note">「食事なし」は自動で選択肢に含まれます。メニューごとに金額が違う場合はここで設定してください。</p>
+
+    <label class="field">
+      <span class="lbl">ポスター画像(任意)</span>
+      <input type="file" name="poster" accept="image/*">
+      <img id="preview" class="preview">
+    </label>
+
+    <button type="button" id="submitBtn">この内容で登録する</button>
+    <p class="status" id="statusMsg"></p>
+  </div>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+
+  function getSupabase(){
+    if(!window.supabase){
+      throw new Error('Supabaseライブラリの読み込みに失敗しました(通信環境をご確認のうえ、画面を再読み込みしてください)');
+    }
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  window.addEventListener('error', (ev)=>{
+    const statusMsg = document.getElementById('statusMsg');
+    if(statusMsg){
+      statusMsg.className = 'status err';
+      statusMsg.textContent = '予期しないエラーが発生しました:' + (ev.message || '');
+    }
+  });
+  window.addEventListener('unhandledrejection', (ev)=>{
+    const statusMsg = document.getElementById('statusMsg');
+    if(statusMsg){
+      statusMsg.className = 'status err';
+      statusMsg.textContent = '予期しないエラーが発生しました:' + (ev.reason?.message || ev.reason || '');
+    }
+  });
+
+  // ---- 前回の開催情報を表示し、回数を自動で+1する ----
+  async function loadPreviousEvent(){
+    const box = document.getElementById('prevCard');
+    try{
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('events')
+        .select('event_number, troupe, event_date')
+        .order('event_number', { ascending:false })
+        .limit(1);
+      if(error) throw error;
+
+      if(data && data.length){
+        const prev = data[0];
+        box.innerHTML = `前回:<b>第${prev.event_number}回 ${prev.troupe}組</b>(${prev.event_date})`;
+        document.getElementById('eventNumberInput').value = (prev.event_number || 0) + 1;
+      } else {
+        box.innerHTML = `<span class="empty">まだ開催回が登録されていません(今回が第1回目です)</span>`;
+        document.getElementById('eventNumberInput').value = 1;
+      }
+    } catch(e){
+      box.innerHTML = `<span class="empty">前回情報の取得に失敗しました</span>`;
+    }
+  }
+  loadPreviousEvent();
+
+  // ---- お食事メニュー(名前+価格)の動的リスト ----
+  const menuList = document.getElementById('menuList');
+  function addMenuRow(name='', price=''){
+    const row = document.createElement('div');
+    row.className = 'menu-row';
+    row.innerHTML = `
+      <input type="text" class="menu-name" placeholder="例:和食コース" value="${name}">
+      <input type="number" class="price" placeholder="例:3000" value="${price}">
+      <button type="button" class="remove">×</button>
+    `;
+    row.querySelector('.remove').addEventListener('click', ()=> row.remove());
+    menuList.appendChild(row);
+  }
+  addMenuRow(); // 最初に1行表示
+  document.getElementById('addMenuBtn').addEventListener('click', ()=> addMenuRow());
+
+  // ---- 席種に応じて料金を自動計算(S席:8000+手数料200円 / S+席:11000+手数料200円) ----
+  const seatPrices = { 'S席': 8000 + 200, 'S+席': 11000 + 200 };
+  const seatTypeSelect = document.getElementById('seatTypeSelect');
+  const basePriceInput = document.getElementById('basePriceInput');
+  function updateBasePrice(){
+    basePriceInput.value = seatPrices[seatTypeSelect.value] || '';
+  }
+  seatTypeSelect.addEventListener('change', updateBasePrice);
+  updateBasePrice(); // 初期表示時にも反映
+
+  const fileInput = document.querySelector('input[name=poster]');
+  const preview = document.getElementById('preview');
+  fileInput.addEventListener('change', ()=>{
+    const f = fileInput.files[0];
+    if(f){
+      preview.src = URL.createObjectURL(f);
+      preview.style.display = 'block';
+    }
+  });
+
+  document.getElementById('submitBtn').addEventListener('click', async (e)=>{
+    const form = document.getElementById('eventForm');
+    const btn = document.getElementById('submitBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    statusMsg.className = 'status';
+    statusMsg.textContent = '';
+
+    // 必須項目の簡易チェック(ネイティブ送信には頼らない)
+    const requiredEls = form.querySelectorAll('[required]');
+    for(const el of requiredEls){
+      if(!el.value || !el.value.trim()){
+        statusMsg.classList.add('err');
+        statusMsg.textContent = '未入力の必須項目があります:' + (el.previousElementSibling?.textContent || el.name);
+        el.focus();
+        return;
+      }
+    }
+
+    btn.disabled = true; btn.textContent = '登録中…';
+
+    try{
+      const supabase = getSupabase();
+      const fd = new FormData(form);
+      let posterUrl = null;
+
+      const file = fileInput.files[0];
+      if(file){
+        const path = `event_${Date.now()}_${file.name}`;
+        const { error: upErr } = await supabase.storage.from('posters').upload(path, file);
+        if(upErr) throw upErr;
+        const { data: pub } = supabase.storage.from('posters').getPublicUrl(path);
+        posterUrl = pub.publicUrl;
+      }
+
+      // メニュー一覧を組み立て(「食事なし」は自動追加)
+      const menuOptions = [{ name:'食事なし', price:0 }];
+      menuList.querySelectorAll('.menu-row').forEach(row=>{
+        const name = row.querySelector('.menu-name').value.trim();
+        const price = Number(row.querySelector('.price').value || 0);
+        if(name) menuOptions.push({ name, price });
+      });
+
+      const title = `第${fd.get('event_number')}回 ${fd.get('troupe')}組観劇会`;
+
+      const { error: insErr } = await supabase.from('events').insert({
+        title,
+        event_number: Number(fd.get('event_number')),
+        troupe: fd.get('troupe'),
+        event_date: fd.get('event_date'),
+        show_time: fd.get('show_time'),
+        application_deadline: fd.get('deadline') + 'T23:59:59+09:00',
+        seat_type: fd.get('seat_type'),
+        capacity: Number(fd.get('capacity')),
+        base_price: Number(fd.get('base_price')),
+        meal_menu_options: menuOptions,
+        poster_image_url: posterUrl
+      });
+      if(insErr) throw insErr;
+
+      statusMsg.classList.add('ok');
+      statusMsg.textContent = '登録が完了しました。申込フォームに反映されます。';
+      form.reset();
+      updateBasePrice();
+      preview.style.display = 'none';
+      menuList.innerHTML = '';
+      addMenuRow();
+      loadPreviousEvent();
+
+    } catch(err){
+      console.error(err);
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '登録に失敗しました:' + (err.message || '');
+    } finally {
+      btn.disabled = false; btn.textContent = 'この内容で登録する';
+    }
+  });
+</script>
+</body>
+</html>

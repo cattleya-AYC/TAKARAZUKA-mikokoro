@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星組観劇会 申込フォーム</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#161b2e;
+    --navy-card:#222a47;
+    --navy-card-2:#2b3457;
+    --gold:#c9a961;
+    --gold-soft:#e4d3a1;
+    --cream:#f3efe4;
+    --rose:#c17a6f;
+    --line:rgba(201,169,97,0.25);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, #232c4d 0%, var(--navy-deep) 55%);
+    color:var(--cream);
+    font-family:'Noto Sans JP', sans-serif;
+    min-height:100vh;
+    padding:0 0 60px;
+  }
+  .hero{
+    text-align:center;
+    padding:44px 20px 28px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(201,169,97,0.10), transparent 40%),
+      radial-gradient(circle at 80% 10%, rgba(201,169,97,0.08), transparent 40%);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-size:12px; letter-spacing:.28em; color:var(--gold-soft);
+    text-transform:uppercase; margin-bottom:10px;
+  }
+  h1{
+    font-family:'Shippori Mincho', serif;
+    font-weight:700;
+    font-size:clamp(26px,7vw,34px);
+    margin:0 0 6px;
+    letter-spacing:.03em;
+  }
+  .hero p{
+    color:#b9bfd6; font-size:13.5px; margin:4px 0 0; line-height:1.7;
+  }
+  .info-card{
+    max-width:480px; margin:20px auto 0; background:var(--navy-card);
+    border:1px solid var(--line); border-radius:14px; padding:18px 20px;
+    font-size:13px; line-height:1.9; color:#d8dcee;
+  }
+  .info-card b{color:var(--gold-soft); font-weight:500;}
+
+  .stars{
+    display:flex; justify-content:center; gap:10px; margin:28px auto 0;
+    max-width:480px; padding:0 20px;
+  }
+  .star-step{ flex:1; text-align:center; font-size:11px; color:#6b7191; }
+  .star-step .mark{
+    display:block; font-size:20px; color:#3c4368; margin-bottom:4px; transition:color .3s;
+  }
+  .star-step.active .mark, .star-step.done .mark{ color:var(--gold); }
+  .star-step.active{ color:var(--gold-soft); }
+
+  form{ max-width:480px; margin:22px auto 0; padding:0 20px; }
+  .panel{
+    background:var(--navy-card);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:26px 22px 22px;
+    margin-bottom:18px;
+    display:none;
+  }
+  .panel.show{ display:block; animation:fade .35s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+  .panel h2{
+    font-family:'Shippori Mincho', serif;
+    font-size:17px; margin:0 0 4px; color:var(--gold-soft); font-weight:700;
+  }
+  .panel .sub{ font-size:12px; color:#8891b3; margin:0 0 20px; }
+
+  label.field{ display:block; margin-bottom:18px; }
+  label.field .lbl{
+    font-size:13px; color:var(--cream); margin-bottom:8px; display:flex; gap:6px; align-items:baseline;
+  }
+  label.field .lbl .req{ color:var(--rose); font-size:11px; }
+  input[type=text], input[type=email], input[type=tel]{
+    width:100%; background:var(--navy-deep); border:1px solid var(--line);
+    color:var(--cream); border-radius:10px; padding:12px 14px; font-size:15px;
+    font-family:inherit;
+  }
+  input:focus{ outline:2px solid var(--gold); outline-offset:1px; border-color:var(--gold); }
+
+  .radio-group{ display:flex; flex-direction:column; gap:8px; }
+  .radio-opt{
+    display:flex; align-items:center; gap:10px;
+    background:var(--navy-deep); border:1px solid var(--line);
+    border-radius:10px; padding:12px 14px; cursor:pointer; font-size:14px;
+  }
+  .radio-opt input{ accent-color:var(--gold); width:16px; height:16px; }
+  .radio-opt.checked{ border-color:var(--gold); background:rgba(201,169,97,0.08); }
+
+  .notice-box{
+    background:var(--navy-deep); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; font-size:12.5px; line-height:1.85; color:#c7cce2; margin-bottom:18px;
+  }
+  .notice-box a{ color:var(--gold-soft); }
+
+  fieldset{ border:1px dashed var(--line); border-radius:12px; padding:14px 14px 4px; margin:0 0 18px; }
+  fieldset legend{ font-size:12.5px; color:var(--gold-soft); padding:0 6px; }
+
+  .agree{
+    display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.7;
+    background:var(--navy-deep); border:1px solid var(--line); border-radius:10px; padding:14px;
+  }
+  .agree input{ margin-top:3px; accent-color:var(--gold); width:16px; height:16px; flex-shrink:0; }
+
+  .nav-row{ display:flex; gap:10px; margin-top:4px; }
+  button{
+    font-family:inherit; font-size:14.5px; font-weight:500;
+    border-radius:10px; padding:13px 18px; cursor:pointer; border:none;
+    flex:1;
+  }
+  .btn-primary{ background:linear-gradient(135deg, var(--gold), #b08d4f); color:#1a1f36; font-weight:700; }
+  .btn-primary:disabled{ opacity:.45; cursor:not-allowed; }
+  .btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--cream); flex:0 0 90px; }
+
+  .done-screen{ text-align:center; padding:60px 24px; }
+  .done-screen .mark{ font-size:40px; color:var(--gold); }
+  .done-screen h2{ font-family:'Shippori Mincho',serif; margin:14px 0 8px; }
+  .done-screen p{ color:#b9bfd6; font-size:13.5px; line-height:1.8; }
+
+  .error-text{ color:var(--rose); font-size:12px; margin-top:6px; display:none; }
+  .status-msg{ text-align:center; font-size:13px; color:var(--rose); margin-top:10px; display:none; }
+  .validation-msg{
+    text-align:center; font-size:13px; color:var(--rose); margin:0 0 14px;
+    display:none; background:rgba(193,122,111,0.12); border:1px solid var(--rose);
+    border-radius:10px; padding:10px 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow" id="eyebrowText">読み込み中…</div>
+  <h1 id="formTitle">申込フォーム</h1>
+  <p id="eventMeta"></p>
+</div>
+
+<div class="info-card" id="posterCard" style="display:none;">
+  <img id="posterImg" src="" alt="ポスター" style="width:100%; border-radius:10px; display:block;">
+</div>
+
+<div class="info-card">
+  <b>お願い</b><br>
+  お申込みいただいた後のキャンセルはできません。申込人数が定員を超えた場合は、直近7回の観劇会参加状況を踏まえて調整のうえご案内いたします。
+</div>
+
+<div class="info-card" id="closedCard" style="display:none; text-align:center;">
+  <b>現在、募集中の回はありません</b><br>
+  次回の観劇会募集をお待ちください。
+</div>
+
+<div class="stars" id="stars">
+  <div class="star-step" data-i="1"><span class="mark">★</span>基本情報</div>
+  <div class="star-step" data-i="2"><span class="mark">★</span>同伴者</div>
+  <div class="star-step" data-i="3"><span class="mark">★</span>お食事</div>
+  <div class="star-step" data-i="4"><span class="mark">★</span>お申込者</div>
+</div>
+
+<form id="entryForm">
+  <p class="validation-msg" id="validationMsg"></p>
+
+  <!-- STEP 1 -->
+  <div class="panel show" data-step="1">
+    <h2>基本情報</h2>
+    <p class="sub">ご連絡先とご参加人数をお知らせください。</p>
+
+    <label class="field">
+      <span class="lbl">メールアドレス <span class="req">必須</span></span>
+      <input type="email" name="email" required placeholder="example@mail.com">
+    </label>
+
+    <label class="field">
+      <span class="lbl">ご参加人数をお選びください <span class="req">必須</span></span>
+      <div class="radio-group" id="countGroup">
+        <label class="radio-opt"><input type="radio" name="participant_count" value="1" required> 1名</label>
+        <label class="radio-opt"><input type="radio" name="participant_count" value="2"> 2名</label>
+      </div>
+    </label>
+
+    <label class="field">
+      <span class="lbl">公式LINEでのお名前 <span class="req">必須</span></span>
+      <input type="text" name="line_name" required placeholder="LINEに登録している表示名">
+    </label>
+
+    <div class="nav-row">
+      <button type="button" class="btn-primary" onclick="goStep(2)">次へ</button>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="panel" data-step="2">
+    <h2>同伴者について</h2>
+    <p class="sub">ご参加人数に応じて入力欄が変わります。</p>
+
+    <div id="companionArea"></div>
+
+    <label class="field">
+      <span class="lbl">当日の座席のご希望をお知らせください <span class="req">必須</span></span>
+      <div class="radio-group" id="seatGroup">
+        <label class="radio-opt"><input type="radio" name="seat_pref" value="連席希望" required> 連席希望</label>
+        <label class="radio-opt"><input type="radio" name="seat_pref" value="抽選"> 抽選</label>
+      </div>
+    </label>
+
+    <div class="nav-row">
+      <button type="button" class="btn-ghost" onclick="goStep(1)">戻る</button>
+      <button type="button" class="btn-primary" onclick="goStep(3)">次へ</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="panel" data-step="3">
+    <h2>お食事について</h2>
+    <div class="notice-box">
+      当日11時30分より親睦を兼ねて、レストランフェリエにて昼食を予定しています。是非ご参加ください。<br><br>
+      観劇時の座席は、お食事をお申込みいただいた皆様を優先とし、会食ご参加の方から前方の配席となりますのでご了承ください。座席は該当エリア内での当日抽選にて決めさせていただきます。
+    </div>
+
+    <label class="field">
+      <span class="lbl">お食事のご参加 <span class="req">必須</span></span>
+      <div class="radio-group" id="mealGroup">
+        <label class="radio-opt"><input type="radio" name="meal" value="ご参加" required> ご参加</label>
+        <label class="radio-opt"><input type="radio" name="meal" value="食事は欠席"> 食事は欠席</label>
+      </div>
+    </label>
+
+    <div class="nav-row">
+      <button type="button" class="btn-ghost" onclick="goStep(2)">戻る</button>
+      <button type="button" class="btn-primary" onclick="goStep(4)">次へ</button>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="panel" data-step="4">
+    <h2>お申込者情報</h2>
+
+    <label class="field">
+      <span class="lbl">お申込み者の回生(数字のみ) <span class="req">必須</span></span>
+      <input type="text" name="grade" required placeholder="例:32 ／ 在校生は学年とクラス">
+    </label>
+
+    <label class="field">
+      <span class="lbl">お名前(保護者の方はお子様のお名前もあわせて) <span class="req">必須</span></span>
+      <input type="text" name="full_name" required placeholder="山田 花子">
+    </label>
+
+    <label class="field">
+      <span class="lbl">お名前のふりがな <span class="req">必須</span></span>
+      <input type="text" name="name_kana" required placeholder="やまだ はなこ">
+    </label>
+
+    <label class="field">
+      <span class="lbl">緊急の場合の携帯電話ご連絡先 <span class="req">必須</span></span>
+      <input type="tel" name="emergency_phone" required placeholder="090-0000-0000">
+    </label>
+
+    <div class="notice-box">
+      注意事項<br>
+      ・お取次は締切後1週間以内にご連絡します(超過時は直近7回の参加回数が多い方優先)<br>
+      ・お申込み後のキャンセルはできません<br>
+      ・チケットの転売は固く禁止です<br>
+      ・チケット代は指定口座へご入金いただきます(後日ご案内)<br>
+      ・ご不明点は公式LINEよりお問い合わせください
+    </div>
+
+    <label class="agree">
+      <input type="checkbox" name="agree" required>
+      <span>全ての内容に同意する</span>
+    </label>
+
+    <div class="nav-row">
+      <button type="button" class="btn-ghost" onclick="goStep(3)">戻る</button>
+      <button type="submit" class="btn-primary" id="submitBtn">申込内容を送信する</button>
+    </div>
+    <p class="status-msg" id="statusMsg"></p>
+  </div>
+</form>
+
+<div class="done-screen" id="doneScreen" style="display:none;">
+  <div class="mark">★</div>
+  <h2>お申込みを受け付けました</h2>
+  <p>ご入力いただいたメールアドレス宛に確認メールをお送りします。<br>お取次結果は締切後1週間以内に公式LINEでご連絡いたします。</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // ---- Supabaseの接続情報をここに設定してください ----
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  // ----------------------------------------------------
+  let supabase = null;
+  let currentEvent = null; // 募集中の開催回データ(自動取得)
+  try {
+    if (window.supabase && SUPABASE_URL.startsWith('http')) {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+  } catch(e){ console.warn('Supabase未設定です', e); }
+
+  const weekdayJp = ['日','月','火','水','木','金','土'];
+  function formatDateJp(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日(${weekdayJp[d.getDay()]})`;
+  }
+
+  async function loadCurrentEvent(){
+    if(!supabase){
+      document.getElementById('eyebrowText').textContent = '接続未設定';
+      document.getElementById('formTitle').textContent = 'Supabaseの設定が完了していません';
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    // 締切が未来の開催回のうち、一番近い開催日のものを募集中として表示
+    let { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .gte('application_deadline', nowIso)
+      .order('event_date', { ascending: true })
+      .limit(1);
+
+    if(error){ console.error(error); }
+
+    if(!data || data.length === 0){
+      // 募集中の回がない場合
+      document.querySelector('.hero').style.display = 'none';
+      document.getElementById('closedCard').style.display = 'block';
+      document.getElementById('entryForm').style.display = 'none';
+      document.getElementById('stars').style.display = 'none';
+      return;
+    }
+
+    currentEvent = data[0];
+    const total = (currentEvent.base_price || 0);
+    const deadlineStr = currentEvent.application_deadline
+      ? formatDateJp(currentEvent.application_deadline.slice(0,10))
+      : '';
+
+    document.getElementById('eyebrowText').textContent = `${currentEvent.troupe || ''}組 観劇会募集`;
+    document.getElementById('formTitle').innerHTML =
+      `第${currentEvent.event_number || ''}回 ${currentEvent.troupe || ''}組観劇会<br>参加申込フォーム`;
+    document.getElementById('eventMeta').innerHTML =
+      `${formatDateJp(currentEvent.event_date)} ${currentEvent.show_time || ''}公演 ／ ${currentEvent.seat_type || 'S席'} ／ 合計${total.toLocaleString()}円` +
+      (deadlineStr ? `<br>締切:${deadlineStr}` : '');
+
+    if(currentEvent.poster_image_url){
+      document.getElementById('posterImg').src = currentEvent.poster_image_url;
+      document.getElementById('posterCard').style.display = 'block';
+    }
+  }
+  loadCurrentEvent();
+
+  const form = document.getElementById('entryForm');
+  const stars = document.querySelectorAll('.star-step');
+  let currentStep = 1;
+
+  function updateStars(step){
+    stars.forEach(s=>{
+      const i = Number(s.dataset.i);
+      s.classList.toggle('active', i===step);
+      s.classList.toggle('done', i<step);
+    });
+  }
+
+  function showValidationMsg(msg){
+    const box = document.getElementById('validationMsg');
+    box.textContent = msg;
+    box.style.display = 'block';
+  }
+  function hideValidationMsg(){
+    document.getElementById('validationMsg').style.display = 'none';
+  }
+
+  function goStep(step){
+    // 簡易バリデーション:今のパネル内の必須項目をチェック
+    const cur = document.querySelector('.panel[data-step="'+currentStep+'"]');
+    if(step > currentStep){
+      const requiredEls = cur.querySelectorAll('[required]');
+      const seenGroups = new Set();
+      for(const el of requiredEls){
+        if(el.type==='radio'){
+          if(seenGroups.has(el.name)) continue;
+          seenGroups.add(el.name);
+          const group = cur.querySelectorAll('input[name="'+el.name+'"]');
+          const checked = Array.from(group).some(g=>g.checked);
+          if(!checked){ showValidationMsg('必須項目(選択式)にお答えください'); return; }
+        } else if(el.type==='checkbox'){
+          if(!el.checked){ showValidationMsg('チェックボックスにチェックを入れてください'); return; }
+        } else if(!el.value.trim()){
+          el.focus();
+          showValidationMsg('未入力の必須項目があります');
+          return;
+        }
+      }
+    }
+    hideValidationMsg();
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
+    document.querySelector('.panel[data-step="'+step+'"]').classList.add('show');
+    currentStep = step;
+    updateStars(step);
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  // 参加人数に応じて同伴者欄を動的生成
+  const companionArea = document.getElementById('companionArea');
+  function renderCompanions(count){
+    companionArea.innerHTML = '';
+    const n = Number(count) || 1;
+    for(let i=1;i<=n;i++){
+      const label = n===1 ? 'ご同伴の方についての質問になります' : (i===1?'お一人目ご同伴の方についての質問になります':'お二人目ご同伴の方についての質問になります');
+      const wrap = document.createElement('label');
+      wrap.className = 'field';
+      wrap.innerHTML = `
+        <span class="lbl">${label} <span class="req">必須</span></span>
+        <div class="radio-group">
+          <label class="radio-opt"><input type="radio" name="companion_${i}_type" value="同窓生、または在校生" required> 同窓生、または在校生</label>
+          <label class="radio-opt"><input type="radio" name="companion_${i}_type" value="一般"> 一般(同窓・在校生以外)</label>
+        </div>`;
+      companionArea.appendChild(wrap);
+    }
+  }
+  renderCompanions(1);
+  document.getElementById('countGroup').addEventListener('change', (e)=>{
+    if(e.target.name==='participant_count') renderCompanions(e.target.value);
+  });
+
+  // ラジオの選択ハイライト
+  form.addEventListener('change', (e)=>{
+    if(e.target.type==='radio'){
+      const group = form.querySelectorAll('input[name="'+e.target.name+'"]');
+      group.forEach(g=>g.closest('.radio-opt')?.classList.remove('checked'));
+      e.target.closest('.radio-opt')?.classList.add('checked');
+    }
+  });
+
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const statusMsg = document.getElementById('statusMsg');
+    const submitBtn = document.getElementById('submitBtn');
+
+    const fd = new FormData(form);
+    const data = Object.fromEntries(fd.entries());
+    data.agree = form.querySelector('[name=agree]').checked;
+
+    if(!supabase){
+      statusMsg.style.display='block';
+      statusMsg.textContent = 'Supabaseの接続設定が未完了です(管理者にご連絡ください)';
+      return;
+    }
+    if(!currentEvent){
+      statusMsg.style.display='block';
+      statusMsg.textContent = '開催回情報の取得に失敗しました。画面を再読み込みしてください。';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '送信中…';
+
+    try {
+      // 1. participants テーブルに存在しなければ作成(email で検索)
+      let { data: existing } = await supabase
+        .from('participants')
+        .select('id')
+        .eq('email', data.email)
+        .maybeSingle();
+
+      let participantId = existing?.id;
+      if(!participantId){
+        const { data: created, error: pErr } = await supabase
+          .from('participants')
+          .insert({
+            name: data.full_name,
+            name_kana: data.name_kana,
+            email: data.email,
+            phone: data.emergency_phone,
+            line_id: data.line_name
+          })
+          .select('id')
+          .single();
+        if(pErr) throw pErr;
+        participantId = created.id;
+      }
+
+      // 2. registrations に申込内容を保存
+      const answers = { ...data };
+      const { error: rErr } = await supabase
+        .from('registrations')
+        .insert({
+          participant_id: participantId,
+          event_id: currentEvent.id,
+          answers: answers,
+          wants_meal: data.meal === 'ご参加'
+        });
+      if(rErr) throw rErr;
+
+      document.getElementById('entryForm').style.display='none';
+      document.getElementById('stars').style.display='none';
+      document.getElementById('doneScreen').style.display='block';
+
+    } catch(err){
+      console.error(err);
+      statusMsg.style.display='block';
+      statusMsg.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
+      submitBtn.disabled = false;
+      submitBtn.textContent = '申込内容を送信する';
+    }
+  });
+
+  updateStars(1);
+</script>
+</body>
+</html>
