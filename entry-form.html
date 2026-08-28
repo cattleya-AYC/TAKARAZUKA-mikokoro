@@ -281,31 +281,12 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" async></script>
+<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
 <script>
   // ---- 診断用:このスクリプトが実行されているか無条件で確認 ----
   document.getElementById('globalErrorBox').style.display = 'block';
-  document.getElementById('globalErrorBox').textContent = 'JS実行確認:OK(この行が見えていればスクリプトは動いています)';
-
-  // ---- EmailJSの設定 ----
-  const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
-  const EMAILJS_SERVICE_ID = "service_qpuxvaj";
-  const EMAILJS_TEMPLATE_ID = "template_s12rno4";
-  try { emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
-
-  // ---- 診断用:ライブラリが読み込めているか画面上部に一時表示 ----
-  (function(){
-    const box = document.getElementById('globalErrorBox');
-    if(box){
-      const supabaseOk = !!window.supabase;
-      const emailjsOk = !!window.emailjs;
-      if(!supabaseOk || !emailjsOk){
-        box.style.display = 'block';
-        box.textContent = `診断:Supabaseライブラリ=${supabaseOk ? 'OK' : '未読込'} / EmailJSライブラリ=${emailjsOk ? 'OK' : '未読込'}`;
-      }
-    }
-  })();
+  document.getElementById('globalErrorBox').textContent = '読み込み準備中…';
 
   window.addEventListener('error', (ev)=>{
     const msg = '予期しないエラー:' + (ev.message || '');
@@ -322,17 +303,45 @@
     if(box2){ box2.style.display='block'; box2.textContent = msg; }
   });
 
-  // ---- Supabaseの接続情報をここに設定してください ----
+  // ---- Supabase / EmailJS の設定 ----
+  const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
+  const EMAILJS_SERVICE_ID = "service_qpuxvaj";
+  const EMAILJS_TEMPLATE_ID = "template_s12rno4";
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
-  // ----------------------------------------------------
+
   let supabase = null;
   let currentEvent = null;
-  try {
-    if (window.supabase && SUPABASE_URL.startsWith('http')) {
+
+  // 外部ライブラリ(非同期読み込み)が使えるようになるまで待ってから初期化する
+  function waitForLibs(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase && window.emailjs){
+          resolve();
+        } else if(Date.now() - start > timeoutMs){
+          reject(new Error('ライブラリの読み込みがタイムアウトしました(通信環境をご確認ください)'));
+        } else {
+          setTimeout(check, 150);
+        }
+      };
+      check();
+    });
+  }
+
+  waitForLibs(10000).then(()=>{
+    try { window.emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
+    try {
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
-  } catch(e){ console.warn('Supabase未設定です', e); }
+    } catch(e){ console.warn('Supabase未設定です', e); }
+    document.getElementById('globalErrorBox').style.display = 'none';
+    loadCurrentEvent();
+  }).catch((e)=>{
+    const box = document.getElementById('globalErrorBox');
+    box.style.display = 'block';
+    box.textContent = e.message;
+  });
 
   const weekdayJp = ['日','月','火','水','木','金','土'];
   function formatDateJp(dateStr){
