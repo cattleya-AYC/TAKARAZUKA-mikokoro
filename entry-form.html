@@ -6,148 +6,193 @@
 <title>星組観劇会 申込フォーム</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Cormorant+Garamond:wght@500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy-deep:#161b2e;
-    --navy-card:#222a47;
-    --navy-card-2:#2b3457;
-    --gold:#c9a961;
-    --gold-soft:#e4d3a1;
-    --cream:#f3efe4;
-    --rose:#c17a6f;
-    --line:rgba(201,169,97,0.25);
+    /* 初期値(データ取得前の仮の色)。組が判明すると自動で上書きされます */
+    --navy-deep:#efeaf2;
+    --navy-card:#fffdf9;
+    --navy-card-2:#f4eef7;
+    --gold:#9a86c9;
+    --gold-soft:#6d5aa3;
+    --cream:#332c47;
+    --rose:#a5544a;
+    --line:rgba(154,134,201,0.35);
+    --muted-text:#8b84a0;
   }
   *{box-sizing:border-box;}
   body{
     margin:0;
     background:
-      radial-gradient(ellipse at top, #232c4d 0%, var(--navy-deep) 55%);
+      radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
+      var(--navy-deep);
     color:var(--cream);
     font-family:'Noto Sans JP', sans-serif;
     min-height:100vh;
     padding:0 0 60px;
+    transition:background .4s ease;
   }
   .hero{
     text-align:center;
-    padding:44px 20px 28px;
+    padding:40px 20px 20px;
     position:relative;
-    overflow:hidden;
-  }
-  .hero::before{
-    content:"";
-    position:absolute; inset:0;
-    background:
-      radial-gradient(circle at 20% 30%, rgba(201,169,97,0.10), transparent 40%),
-      radial-gradient(circle at 80% 10%, rgba(201,169,97,0.08), transparent 40%);
-    pointer-events:none;
   }
   .eyebrow{
-    font-size:12px; letter-spacing:.28em; color:var(--gold-soft);
+    font-family:'Cormorant Garamond', serif;
+    font-size:12px; letter-spacing:.32em; color:var(--gold-soft);
     text-transform:uppercase; margin-bottom:10px;
   }
   h1{
     font-family:'Shippori Mincho', serif;
     font-weight:700;
-    font-size:clamp(26px,7vw,34px);
-    margin:0 0 6px;
-    letter-spacing:.03em;
+    font-size:clamp(23px,6.4vw,29px);
+    margin:0 0 12px;
+    letter-spacing:.05em;
+    line-height:1.5;
+  }
+  .divider{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    max-width:220px; margin:0 auto 14px; opacity:.85;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .divider .gem{
+    width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
+    border:1px solid var(--gold-soft); flex-shrink:0;
   }
   .hero p{
-    color:#b9bfd6; font-size:13.5px; margin:4px 0 0; line-height:1.7;
+    color:var(--muted-text); font-size:13px; margin:4px 0 0; line-height:1.8;
+    font-family:'Noto Sans JP', sans-serif;
   }
+
   .info-card{
-    max-width:480px; margin:20px auto 0; background:var(--navy-card);
-    border:1px solid var(--line); border-radius:14px; padding:18px 20px;
-    font-size:13px; line-height:1.9; color:#d8dcee;
+    max-width:480px; margin:18px auto 0;
+    background:var(--navy-card);
+    border:1px solid var(--gold);
+    box-shadow:inset 0 0 0 3px var(--navy-card), inset 0 0 0 4px var(--line);
+    border-radius:10px; padding:19px 21px;
+    font-size:13px; line-height:1.9; color:var(--cream);
   }
-  .info-card b{color:var(--gold-soft); font-weight:500;}
+  .info-card b{
+    color:var(--gold-soft); font-weight:700; font-family:'Shippori Mincho', serif;
+    letter-spacing:.04em;
+  }
 
   .stars{
-    display:flex; justify-content:center; gap:10px; margin:28px auto 0;
-    max-width:480px; padding:0 20px;
+    display:flex; justify-content:center; gap:6px; margin:30px auto 6px;
+    max-width:480px; padding:0 16px;
   }
-  .star-step{ flex:1; text-align:center; font-size:11px; color:#6b7191; }
+  .star-step{ flex:1; text-align:center; font-size:10.5px; color:var(--muted-text); letter-spacing:.02em; }
   .star-step .mark{
-    display:block; font-size:20px; color:#3c4368; margin-bottom:4px; transition:color .3s;
+    display:flex; align-items:center; justify-content:center;
+    width:46px; height:56px; margin:0 auto 6px;
+    border-radius:50% / 42%;
+    background:var(--navy-card);
+    border:1.5px solid var(--line);
+    box-shadow:inset 0 0 0 2px var(--navy-card);
+    font-size:18px; color:var(--muted-text);
+    transition:all .3s ease;
   }
-  .star-step.active .mark, .star-step.done .mark{ color:var(--gold); }
-  .star-step.active{ color:var(--gold-soft); }
+  .star-step.done .mark{
+    border-color:var(--gold); color:var(--gold-soft);
+    box-shadow:inset 0 0 0 2px var(--navy-card), 0 0 0 1px var(--gold);
+  }
+  .star-step.active .mark{
+    background:var(--gold); border-color:var(--gold-soft); color:var(--navy-card);
+    box-shadow:inset 0 0 0 2px var(--navy-card-2), 0 0 0 1px var(--gold-soft);
+  }
+  .star-step.active{ color:var(--gold-soft); font-weight:700; }
 
-  form{ max-width:480px; margin:22px auto 0; padding:0 20px; }
+  form{ max-width:480px; margin:16px auto 0; padding:0 20px; }
   .panel{
     background:var(--navy-card);
-    border:1px solid var(--line);
-    border-radius:18px;
-    padding:26px 22px 22px;
+    border:1px solid var(--gold);
+    box-shadow:inset 0 0 0 3px var(--navy-card), inset 0 0 0 4px var(--line);
+    border-radius:12px;
+    padding:28px 22px 22px;
     margin-bottom:18px;
     display:none;
+    position:relative;
   }
   .panel.show{ display:block; animation:fade .35s ease; }
   @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
 
   .panel h2{
     font-family:'Shippori Mincho', serif;
-    font-size:17px; margin:0 0 4px; color:var(--gold-soft); font-weight:700;
+    font-size:18px; margin:0 0 4px; color:var(--gold-soft); font-weight:700;
+    letter-spacing:.04em; text-align:center;
   }
-  .panel .sub{ font-size:12px; color:#8891b3; margin:0 0 20px; }
+  .panel .sub{ font-size:12px; color:var(--muted-text); margin:0 0 22px; text-align:center; }
 
   label.field{ display:block; margin-bottom:18px; }
   label.field .lbl{
     font-size:13px; color:var(--cream); margin-bottom:8px; display:flex; gap:6px; align-items:baseline;
   }
-  label.field .lbl .req{ color:var(--rose); font-size:11px; }
+  label.field .lbl .req{
+    color:#fff; background:var(--rose); font-size:10px; padding:1px 6px; border-radius:3px;
+  }
   input[type=text], input[type=email], input[type=tel]{
-    width:100%; background:var(--navy-deep); border:1px solid var(--line);
-    color:var(--cream); border-radius:10px; padding:12px 14px; font-size:15px;
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line);
+    color:var(--cream); border-radius:8px; padding:12px 14px; font-size:15px;
     font-family:inherit;
   }
-  input:focus{ outline:2px solid var(--gold); outline-offset:1px; border-color:var(--gold); }
+  input:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 2px var(--line); }
+  ::placeholder{ color:var(--muted-text); opacity:1; }
 
   .radio-group{ display:flex; flex-direction:column; gap:8px; }
   .radio-opt{
     display:flex; align-items:center; gap:10px;
-    background:var(--navy-deep); border:1px solid var(--line);
-    border-radius:10px; padding:12px 14px; cursor:pointer; font-size:14px;
+    background:var(--navy-card-2); border:1px solid var(--line);
+    border-radius:8px; padding:12px 14px; cursor:pointer; font-size:14px;
   }
-  .radio-opt input{ accent-color:var(--gold); width:16px; height:16px; }
-  .radio-opt.checked{ border-color:var(--gold); background:rgba(201,169,97,0.08); }
+  .radio-opt input{ accent-color:var(--gold-soft); width:16px; height:16px; }
+  .radio-opt.checked{ border-color:var(--gold); background:var(--navy-card); box-shadow:0 0 0 1px var(--gold) inset; }
 
   .notice-box{
-    background:var(--navy-deep); border:1px solid var(--line); border-radius:10px;
-    padding:14px 16px; font-size:12.5px; line-height:1.85; color:#c7cce2; margin-bottom:18px;
+    background:var(--navy-card-2); border:1px solid var(--line); border-radius:8px;
+    padding:14px 16px; font-size:12.5px; line-height:1.85; color:var(--cream); margin-bottom:18px;
   }
   .notice-box a{ color:var(--gold-soft); }
 
-  fieldset{ border:1px dashed var(--line); border-radius:12px; padding:14px 14px 4px; margin:0 0 18px; }
-  fieldset legend{ font-size:12.5px; color:var(--gold-soft); padding:0 6px; }
-
   .agree{
     display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.7;
-    background:var(--navy-deep); border:1px solid var(--line); border-radius:10px; padding:14px;
+    background:var(--navy-card-2); border:1px solid var(--line); border-radius:8px; padding:14px;
   }
-  .agree input{ margin-top:3px; accent-color:var(--gold); width:16px; height:16px; flex-shrink:0; }
+  .agree input{ margin-top:3px; accent-color:var(--gold-soft); width:16px; height:16px; flex-shrink:0; }
 
   .nav-row{ display:flex; gap:10px; margin-top:4px; }
   button{
-    font-family:inherit; font-size:14.5px; font-weight:500;
-    border-radius:10px; padding:13px 18px; cursor:pointer; border:none;
+    font-family:'Shippori Mincho', 'Noto Sans JP', sans-serif;
+    font-size:14.5px; font-weight:700;
+    border-radius:8px; padding:13px 18px; cursor:pointer;
+    letter-spacing:.03em;
     flex:1;
   }
-  .btn-primary{ background:linear-gradient(135deg, var(--gold), #b08d4f); color:#1a1f36; font-weight:700; }
+  .btn-primary{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft);
+    color:#fffaf3;
+  }
   .btn-primary:disabled{ opacity:.45; cursor:not-allowed; }
-  .btn-ghost{ background:transparent; border:1px solid var(--line); color:var(--cream); flex:0 0 90px; }
+  .btn-ghost{ background:var(--navy-card); border:1px solid var(--line); color:var(--muted-text); flex:0 0 90px; }
 
   .done-screen{ text-align:center; padding:60px 24px; }
-  .done-screen .mark{ font-size:40px; color:var(--gold); }
-  .done-screen h2{ font-family:'Shippori Mincho',serif; margin:14px 0 8px; }
-  .done-screen p{ color:#b9bfd6; font-size:13.5px; line-height:1.8; }
+  .done-screen .mark{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:64px; height:76px; border-radius:50% / 42%;
+    background:var(--gold); color:#fffaf3; font-size:26px;
+    box-shadow:0 0 0 1px var(--gold-soft);
+  }
+  .done-screen h2{ font-family:'Shippori Mincho',serif; margin:18px 0 8px; letter-spacing:.03em; }
+  .done-screen p{ color:var(--muted-text); font-size:13.5px; line-height:1.8; }
 
-  .error-text{ color:var(--rose); font-size:12px; margin-top:6px; display:none; }
   .status-msg{ text-align:center; font-size:13px; color:var(--rose); margin-top:10px; display:none; }
   .validation-msg{
     text-align:center; font-size:13px; color:var(--rose); margin:0 0 14px;
-    display:none; background:rgba(193,122,111,0.12); border:1px solid var(--rose);
-    border-radius:10px; padding:10px 12px;
+    display:none; background:var(--navy-card-2); border:1px solid var(--rose);
+    border-radius:8px; padding:10px 12px;
   }
 </style>
 </head>
@@ -156,11 +201,12 @@
 <div class="hero">
   <div class="eyebrow" id="eyebrowText">読み込み中…</div>
   <h1 id="formTitle">申込フォーム</h1>
+  <div class="divider"><span class="gem"></span></div>
   <p id="eventMeta"></p>
 </div>
 
 <div class="info-card" id="posterCard" style="display:none;">
-  <img id="posterImg" src="" alt="ポスター" style="width:100%; border-radius:10px; display:block;">
+  <img id="posterImg" src="" alt="ポスター" style="width:100%; border-radius:6px; display:block;">
 </div>
 
 <div class="info-card">
@@ -174,10 +220,10 @@
 </div>
 
 <div class="stars" id="stars">
-  <div class="star-step" data-i="1"><span class="mark">★</span>基本情報</div>
-  <div class="star-step" data-i="2"><span class="mark">★</span>同伴者</div>
-  <div class="star-step" data-i="3"><span class="mark">★</span>お食事</div>
-  <div class="star-step" data-i="4"><span class="mark">★</span>お申込者</div>
+  <div class="star-step" data-i="1"><span class="mark">🖋</span>基本情報</div>
+  <div class="star-step" data-i="2"><span class="mark">🌹</span>同伴者</div>
+  <div class="star-step" data-i="3"><span class="mark">🍽</span>お食事</div>
+  <div class="star-step" data-i="4"><span class="mark">👑</span>お申込者</div>
 </div>
 
 <form id="entryForm">
@@ -301,7 +347,7 @@
 </form>
 
 <div class="done-screen" id="doneScreen" style="display:none;">
-  <div class="mark">★</div>
+  <div class="mark">👑</div>
   <h2>お申込みを受け付けました</h2>
   <p>ご入力いただいたメールアドレス宛に確認メールをお送りします。<br>お取次結果は締切後1週間以内に公式LINEでご連絡いたします。</p>
 </div>
@@ -324,6 +370,28 @@
   function formatDateJp(dateStr){
     const d = new Date(dateStr + 'T00:00:00');
     return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日(${weekdayJp[d.getDay()]})`;
+  }
+
+  // ---- 組ごとの上品なテーマカラー(パステルよりやや落ち着いたトーン) ----
+  const troupeThemes = {
+    '花': { bg:'#f6e9ec', card:'#fffbf9', card2:'#fbeef1', gold:'#c98a9b', goldSoft:'#9c5e6f', text:'#3d2830', muted:'#a9838d', line:'rgba(201,138,155,0.35)' },
+    '月': { bg:'#f6f0d9', card:'#fffdf6', card2:'#f9f0d4', gold:'#c2a355', goldSoft:'#94793a', text:'#3d3620', muted:'#a3925a', line:'rgba(194,163,85,0.35)' },
+    '雪': { bg:'#e6efe8', card:'#fbfdfb', card2:'#e9f2ea', gold:'#7fac8e', goldSoft:'#557a63', text:'#213a2c', muted:'#7f9c8a', line:'rgba(127,172,142,0.35)' },
+    '星': { bg:'#e4ecf4', card:'#fbfdfe', card2:'#e9f0f7', gold:'#7397bd', goldSoft:'#4d6c8e', text:'#1f2f42', muted:'#7d92a8', line:'rgba(115,151,189,0.35)' },
+    '宙': { bg:'#ece3f0', card:'#fdfbfe', card2:'#f1e9f4', gold:'#a480bd', goldSoft:'#7a5896', text:'#2f2338', muted:'#93789e', line:'rgba(164,128,189,0.35)' },
+  };
+  function applyTroupeTheme(troupe){
+    const t = troupeThemes[troupe];
+    if(!t) return;
+    const root = document.documentElement.style;
+    root.setProperty('--navy-deep', t.bg);
+    root.setProperty('--navy-card', t.card);
+    root.setProperty('--navy-card-2', t.card2);
+    root.setProperty('--gold', t.gold);
+    root.setProperty('--gold-soft', t.goldSoft);
+    root.setProperty('--cream', t.text);
+    root.setProperty('--muted-text', t.muted);
+    root.setProperty('--line', t.line);
   }
 
   async function loadCurrentEvent(){
@@ -353,6 +421,7 @@
     }
 
     currentEvent = data[0];
+    applyTroupeTheme(currentEvent.troupe);
     const total = (currentEvent.base_price || 0);
     const deadlineStr = currentEvent.application_deadline
       ? formatDateJp(currentEvent.application_deadline.slice(0,10))
