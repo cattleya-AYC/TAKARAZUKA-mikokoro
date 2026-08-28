@@ -174,6 +174,10 @@
   <div class="deadline" id="deadlineBox"></div>
 </div>
 
+<div class="wrap">
+  <p class="validation-msg" id="globalErrorBox" style="margin-bottom:0;"></p>
+</div>
+
 <div class="wrap" id="closedCard" style="display:none;">
   <div class="info-card" style="text-align:center;">
     <b>現在、募集中の回はありません</b><br>次回の観劇会募集をお待ちください。
@@ -285,12 +289,18 @@
   try { emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
 
   window.addEventListener('error', (ev)=>{
-    const box = document.getElementById('validationMsg');
-    if(box){ box.style.display='block'; box.textContent = '予期しないエラー:' + (ev.message || ''); }
+    const msg = '予期しないエラー:' + (ev.message || '');
+    const box1 = document.getElementById('validationMsg');
+    const box2 = document.getElementById('globalErrorBox');
+    if(box1){ box1.style.display='block'; box1.textContent = msg; }
+    if(box2){ box2.style.display='block'; box2.textContent = msg; }
   });
   window.addEventListener('unhandledrejection', (ev)=>{
-    const box = document.getElementById('validationMsg');
-    if(box){ box.style.display='block'; box.textContent = '予期しないエラー:' + (ev.reason?.message || ev.reason || ''); }
+    const msg = '予期しないエラー:' + (ev.reason?.message || ev.reason || '');
+    const box1 = document.getElementById('validationMsg');
+    const box2 = document.getElementById('globalErrorBox');
+    if(box1){ box1.style.display='block'; box1.textContent = msg; }
+    if(box2){ box2.style.display='block'; box2.textContent = msg; }
   });
 
   // ---- Supabaseの接続情報をここに設定してください ----
@@ -389,7 +399,14 @@
 
     document.getElementById('mainContent').style.display = 'block';
   }
-  loadCurrentEvent();
+  const loadTimeout = setTimeout(()=>{
+    const box = document.getElementById('globalErrorBox');
+    if(box && document.getElementById('mainContent').style.display === 'none'){
+      box.style.display = 'block';
+      box.textContent = '読み込みに時間がかかっています。通信環境をご確認のうえ、画面を再読み込みしてください。';
+    }
+  }, 8000);
+  loadCurrentEvent().finally(()=> clearTimeout(loadTimeout));
 
   const form = document.getElementById('entryForm');
 
