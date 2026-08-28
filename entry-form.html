@@ -284,6 +284,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
+  // ---- 診断用:このスクリプトが実行されているか無条件で確認 ----
+  document.getElementById('globalErrorBox').style.display = 'block';
+  document.getElementById('globalErrorBox').textContent = 'JS実行確認:OK(この行が見えていればスクリプトは動いています)';
+
   // ---- EmailJSの設定 ----
   const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
   const EMAILJS_SERVICE_ID = "service_qpuxvaj";
