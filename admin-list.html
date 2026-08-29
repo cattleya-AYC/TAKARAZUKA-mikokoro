@@ -83,6 +83,20 @@
   .actions button.decline{ border-color:var(--rose); color:var(--rose); }
   .actions button:disabled{ opacity:.4; cursor:default; }
 
+  .mini-badge{
+    display:inline-block; min-width:22px; text-align:center; font-size:12px; font-weight:700;
+    padding:3px 8px; border-radius:10px; background:var(--navy-card-2); color:var(--gold-soft);
+    border:1px solid var(--line);
+  }
+  .name-btn{
+    background:none; border:none; padding:0; font-family:'Shippori Mincho', serif; font-weight:700;
+    font-size:13.5px; color:var(--cream); cursor:pointer; text-decoration:underline; text-decoration-color:var(--line);
+    text-underline-offset:3px;
+  }
+  .detail-row td{ padding:8px 12px; background:var(--navy-card-2); }
+  .detail-box{ display:flex; gap:20px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); white-space:normal; }
+  .detail-box b{ color:var(--gold-soft); }
+
   .empty-msg, .status-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
   .status-msg.err{ color:var(--rose); }
 
@@ -231,18 +245,17 @@
   <table id="dataTable" style="display:none;">
     <thead>
       <tr>
+        <th>操作</th>
+        <th>参加回数</th>
+        <th>ペナルティ</th>
         <th>氏名</th>
         <th>回生</th>
         <th>同伴者</th>
         <th>枚数</th>
         <th>座席希望</th>
         <th>お食事</th>
-        <th>携帯</th>
-        <th>メール</th>
         <th>申込日時</th>
         <th>状態</th>
-        <th>ペナルティ</th>
-        <th>操作</th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -326,6 +339,7 @@
   }
 
   let currentRows = [];
+  let recentCounts = {};
 
   async function loadRegistrations(eventId){
     const tbody = document.getElementById('tableBody');
@@ -353,7 +367,21 @@
       emptyMsg.style.display = 'block';
       countBadge.textContent = '0件';
       document.getElementById('statusBreakdown').textContent = '';
+      recentCounts = {};
       return;
+    }
+
+    // 直近7回の参加回数を取得
+    recentCounts = {};
+    const pids = [...new Set(currentRows.map(r => r.participants?.id).filter(Boolean))];
+    if(pids.length > 0){
+      const { data: recentData, error: recentErr } = await sb
+        .from('v_recent_participation')
+        .select('participant_id, recent_count')
+        .in('participant_id', pids);
+      if(!recentErr && recentData){
+        recentData.forEach(row => { recentCounts[row.participant_id] = row.recent_count; });
+      }
     }
 
     renderBreakdown(currentRows);
@@ -394,31 +422,50 @@
       const tr = document.createElement('tr');
       const status = r.status || '審査中';
       const points = p.penalty_points || 0;
+      const recentCount = recentCounts[p.id] ?? '-';
+      const rowId = r.id;
 
       tr.innerHTML = `
-        <td class="name">${escapeHtml(p.name || a.full_name || '')}</td>
+        <td class="actions">
+          <button class="accept" data-id="${r.id}" data-status="参加決定" ${status==='参加決定' ? 'disabled' : ''}>決定</button>
+          <button class="decline" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>お断り</button>
+        </td>
+        <td><span class="mini-badge">${recentCount}</span></td>
+        <td><button class="penalty-badge ${points > 0 ? '' : 'zero'}" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠ ${points}</button></td>
+        <td class="name"><button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button></td>
         <td>${escapeHtml(a.grade || '')}</td>
         <td>${a.participant_count === '2' ? 'あり' : 'なし'}</td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
         <td>${escapeHtml(a.seat_pref || '-')}</td>
         <td>${a.meal === 'ご参加' ? '参加' : '不参加'}</td>
-        <td>${escapeHtml(p.phone || a.emergency_phone || '')}</td>
-        <td>${escapeHtml(p.email || a.email || '')}</td>
         <td>${formatDateTimeJp(r.applied_at)}</td>
         <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
-        <td>
-          <button class="penalty-badge ${points > 0 ? '' : 'zero'}" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠ ${points}</button>
-          <button class="penalty-btn" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">+記録</button>
-        </td>
-        <td class="actions">
-          <button class="accept" data-id="${r.id}" data-status="参加決定" ${status==='参加決定' ? 'disabled' : ''}>決定</button>
-          <button class="decline" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>お断り</button>
-        </td>
       `;
       tbody.appendChild(tr);
+
+      const detailTr = document.createElement('tr');
+      detailTr.className = 'detail-row';
+      detailTr.id = `detail-${rowId}`;
+      detailTr.style.display = 'none';
+      detailTr.innerHTML = `
+        <td colspan="11">
+          <div class="detail-box">
+            <span><b>メール:</b> ${escapeHtml(p.email || a.email || '')}</span>
+            <span><b>携帯:</b> ${escapeHtml(p.phone || a.emergency_phone || '')}</span>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(detailTr);
     });
 
     table.style.display = 'table';
+
+    tbody.querySelectorAll('.name-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const row = document.getElementById(`detail-${btn.getAttribute('data-detail')}`);
+        if(row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+      });
+    });
 
     tbody.querySelectorAll('button[data-id]').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
