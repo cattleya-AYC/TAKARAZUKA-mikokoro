@@ -60,6 +60,20 @@
   }
   .agency-picker-btn:active{ background:var(--rose); color:#fff; }
 
+  .schedule-box{
+    margin-top:18px; padding:16px 16px 8px; border:1px solid var(--gold); border-radius:10px;
+    background:var(--navy-card-2);
+  }
+  .schedule-box-title{ font-size:12.5px; font-weight:700; color:var(--gold-soft); margin-bottom:10px; }
+  .schedule-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:8px 2px; border-bottom:1px dashed var(--line); font-size:12.5px; color:var(--cream);
+  }
+  .schedule-row:last-child{ border-bottom:none; }
+  .schedule-row b{ color:var(--gold-soft); font-weight:700; white-space:nowrap; }
+  .schedule-row.highlight{ background:rgba(165,84,74,0.08); border-radius:6px; padding:8px 6px; }
+  .schedule-row.highlight b{ color:var(--rose); }
+
   form{ max-width:480px; margin:14px auto 0; padding:0 20px; }
   .panel{
     background:var(--navy-card); border:1px solid var(--gold);
@@ -148,6 +162,7 @@
       <span class="lbl">開催日</span>
       <input type="date" name="event_date" id="eventDateInput" required>
     </label>
+    <p class="note">開催日を入れると、下の募集開始日・申込締切日が自動計算されます</p>
 
     <label class="field">
       <span class="lbl">公演時間</span>
@@ -159,17 +174,28 @@
     </label>
 
     <label class="field">
-      <span class="lbl">募集開始日(任意)</span>
+      <span class="lbl">募集開始日</span>
       <input type="date" name="recruitment_start" id="recruitmentStartInput">
     </label>
-    <p class="note">未入力の場合、登録してすぐ募集開始になります</p>
+    <p class="note">開催日の59日前が自動で入ります(手動で変更も可)</p>
 
     <label class="field">
       <span class="lbl">申込締切日</span>
       <input type="date" name="deadline" id="deadlineInput" required>
     </label>
-    <p class="note">募集開始日を入れると、8日後を自動で入力します(手動で変更も可)。締切日の21:00まで受付します</p>
+    <p class="note">開催日の51日前が自動で入ります(手動で変更も可)。締切日の21:00まで受付します</p>
 
+    <div class="schedule-box" id="scheduleBox" style="display:none;">
+      <div class="schedule-box-title">📅 この開催日をもとにした運営スケジュール(目安)</div>
+      <div class="schedule-row"><span>募集開始</span><b id="schStart"></b></div>
+      <div class="schedule-row"><span>観劇会申込締切(参加者決定)</span><b id="schDeadline"></b></div>
+      <div class="schedule-row"><span>食事フォーム入力開始</span><b id="schMealStart"></b></div>
+      <div class="schedule-row"><span>食事メニュー申込締切</span><b id="schMealDeadline"></b></div>
+      <div class="schedule-row"><span>振込案内開始</span><b id="schPayStart"></b></div>
+      <div class="schedule-row"><span>入金締切</span><b id="schPayDeadline"></b></div>
+      <div class="schedule-row highlight"><span>開催日</span><b id="schEventDate"></b></div>
+      <div class="schedule-row"><span>席札作成</span><b id="schNamecard"></b></div>
+    </div>
     <label class="field">
       <span class="lbl">席種</span>
       <select name="seat_type" id="seatTypeSelect" required>
@@ -293,6 +319,7 @@
           document.getElementById('seatTypeSelect').value = row.seat_type || 'S席';
           document.getElementById('capacityInput').value = row.confirmed_count || '';
           updateBasePrice();
+          recalcSchedule();
         });
       });
     } catch(e){ console.warn('代理店データの取得に失敗しました', e); }
@@ -325,16 +352,52 @@
   seatTypeSelect.addEventListener('change', updateBasePrice);
   updateBasePrice(); // 初期表示時にも反映
 
-  // ---- 募集開始日から、8日後を締切日の目安として自動入力 ----
-  document.getElementById('recruitmentStartInput').addEventListener('change', (e)=>{
-    if(!e.target.value) return;
-    const start = new Date(e.target.value + 'T00:00:00');
-    start.setDate(start.getDate() + 8);
-    const y = start.getFullYear();
-    const m = String(start.getMonth() + 1).padStart(2, '0');
-    const d = String(start.getDate()).padStart(2, '0');
-    document.getElementById('deadlineInput').value = `${y}-${m}-${d}`;
-  });
+  // ---- 開催日から、募集開始日・申込締切・運営スケジュール一式を自動計算 ----
+  function fmtDate(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function fmtDateJpShort(d){
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getMonth()+1}/${d.getDate()}(${w})`;
+  }
+  function addDays(base, diff){
+    const d = new Date(base.getTime());
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+
+  function recalcSchedule(){
+    const val = document.getElementById('eventDateInput').value;
+    if(!val) return;
+    const eventDate = new Date(val + 'T00:00:00');
+
+    const recruitmentStart = addDays(eventDate, -59);
+    const applyDeadline   = addDays(eventDate, -51);
+    const mealFormStart   = addDays(eventDate, -49);
+    const mealDeadline    = addDays(eventDate, -42);
+    const paymentStart    = addDays(eventDate, -40);
+    const paymentDeadline = addDays(eventDate, -30);
+    const namecardPrep    = addDays(eventDate, -3);
+
+    document.getElementById('recruitmentStartInput').value = fmtDate(recruitmentStart);
+    document.getElementById('deadlineInput').value = fmtDate(applyDeadline);
+
+    document.getElementById('schStart').textContent = fmtDateJpShort(recruitmentStart);
+    document.getElementById('schDeadline').textContent = fmtDateJpShort(applyDeadline);
+    document.getElementById('schMealStart').textContent = fmtDateJpShort(mealFormStart);
+    document.getElementById('schMealDeadline').textContent = fmtDateJpShort(mealDeadline);
+    document.getElementById('schPayStart').textContent = fmtDateJpShort(paymentStart);
+    document.getElementById('schPayDeadline').textContent = fmtDateJpShort(paymentDeadline);
+    document.getElementById('schEventDate').textContent = fmtDateJpShort(eventDate);
+    document.getElementById('schNamecard').textContent = fmtDateJpShort(namecardPrep);
+
+    document.getElementById('scheduleBox').style.display = 'block';
+  }
+
+  document.getElementById('eventDateInput').addEventListener('change', recalcSchedule);
 
   const fileInput = document.querySelector('input[name=poster]');
   const preview = document.getElementById('preview');
@@ -396,7 +459,7 @@
         troupe: fd.get('troupe'),
         event_date: fd.get('event_date'),
         show_time: fd.get('show_time'),
-        recruitment_start_date: fd.get('recruitment_start') ? (fd.get('recruitment_start') + 'T00:00:00+09:00') : null,
+        recruitment_start_date: fd.get('recruitment_start') ? (fd.get('recruitment_start') + 'T09:00:00+09:00') : null,
         application_deadline: fd.get('deadline') + 'T21:00:00+09:00',
         seat_type: fd.get('seat_type'),
         capacity: Number(fd.get('capacity')),
