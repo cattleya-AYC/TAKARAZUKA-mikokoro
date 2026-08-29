@@ -107,6 +107,7 @@
     padding:3px 8px; border-radius:10px; background:var(--navy-card-2); color:var(--gold-soft);
     border:1px solid var(--line);
   }
+  .mini-badge.warn{ background:rgba(165,84,74,0.14); color:var(--rose); border-color:var(--rose); }
   .name-btn{
     background:none; border:none; padding:0; font-family:'Shippori Mincho', serif; font-weight:700;
     font-size:13.5px; color:var(--cream); cursor:pointer; text-decoration:underline; text-decoration-color:var(--line);
@@ -333,13 +334,14 @@
       <tr>
         <th>操作</th>
         <th class="print-hide sortable" data-sort="recent">参加回数 <span class="sort-arrow" data-arrow="recent"></span></th>
-        <th class="print-hide">ペナルティ</th>
+        <th class="print-hide">ペナルティ回数</th>
         <th>氏名</th>
+        <th class="sortable" data-sort="count">枚数 <span class="sort-arrow" data-arrow="count"></span></th>
+        <th>お食事</th>
+        <th class="print-hide">ペナルティ入力</th>
         <th class="sortable" data-sort="grade">回生 <span class="sort-arrow" data-arrow="grade"></span></th>
         <th>同伴者</th>
-        <th class="sortable" data-sort="count">枚数 <span class="sort-arrow" data-arrow="count"></span></th>
         <th>座席希望</th>
-        <th>お食事</th>
         <th class="sortable" data-sort="applied">申込日時 <span class="sort-arrow" data-arrow="applied"></span></th>
         <th>状態</th>
       </tr>
@@ -575,19 +577,20 @@
           <button class="decline" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>お断り</button>
         </td>
         <td class="print-hide"><span class="mini-badge">${recentCount}</span></td>
-        <td class="print-hide"><button class="penalty-badge ${points > 0 ? '' : 'zero'}" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠ ${points}</button></td>
+        <td class="print-hide"><span class="mini-badge ${points > 0 ? 'warn' : ''}">⚠ ${points}</span></td>
         <td class="name"><button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button></td>
+        <td>${escapeHtml(a.participant_count || '1')}枚</td>
+        <td>${a.meal === 'ご参加'
+              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
+              : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
+        <td class="print-hide"><button class="penalty-badge" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠</button></td>
         <td>${escapeHtml(a.grade || '')}</td>
         <td>${a.participant_count === '2' ? 'あり' : 'なし'}</td>
-        <td>${escapeHtml(a.participant_count || '1')}枚</td>
         <td>${a.seat_pref === '連席希望'
               ? '<span class="mark-circle seat-together" title="連席希望">連</span>'
               : a.seat_pref === '抽選'
                 ? '<span class="mark-circle seat-lottery" title="抽選">抽</span>'
                 : '-'}</td>
-        <td>${a.meal === 'ご参加'
-              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
-              : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
         <td>${formatDateTimeJp(r.applied_at)}</td>
         <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
       `;
@@ -603,7 +606,7 @@
       detailTr.id = `detail-${rowId}`;
       detailTr.style.display = 'none';
       detailTr.innerHTML = `
-        <td colspan="11">
+        <td colspan="12">
           <div class="detail-box">
             <span><b>メール:</b> ${escapeHtml(p.email || a.email || '')}</span>
             <span><b>携帯:</b> ${escapeHtml(p.phone || a.emergency_phone || '')}</span>

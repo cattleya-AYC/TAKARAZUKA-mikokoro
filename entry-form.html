@@ -558,15 +558,63 @@
         participantId = created.id;
       }
 
-      const { error: rErr } = await sb
+      // 同じ人・同じ回への申込みが既にあるか確認(再送信=変更として扱う)
+      const { data: existingReg } = await sb
         .from('registrations')
-        .insert({
+        .select('id, answers, status')
+        .eq('participant_id', participantId)
+        .eq('event_id', currentEvent.id)
+        .maybeSingle();
+
+      if(existingReg){
+        // 2回目以降の送信 → 内容を更新し、変更として記録・ペナルティを自動加算
+        const before = existingReg.answers || {};
+        const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${before.meal === 'ご参加' ? '参加' : '不参加'}`;
+        const afterSummary = `枚数${data.participant_count || '1'}枚 / 食事${data.meal === 'ご参加' ? '参加' : '不参加'}`;
+
+        const { error: updErr } = await sb
+          .from('registrations')
+          .update({ answers: data, wants_meal: data.meal === 'ご参加' })
+          .eq('id', existingReg.id);
+        if(updErr) throw updErr;
+
+        await sb.from('change_logs').insert({
+          registration_id: existingReg.id,
           participant_id: participantId,
           event_id: currentEvent.id,
-          answers: data,
-          wants_meal: data.meal === 'ご参加'
+          change_type: '申込者による再送信(変更)',
+          before_summary: beforeSummary,
+          after_summary: afterSummary,
+          note: '申込フォームからの再送信により内容が更新されました'
         });
-      if(rErr) throw rErr;
+
+        const { data: pRow } = await sb
+          .from('participants')
+          .select('penalty_points, penalty_notes')
+          .eq('id', participantId)
+          .maybeSingle();
+        const existingPoints = pRow?.penalty_points || 0;
+        const existingNotes = pRow?.penalty_notes || '';
+        const dateStr = new Date().toLocaleDateString('ja-JP');
+        const newNotes = existingNotes
+          ? `${existingNotes}\n[${dateStr}] (自動)申込フォームからの再送信 ${beforeSummary} → ${afterSummary}`
+          : `[${dateStr}] (自動)申込フォームからの再送信 ${beforeSummary} → ${afterSummary}`;
+        await sb.from('participants').update({
+          penalty_points: existingPoints + 1,
+          penalty_notes: newNotes
+        }).eq('id', participantId);
+
+      } else {
+        const { error: rErr } = await sb
+          .from('registrations')
+          .insert({
+            participant_id: participantId,
+            event_id: currentEvent.id,
+            answers: data,
+            wants_meal: data.meal === 'ご参加'
+          });
+        if(rErr) throw rErr;
+      }
 
       // 申込み確認メールを自動送信(失敗しても申込み自体は成立させる)
       try {
