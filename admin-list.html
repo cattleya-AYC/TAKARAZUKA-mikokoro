@@ -568,7 +568,9 @@
   function renderSummary(rows){
     const applicants = rows.length;
     const tickets = rows.reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
-    const meals = rows.filter(r => r.answers?.meal === 'ご参加').length;
+    const meals = rows
+      .filter(r => r.answers?.meal === 'ご参加')
+      .reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
     document.getElementById('sumApplicants').textContent = applicants;
     document.getElementById('sumTickets').textContent = tickets;
     document.getElementById('sumMeals').textContent = meals;
