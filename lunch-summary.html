@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>観劇会 食事申込 集計ページ</title>
+<style>
+:root{
+  --bg:#f6f1ec; --paper:#fffdf9; --ink:#49362d; --muted:#8b776d;
+  --rose:#d8888c; --rose-dark:#c76f73; --rose-soft:#f7e6e2; --gold:#c9a56b; --line:#ead9cf;
+  --warn-bg:#fce4e4; --warn-bg-strong:#f6c6c6; --warn-text:#a83a3a; --warn-text-strong:#8f1f1f;
+  --ok-bg:#e9f3ea; --ok-text:#4c7a52;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+.wrap{max-width:1100px;margin:24px auto;padding:0 14px 40px}
+.panel{background:var(--paper);border:1px solid #efe1d8;border-radius:24px;box-shadow:0 16px 42px rgba(77,51,38,.10);overflow:hidden}
+header{padding:28px 24px 22px;background:linear-gradient(180deg,#fff,#fff9f6);border-bottom:1px solid var(--line)}
+header .kicker{font-family:"Yu Mincho","Hiragino Mincho ProN",serif;color:var(--gold);letter-spacing:.16em;font-size:13px}
+header h1{margin:4px 0 8px;font-family:"Yu Mincho","Hiragino Mincho ProN",serif;font-size:34px}
+header p{margin:0;color:var(--muted)}
+main{padding:20px}
+#loadingNote,#missingNote{padding:40px 10px;text-align:center;color:var(--muted)}
+#missingNote{display:none;color:#8f3a3a}
+
+.alert-banner{display:none;align-items:center;gap:14px;padding:16px 18px;border-radius:16px;margin-bottom:16px;border:1px solid #eab8b8;background:linear-gradient(90deg,#fdeceb,#fbdcdc)}
+.alert-banner.show{display:flex}
+.alert-banner.overdue{border-color:#df9c9c;background:linear-gradient(90deg,#f9d6d6,#f3bcbc)}
+.alert-banner .icon{width:40px;height:40px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;background:var(--warn-text);color:#fff;font-size:19px;font-weight:700}
+.alert-banner.overdue .icon{background:var(--warn-text-strong)}
+.alert-banner .count{font-size:24px;font-weight:700;color:var(--warn-text)}
+.alert-banner.overdue .count{color:var(--warn-text-strong)}
+.alert-banner .sub{font-size:13px;color:var(--muted);margin-top:2px}
+.alert-banner .spacer{flex:1}
+.toggle-btn{border:1px solid #dba3a3;background:#fff;color:var(--warn-text);border-radius:11px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+.toggle-btn.active{background:var(--warn-text);color:#fff;border-color:var(--warn-text)}
+
+.info{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.info-card{border:1px solid var(--line);border-radius:15px;padding:14px;background:#fff}
+.info-card .label{font-size:12px;color:var(--muted)}
+.info-card .value{font-size:22px;margin-top:4px}
+.info-card .value.rose{color:var(--rose-dark)}
+.section{border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:16px;background:#fff}
+.section h2{margin:0 0 14px;font-size:20px;color:#8c5d5f}
+.summary-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid #eee1da;padding:11px 9px;text-align:left}
+th{background:#fff8f5;color:#775f54;font-weight:600}
+.num{text-align:right}
+.badge{display:inline-block;padding:4px 9px;border-radius:999px;background:var(--rose-soft);color:#925f61;font-size:12px}
+.status-pill{display:inline-block;padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.status-pill.ok{background:var(--ok-bg);color:var(--ok-text)}
+.status-pill.pending{background:#f2ede7;color:var(--muted)}
+.status-pill.warn{background:var(--warn-bg);color:var(--warn-text)}
+.status-pill.overdue{background:var(--warn-bg-strong);color:var(--warn-text-strong)}
+tr.row-warn td{background:var(--warn-bg)}
+tr.row-overdue td{background:var(--warn-bg-strong)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-bottom:14px}
+button{border:0;border-radius:11px;padding:11px 15px;cursor:pointer;font:inherit}
+.secondary{background:#f3e8e2;color:#725b51}
+.primary{background:linear-gradient(#e49a9d,#cc7477);color:#fff}
+.search{width:100%;max-width:360px;padding:11px 12px;border:1px solid #ddcabe;border-radius:10px;font:inherit}
+.small{font-size:12px;color:var(--muted);margin-top:8px}
+.empty-note{padding:20px;text-align:center;color:var(--muted);font-size:14px}
+.registrant-form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.registrant-form input,.registrant-form select{padding:9px 10px;border:1px solid #ddcabe;border-radius:9px;font:inherit}
+.registrant-form input[type=text]{flex:1;min-width:140px}
+@media(max-width:800px){ .info{grid-template-columns:repeat(2,1fr)} .summary-grid{grid-template-columns:1fr} }
+@media(max-width:600px){
+  .info{grid-template-columns:1fr}
+  .table-wrap{overflow-x:auto}
+  table{min-width:760px}
+  .alert-banner{flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <header>
+      <div class="kicker">MEAL ORDER SUMMARY</div>
+      <h1>食事申込 集計ページ</h1>
+      <p>Supabaseに保存された食事申込データをもとに、公演ごとの集計・未入力者の確認ができます。</p>
+    </header>
+
+    <main>
+      <div id="loadingNote">読み込み中です…</div>
+      <div id="missingNote">URLに公演（?event_id=…）が指定されていません。管理者画面から発行した集計ページURLをお使いください。</div>
+
+      <div id="content" style="display:none">
+        <!-- 未入力警告バナー -->
+        <div class="alert-banner" id="alertBanner">
+          <div class="icon" id="alertIcon">!</div>
+          <div>
+            <div class="count"><span id="alertCount">0</span>名 <span id="alertLabel">未入力</span></div>
+            <div class="sub" id="alertSub"></div>
+          </div>
+          <div class="spacer"></div>
+          <button class="toggle-btn" id="filterBtn" type="button">未入力のみ表示</button>
+        </div>
+
+        <div class="actions">
+          <input class="search" id="search" placeholder="お名前で検索">
+          <button class="secondary" id="csvBtn">CSV出力</button>
+          <button class="primary" id="printBtn">印刷</button>
+        </div>
+
+        <section class="info">
+          <div class="info-card"><div class="label">公演</div><div class="value" id="eventLabel">―</div></div>
+          <div class="info-card"><div class="label">観劇会申込者数</div><div class="value rose" id="registrantCount">―</div></div>
+          <div class="info-card"><div class="label">食事入力完了</div><div class="value rose" id="completeCount">―</div></div>
+          <div class="info-card"><div class="label">食事代合計</div><div class="value rose" id="grandTotal">―</div></div>
+        </section>
+
+        <section class="section">
+          <h2>観劇会申込者一覧（未入力チェック用）</h2>
+          <div class="registrant-form">
+            <input type="text" id="regName" placeholder="お名前">
+            <select id="regCount"><option value="1">1人</option><option value="2">2人</option></select>
+            <input type="text" id="regRelation" placeholder="同伴者関係（2人の場合）">
+            <button class="secondary" id="regAddBtn" type="button">追加</button>
+          </div>
+          <div class="small">ここに観劇会申込者を登録しておくと、食事フォーム未入力者を自動判定して下の一覧に反映します（別システムの申込者一覧をお持ちの場合は、まとめて取り込む形に後日変更できます）。</div>
+        </section>
+
+        <section class="section">
+          <h2>申込者別 食事入力状況</h2>
+          <div class="table-wrap">
+            <table id="statusTable">
+              <thead>
+                <tr><th>代表者名</th><th>参加人数</th><th>同伴者関係</th><th>1人目 食事／飲み物</th><th>2人目 食事／飲み物</th><th>状況</th></tr>
+              </thead>
+              <tbody id="statusBody"></tbody>
+            </table>
+          </div>
+          <div class="empty-note" id="emptyNote" style="display:none">該当する申込者がいません。</div>
+          <div class="small">※1人参加は本人分、2人参加は本人分・同伴者分の両方が登録されて初めて「入力済み」となります。</div>
+        </section>
+
+        <section class="section">
+          <h2>メニュー別 集計</h2>
+          <div class="summary-grid">
+            <div class="table-wrap">
+              <table><thead><tr><th>メニュー</th><th class="num">数量</th><th class="num">単価</th><th class="num">小計</th></tr></thead><tbody id="menuSummary"></tbody></table>
+            </div>
+            <div class="table-wrap">
+              <table><thead><tr><th>飲み物</th><th class="num">数量</th></tr></thead><tbody id="drinkSummary"></tbody></table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+
+let sb = null;
+function waitForLibs(cb){
+  if(window.supabase && window.supabase.createClient){ cb(); }
+  else { setTimeout(()=>waitForLibs(cb), 100); }
+}
+</script>
+<script src="https://unpkg.com/@supabase/supabase-js@2" async></script>
+<script>
+let eventRow = null;
+let registrants = [];     // meal_registrants
+let orders = [];          // meal_orders (with items joined in)
+let filterUnfilledOnly = false;
+
+function yen(n){ return (n||0).toLocaleString("ja-JP") + "円"; }
+function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+function fmtDate(v){
+  if(!v) return "―";
+  const d = new Date(v + "T00:00:00");
+  return `${d.getMonth()+1}月${d.getDate()}日`;
+}
+function getEventId(){ return new URLSearchParams(window.location.search).get("event_id"); }
+
+async function init(){
+  const eventId = getEventId();
+  if(!eventId){
+    document.getElementById("loadingNote").style.display = "none";
+    document.getElementById("missingNote").style.display = "block";
+    return;
+  }
+  waitForLibs(async ()=>{
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    try{
+      const { data: ev, error: evErr } = await sb.from("meal_events").select("*").eq("id", eventId).single();
+      if(evErr || !ev) throw evErr || new Error("not found");
+      eventRow = ev;
+
+      await Promise.all([loadRegistrants(eventId), loadOrders(eventId)]);
+
+      document.getElementById("loadingNote").style.display = "none";
+      document.getElementById("content").style.display = "block";
+      document.getElementById("eventLabel").textContent = `${fmtDate(ev.performance_date)} ${ev.troupe || ""}`;
+      render();
+    }catch(err){
+      console.error(err);
+      document.getElementById("loadingNote").style.display = "none";
+      document.getElementById("missingNote").style.display = "block";
+    }
+  });
+}
+
+async function loadRegistrants(eventId){
+  const { data, error } = await sb.from("meal_registrants").select("*").eq("event_id", eventId).order("name");
+  if(error) throw error;
+  registrants = data || [];
+}
+
+async function loadOrders(eventId){
+  const { data: orderRows, error: orderErr } = await sb.from("meal_orders").select("*").eq("event_id", eventId);
+  if(orderErr) throw orderErr;
+  const { data: itemRows, error: itemErr } = await sb
+    .from("meal_order_items").select("*")
+    .in("meal_order_id", (orderRows||[]).map(o=>o.id).length ? (orderRows||[]).map(o=>o.id) : ["00000000-0000-0000-0000-000000000000"]);
+  if(itemErr) throw itemErr;
+
+  orders = (orderRows||[]).map(o=>{
+    const items = (itemRows||[]).filter(i=>i.meal_order_id === o.id).sort((a,b)=>a.person_no-b.person_no);
+    return Object.assign({}, o, { items });
+  });
+}
+
+function orderByName(name){
+  return orders.find(o => o.representative_name === name);
+}
+function personComplete(item){ return !!(item && item.menu_name && item.drink); }
+
+function isComplete(registrant){
+  const order = orderByName(registrant.name);
+  if(!order) return false;
+  for(let i=0;i<registrant.party_count;i++){
+    if(!personComplete(order.items[i])) return false;
+  }
+  return true;
+}
+
+function computeState(){
+  const today = startOfDay(new Date());
+  const diffDays = eventRow.deadline ? Math.round((startOfDay(new Date(eventRow.deadline+"T00:00:00")) - today)/86400000) : null;
+  const warningActive = diffDays !== null && diffDays <= 3;
+  const overdueActive = diffDays !== null && diffDays < 0;
+  return { today, diffDays, warningActive, overdueActive };
+}
+
+function rowStatus(registrant, state){
+  if(isComplete(registrant)) return "ok";
+  if(!state.warningActive) return "pending";
+  return state.overdueActive ? "overdue" : "warn";
+}
+
+function render(){
+  const state = computeState();
+  const q = document.getElementById("search").value.trim().toLowerCase();
+
+  let list = registrants.map(r => ({ r, status: rowStatus(r, state) }));
+  if(q) list = list.filter(x => x.r.name.toLowerCase().includes(q));
+  if(filterUnfilledOnly) list = list.filter(x => x.status === "warn" || x.status === "overdue");
+
+  const body = document.getElementById("statusBody");
+  body.innerHTML = "";
+  document.getElementById("emptyNote").style.display = list.length ? "none" : "block";
+
+  const pillMap = {
+    ok:['status-pill ok','入力済み'], pending:['status-pill pending','受付中'],
+    warn:['status-pill warn','未入力'], overdue:['status-pill overdue','締切超過・未入力']
+  };
+
+  list.forEach(({ r, status })=>{
+    const order = orderByName(r.name);
+    const i1 = order?.items?.[0], i2 = order?.items?.[1];
+    const tr = document.createElement("tr");
+    if(status === "warn") tr.className = "row-warn";
+    if(status === "overdue") tr.className = "row-overdue";
+    const [pillClass, pillLabel] = pillMap[status];
+    tr.innerHTML = `
+      <td>${r.name}</td>
+      <td>${r.party_count}名</td>
+      <td>${r.relation ? `<span class="badge">${r.relation}</span>` : "―"}</td>
+      <td>${i1 ? `${i1.menu_name||"―"} / ${i1.drink||"―"}` : "未入力"}</td>
+      <td>${r.party_count>=2 ? (i2 ? `${i2.menu_name||"―"} / ${i2.drink||"―"}` : "未入力") : "―"}</td>
+      <td><span class="${pillClass}">${pillLabel}</span></td>`;
+    body.appendChild(tr);
+  });
+
+  const statuses = registrants.map(r => rowStatus(r, state));
+  const unfilled = statuses.filter(s => s === "warn" || s === "overdue");
+  const overdueCount = statuses.filter(s => s === "overdue").length;
+  const banner = document.getElementById("alertBanner");
+  if(state.warningActive && unfilled.length > 0){
+    banner.classList.add("show");
+    banner.classList.toggle("overdue", overdueCount > 0);
+    document.getElementById("alertIcon").textContent = overdueCount > 0 ? "×" : "!";
+    document.getElementById("alertCount").textContent = unfilled.length;
+    document.getElementById("alertLabel").textContent = overdueCount > 0 ? "締切超過・未入力あり" : "未入力";
+    document.getElementById("alertSub").textContent = overdueCount > 0
+      ? "締め切りを過ぎても未入力の方がいます。至急ご連絡ください。"
+      : "締め切りが近づいています。未入力の方にご確認ください。";
+  } else {
+    banner.classList.remove("show");
+  }
+
+  document.getElementById("registrantCount").textContent = registrants.length + "名";
+  document.getElementById("completeCount").textContent =
+    registrants.filter(r=>isComplete(r)).length + "名 / " + registrants.length + "名";
+
+  const allItems = orders.flatMap(o=>o.items);
+  document.getElementById("grandTotal").textContent = yen(allItems.reduce((s,i)=>s+(i.price||0),0));
+
+  const menuMap = {};
+  allItems.forEach(i=>{
+    if(!i.menu_name) return;
+    if(!menuMap[i.menu_name]) menuMap[i.menu_name] = { qty:0, price:i.price };
+    menuMap[i.menu_name].qty++;
+  });
+  document.getElementById("menuSummary").innerHTML = Object.entries(menuMap).map(([name,v])=>
+    `<tr><td>${name}</td><td class="num">${v.qty}</td><td class="num">${yen(v.price)}</td><td class="num">${yen(v.qty*v.price)}</td></tr>`
+  ).join("");
+
+  const drinkMap = {};
+  allItems.forEach(i=>{ if(i.drink) drinkMap[i.drink] = (drinkMap[i.drink]||0)+1; });
+  document.getElementById("drinkSummary").innerHTML = Object.entries(drinkMap).map(([name,qty])=>
+    `<tr><td>${name}</td><td class="num">${qty}</td></tr>`
+  ).join("");
+}
+
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("filterBtn").addEventListener("click", ()=>{
+  filterUnfilledOnly = !filterUnfilledOnly;
+  document.getElementById("filterBtn").classList.toggle("active", filterUnfilledOnly);
+  document.getElementById("filterBtn").textContent = filterUnfilledOnly ? "すべて表示" : "未入力のみ表示";
+  render();
+});
+document.getElementById("printBtn").onclick = ()=> window.print();
+
+document.getElementById("regAddBtn").addEventListener("click", async ()=>{
+  const name = document.getElementById("regName").value.trim();
+  if(!name) return;
+  const count = Number(document.getElementById("regCount").value);
+  const relation = document.getElementById("regRelation").value.trim();
+  try{
+    const { error } = await sb.from("meal_registrants").upsert({
+      event_id: eventRow.id, name, party_count: count, relation
+    }, { onConflict: "event_id,name" });
+    if(error) throw error;
+    document.getElementById("regName").value = "";
+    document.getElementById("regRelation").value = "";
+    await loadRegistrants(eventRow.id);
+    render();
+  }catch(err){
+    console.error(err);
+    alert("登録者の追加に失敗しました。");
+  }
+});
+
+document.getElementById("csvBtn").onclick = ()=>{
+  const state = computeState();
+  const rows = [["代表者名","人数","同伴者関係","1人目食事","1人目飲み物","2人目食事","2人目飲み物","状況"]];
+  registrants.forEach(r=>{
+    const order = orderByName(r.name);
+    const i1 = order?.items?.[0] || {}, i2 = order?.items?.[1] || {};
+    const status = rowStatus(r, state);
+    const label = { ok:"入力済み", pending:"受付中", warn:"未入力", overdue:"締切超過・未入力" }[status];
+    rows.push([r.name, r.party_count, r.relation||"", i1.menu_name||"", i1.drink||"", i2.menu_name||"", i2.drink||"", label]);
+  });
+  const csv = rows.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\ufeff"+csv], { type:"text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "食事入力状況.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+init();
+</script>
+</body>
+</html>
