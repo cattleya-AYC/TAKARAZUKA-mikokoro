@@ -39,6 +39,13 @@
     border:1px solid var(--gold-soft); flex-shrink:0;
   }
 
+  .top-link-wrap{ max-width:480px; margin:0 auto; padding:0 18px; text-align:center; }
+  .top-link-btn{
+    display:inline-block; text-decoration:none; font-size:13px; font-weight:700;
+    color:var(--gold-soft); background:var(--navy-card); border:1px solid var(--gold);
+    border-radius:20px; padding:10px 20px; font-family:'Shippori Mincho', serif;
+  }
+
   .prev-card{
     max-width:480px; margin:16px auto 0; padding:14px 18px;
     background:var(--navy-card-2); border:1px solid var(--line); border-radius:10px;
@@ -134,7 +141,20 @@
   <div class="divider"><span class="gem"></span></div>
 </div>
 
+<div class="top-link-wrap">
+  <a href="admin-event-detail.html" class="top-link-btn">📋 これまでの公演の確認</a>
+</div>
+
 <div class="prev-card" id="prevCard">前回の開催情報を確認中…</div>
+
+<div class="agency-picker" id="editPicker" style="border-color:var(--gold-soft);">
+  <p class="agency-picker-label" style="color:var(--gold-soft);">✏️ 既存の開催回を選ぶと、修正登録モードになります</p>
+  <div class="agency-picker-list" id="editPickerList"><span style="font-size:12.5px;color:var(--muted);">読み込み中…</span></div>
+  <div id="editModeTag" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:var(--gold-soft);color:#fff;font-size:12.5px;font-weight:700;">
+    <span id="editModeLabel"></span>
+    <button type="button" id="cancelEditBtn" style="width:auto;margin:8px 0 0;padding:6px 12px;background:#fff;color:var(--gold-soft);font-size:12px;">新規登録に戻る</button>
+  </div>
+</div>
 
 <div class="agency-picker" id="agencyPicker" style="display:none;">
   <p class="agency-picker-label">📋 代理店からの確定データを選ぶと、下の項目に自動で入ります</p>
@@ -290,6 +310,96 @@
   }
   loadPreviousEvent();
 
+  // ---- 修正登録モード：既存の開催回を選んで編集できるようにする ----
+  let editingEventId = null;
+  let editingPosterUrl = null; // 編集時、新しい画像を選ばなければ既存のポスターを維持する
+
+  async function loadEditPicker(){
+    const list = document.getElementById('editPickerList');
+    try{
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('event_date', { ascending:false })
+        .limit(10);
+      if(error) throw error;
+      if(!data || data.length === 0){
+        list.innerHTML = '<span style="font-size:12.5px;color:var(--muted);">まだ開催回が登録されていません。</span>';
+        return;
+      }
+      list.innerHTML = data.map((ev,i)=>`
+        <button type="button" class="agency-picker-btn" data-index="${i}" style="border-color:var(--gold-soft);color:var(--gold-soft);">
+          第${ev.event_number ?? '?'}回 ${ev.troupe || ''}組 ${ev.event_date} ${ev.show_time || ''}
+        </button>
+      `).join('');
+      list.querySelectorAll('.agency-picker-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=> enterEditMode(data[Number(btn.dataset.index)]));
+      });
+    }catch(e){
+      list.innerHTML = '<span style="font-size:12.5px;color:var(--muted);">開催回一覧の取得に失敗しました。</span>';
+      console.warn(e);
+    }
+  }
+
+  function enterEditMode(ev){
+    editingEventId = ev.id;
+    editingPosterUrl = ev.poster_image_url || null;
+
+    document.getElementById('eventNumberInput').value = ev.event_number ?? '';
+    document.getElementById('troupeSelect').value = ev.troupe || '';
+    document.getElementById('eventDateInput').value = ev.event_date || '';
+    document.getElementById('showTimeSelect').value = ev.show_time || '';
+    document.getElementById('recruitmentStartInput').value = ev.recruitment_start_date ? ev.recruitment_start_date.slice(0,10) : '';
+    document.getElementById('deadlineInput').value = ev.application_deadline ? ev.application_deadline.slice(0,10) : '';
+    document.getElementById('seatTypeSelect').value = ev.seat_type || 'S席';
+    document.getElementById('capacityInput').value = ev.capacity ?? '';
+    document.getElementById('basePriceInput').value = ev.base_price ?? '';
+
+    // 手動入力済みの日付を自動上書きしないよう、開催日変更時の自動計算は
+    // このあとユーザーが開催日を変えた時だけ働く（recalcScheduleは呼ぶが値は上のセットが優先）
+    recalcSchedule();
+    document.getElementById('recruitmentStartInput').value = ev.recruitment_start_date ? ev.recruitment_start_date.slice(0,10) : document.getElementById('recruitmentStartInput').value;
+    document.getElementById('deadlineInput').value = ev.application_deadline ? ev.application_deadline.slice(0,10) : document.getElementById('deadlineInput').value;
+
+    menuList.innerHTML = '';
+    const menuOptions = (ev.meal_menu_options || []).filter(m => m.name !== '食事なし');
+    if(menuOptions.length){
+      menuOptions.forEach(m => addMenuRow(m.name, m.price));
+    } else {
+      addMenuRow();
+    }
+
+    const preview = document.getElementById('preview');
+    if(editingPosterUrl){
+      preview.src = editingPosterUrl;
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+    }
+
+    document.getElementById('editModeTag').style.display = 'block';
+    document.getElementById('editModeLabel').textContent =
+      `第${ev.event_number ?? '?'}回 ${ev.troupe || ''}組公演を編集中`;
+    document.getElementById('submitBtn').textContent = '修正登録する';
+  }
+
+  function exitEditMode(){
+    editingEventId = null;
+    editingPosterUrl = null;
+    document.getElementById('editModeTag').style.display = 'none';
+    document.getElementById('submitBtn').textContent = 'この内容で登録する';
+    document.getElementById('eventForm').reset();
+    menuList.innerHTML = '';
+    addMenuRow();
+    document.getElementById('preview').style.display = 'none';
+    document.getElementById('scheduleBox').style.display = 'none';
+    loadPreviousEvent();
+  }
+  document.getElementById('cancelEditBtn').addEventListener('click', exitEditMode);
+
+  loadEditPicker();
+
   // ---- 代理店からの確定データをボタンで選べるようにする ----
   async function loadAgencyPicker(){
     const picker = document.getElementById('agencyPicker');
@@ -427,12 +537,12 @@
       }
     }
 
-    btn.disabled = true; btn.textContent = '登録中…';
+    btn.disabled = true; btn.textContent = editingEventId ? '修正しています…' : '登録中…';
 
     try{
       const supabase = getSupabase();
       const fd = new FormData(form);
-      let posterUrl = null;
+      let posterUrl = editingEventId ? editingPosterUrl : null;
 
       const file = fileInput.files[0];
       if(file){
@@ -452,8 +562,7 @@
       });
 
       const title = `第${fd.get('event_number')}回 ${fd.get('troupe')}組観劇会`;
-
-      const { error: insErr } = await supabase.from('events').insert({
+      const payload = {
         title,
         event_number: Number(fd.get('event_number')),
         troupe: fd.get('troupe'),
@@ -466,24 +575,35 @@
         base_price: Number(fd.get('base_price')),
         meal_menu_options: menuOptions,
         poster_image_url: posterUrl
-      });
-      if(insErr) throw insErr;
+      };
 
-      statusMsg.classList.add('ok');
-      statusMsg.textContent = '登録が完了しました。申込フォームに反映されます。';
-      form.reset();
-      updateBasePrice();
-      preview.style.display = 'none';
-      menuList.innerHTML = '';
-      addMenuRow();
-      loadPreviousEvent();
+      if(editingEventId){
+        const { error: updErr } = await supabase.from('events').update(payload).eq('id', editingEventId);
+        if(updErr) throw updErr;
+        statusMsg.classList.add('ok');
+        statusMsg.textContent = '修正内容を保存しました。';
+        exitEditMode();
+        loadEditPicker();
+      } else {
+        const { error: insErr } = await supabase.from('events').insert(payload);
+        if(insErr) throw insErr;
+        statusMsg.classList.add('ok');
+        statusMsg.textContent = '登録が完了しました。申込フォームに反映されます。';
+        form.reset();
+        updateBasePrice();
+        preview.style.display = 'none';
+        menuList.innerHTML = '';
+        addMenuRow();
+        loadPreviousEvent();
+        loadEditPicker();
+      }
 
     } catch(err){
       console.error(err);
       statusMsg.classList.add('err');
-      statusMsg.textContent = '登録に失敗しました:' + (err.message || '');
+      statusMsg.textContent = (editingEventId ? '修正に失敗しました:' : '登録に失敗しました:') + (err.message || '');
     } finally {
-      btn.disabled = false; btn.textContent = 'この内容で登録する';
+      btn.disabled = false; btn.textContent = editingEventId ? '修正登録する' : 'この内容で登録する';
     }
   });
 </script>
