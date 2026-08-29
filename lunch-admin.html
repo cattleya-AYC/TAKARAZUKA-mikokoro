@@ -1,389 +1,427 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>観劇会 食事フォーム 管理者設定</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お食事フォーム設定(管理者用)</title>
+<link rel="icon" href="admin-icon.png">
+<link rel="apple-touch-icon" href="admin-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-:root{
-  --bg:#f7f1eb;
-  --paper:#fffdf9;
-  --ink:#49362d;
-  --muted:#8b776d;
-  --rose:#d8888c;
-  --rose-dark:#c96f73;
-  --rose-soft:#f7e6e2;
-  --gold:#c9a56b;
-  --line:#ead9cf;
-}
-*{box-sizing:border-box}
-body{
-  margin:0;
-  background:
-    radial-gradient(circle at 10% 0%,rgba(232,180,178,.17),transparent 25%),
-    radial-gradient(circle at 90% 0%,rgba(201,165,107,.12),transparent 25%),
-    var(--bg);
-  color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
-}
-.wrap{max-width:980px;margin:24px auto;padding:0 14px 40px}
-.panel{
-  background:var(--paper);
-  border:1px solid #efe1d8;
-  border-radius:24px;
-  box-shadow:0 16px 42px rgba(77,51,38,.11);
-  overflow:hidden;
-}
-header{
-  padding:30px 24px 24px;
-  background:linear-gradient(180deg,#fff,#fff9f6);
-  border-bottom:1px solid var(--line);
-}
-header .kicker{
-  font-family:"Yu Mincho","Hiragino Mincho ProN",serif;
-  color:var(--gold);
-  letter-spacing:.16em;
-  font-size:13px;
-  margin-bottom:5px;
-}
-header h1{margin:0 0 7px;font-family:"Yu Mincho","Hiragino Mincho ProN",serif;font-size:34px}
-header p{margin:0;color:var(--muted)}
-main{padding:20px}
-.section{
-  border:1px solid var(--line);
-  border-radius:18px;
-  padding:18px;
-  margin-bottom:16px;
-  background:#fff;
-}
-.section h2{margin:0 0 15px;font-size:20px;color:#8c5d5f}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
-input,select,textarea{
-  width:100%;padding:12px;border:1px solid #ddcabe;border-radius:11px;
-  background:#fff;color:var(--ink);font:inherit;
-}
-textarea{min-height:104px;resize:vertical}
-.menu-card{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fffaf7}
-.menu-card h3{margin:0 0 10px;font-size:16px}
-.preview{
-  width:100%;aspect-ratio:4/3;border:1px dashed #d8c3b7;border-radius:10px;
-  display:grid;place-items:center;overflow:hidden;background:#faf4ef;
-  margin:10px 0 0;color:#a18d83;font-size:12px;
-}
-.preview img{width:100%;height:100%;object-fit:cover}
-.help{margin-top:7px;color:var(--muted);font-size:12px;line-height:1.6}
-.copybox{background:linear-gradient(180deg,#fffdfa,#fff7f3);border:1px solid var(--line);border-radius:14px;padding:14px}
-.copybox textarea{min-height:280px;line-height:1.8;background:#fff}
-.actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
-button{border:0;border-radius:12px;padding:13px 18px;font:inherit;cursor:pointer}
-.secondary{background:#f3e8e2;color:#725b51}
-.primary{background:linear-gradient(#e49a9d,#cc7477);color:#fff}
-.primary:disabled{opacity:.5;cursor:not-allowed}
-.copy{width:100%;margin-top:10px;background:#f0ddd5;color:#704f45}
-.saved{display:none;padding:12px 14px;border-radius:10px;background:#f8eee9;margin-top:12px;font-size:14px;line-height:1.7}
-.saved.show{display:block}
-.saved a{color:#a85a52;font-weight:600;word-break:break-all}
-.error-box{display:none;padding:12px 14px;border-radius:10px;background:#fbe9e9;color:#8f3a3a;margin-top:12px;font-size:13px}
-.error-box.show{display:block}
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
+      var(--navy-deep);
+    color:var(--cream);
+    font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:36px 20px 18px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:22px; margin:8px 0 0; letter-spacing:.03em; }
+  .divider{ display:flex; align-items:center; justify-content:center; gap:10px; max-width:180px; margin:12px auto 0; opacity:.85; }
+  .divider::before, .divider::after{ content:""; flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); }
+  .divider .gem{ width:6px; height:6px; background:var(--gold); transform:rotate(45deg); border:1px solid var(--gold-soft); flex-shrink:0; }
 
-/* 逆算スケジュール */
-.schedule-table{width:100%;border-collapse:collapse;font-size:14px}
-.schedule-table th,.schedule-table td{padding:10px 9px;border-bottom:1px solid #eee1da;text-align:left}
-.schedule-table th{background:#fff8f5;color:#775f54;font-weight:600}
-.schedule-table td.date{font-weight:700;color:var(--rose-dark)}
-.schedule-table tr.today td{background:#fdf1ea}
-.schedule-empty{color:var(--muted);font-size:13px;padding:6px 2px}
-.status-tag{
-  font-size:11px;padding:3px 9px;border-radius:999px;background:var(--rose-soft);color:#8c5d5f;
-}
+  .top-link-wrap{ max-width:480px; margin:0 auto; padding:0 18px; text-align:center; }
+  .top-link-btn{
+    display:inline-block; text-decoration:none; font-size:13px; font-weight:700;
+    color:var(--gold-soft); background:var(--navy-card); border:1px solid var(--gold);
+    border-radius:20px; padding:10px 20px; font-family:'Shippori Mincho', serif;
+  }
 
-@media(max-width:800px){ .grid4{grid-template-columns:repeat(2,1fr)} }
-@media(max-width:620px){
-  .grid2,.grid4{grid-template-columns:1fr}
-  .schedule-table{font-size:12.5px}
-}
+  .event-picker, .agency-picker{
+    max-width:480px; margin:12px auto 0; padding:14px 18px;
+    background:var(--navy-card); border:1px solid var(--gold-soft); border-radius:10px;
+  }
+  .agency-picker{ border-color:var(--rose); }
+  .picker-label{ font-size:12px; color:var(--gold-soft); font-weight:700; margin:0 0 10px; }
+  .agency-picker .picker-label{ color:var(--rose); }
+  .picker-list{ display:flex; flex-wrap:wrap; gap:8px; }
+  .picker-btn{
+    font-size:12.5px; font-weight:700; padding:9px 13px; border-radius:8px;
+    background:var(--navy-card-2); border:1px solid var(--gold-soft); color:var(--gold-soft);
+    cursor:pointer; font-family:inherit;
+  }
+  .picker-btn:active{ background:var(--gold-soft); color:#fff; }
+  .agency-picker .picker-btn{ border-color:var(--rose); color:var(--rose); }
+  .agency-picker .picker-btn:active{ background:var(--rose); color:#fff; }
+  .picker-empty{ font-size:12.5px; color:var(--muted); }
+  .linked-tag{
+    display:inline-block; font-size:11.5px; font-weight:700; color:#fff; background:var(--ok);
+    border-radius:20px; padding:4px 12px; margin-top:8px;
+  }
+
+  .schedule-box{ margin-top:18px; padding:16px 16px 8px; border:1px solid var(--gold); border-radius:10px; background:var(--navy-card-2); }
+  .schedule-box-title{ font-size:12.5px; font-weight:700; color:var(--gold-soft); margin-bottom:10px; }
+  .schedule-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 2px; border-bottom:1px dashed var(--line); font-size:12.5px; color:var(--cream); }
+  .schedule-row:last-child{ border-bottom:none; }
+  .schedule-row b{ color:var(--gold-soft); font-weight:700; white-space:nowrap; }
+  .schedule-row.highlight{ background:rgba(165,84,74,0.08); border-radius:6px; padding:8px 6px; }
+  .schedule-row.highlight b{ color:var(--rose); }
+
+  form{ max-width:480px; margin:14px auto 0; padding:0 20px; }
+  .panel{
+    background:var(--navy-card); border:1px solid var(--gold);
+    box-shadow:inset 0 0 0 3px var(--navy-card), inset 0 0 0 4px var(--line);
+    border-radius:12px; padding:24px 22px;
+  }
+  label.field{ display:block; margin-bottom:16px; }
+  .lbl{ font-size:13px; margin-bottom:7px; display:block; color:var(--gold-soft); font-weight:700; }
+  input[type=text], input[type=number], input[type=date], select, textarea{
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line);
+    color:var(--cream); border-radius:8px; padding:11px 13px; font-size:15px; font-family:inherit;
+  }
+  input[type=date]{ -webkit-appearance:none; appearance:none; height:44px; line-height:1.2; box-sizing:border-box; }
+  input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 2px var(--line); }
+  ::placeholder{ color:var(--muted); opacity:1; }
+  input[type=file]{ color:var(--muted); font-size:13px; }
+  input[readonly]{ color:var(--muted); }
+  .note{ font-size:11.5px; color:var(--muted); margin-top:-8px; margin-bottom:14px; }
+  .row2{ display:flex; gap:10px; }
+  .row2 > label{ flex:1; }
+
+  .menu-card{ border:1px solid var(--line); border-radius:10px; padding:12px; background:var(--navy-card-2); margin-bottom:10px; }
+  .menu-card h3{ margin:0 0 10px; font-size:14px; color:var(--gold-soft); }
+  .preview{
+    width:100%; aspect-ratio:4/3; border:1px dashed var(--line); border-radius:8px;
+    display:grid; place-items:center; overflow:hidden; background:var(--navy-card);
+    margin:8px 0 0; color:var(--muted); font-size:12px;
+  }
+  .preview img{ width:100%; height:100%; object-fit:cover; }
+
+  .copybox{ background:var(--navy-card-2); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .copybox textarea{ min-height:260px; line-height:1.8; background:var(--navy-card); }
+  button{
+    width:100%; margin-top:6px;
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft);
+    color:#fffaf3; font-weight:700; border-radius:8px; padding:14px; font-size:15px; cursor:pointer;
+    font-family:'Shippori Mincho','Noto Sans JP',sans-serif; letter-spacing:.03em;
+  }
+  button.secondary{ background:var(--navy-card-2); color:var(--gold-soft); border:1px solid var(--gold-soft); }
+  button.copy{ background:var(--navy-card-2); color:var(--gold-soft); border:1px solid var(--gold-soft); }
+  button:disabled{ opacity:.5; }
+  .status{ text-align:center; font-size:13px; margin-top:14px; }
+  .status.ok{ color:var(--ok); }
+  .status.err{ color:var(--rose); }
+  .status a{ color:var(--gold-soft); word-break:break-all; }
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<div class="hero">
+  <div class="eyebrow">管理者用</div>
+  <h1>お食事フォーム設定</h1>
+  <div class="divider"><span class="gem"></span></div>
+</div>
+
+<div class="top-link-wrap">
+  <a href="admin-list.html" class="top-link-btn">📋 観劇会 申込者一覧へ</a>
+</div>
+
+<!-- ① 既存の観劇会から選ぶ（開催回データを自動取り込み） -->
+<div class="event-picker" id="eventPicker">
+  <p class="picker-label">🎭 登録済みの観劇会を選ぶと、組・開催日・公演時間・メニュー候補が自動で入ります</p>
+  <div class="picker-list" id="eventPickerList"><span class="picker-empty">読み込み中…</span></div>
+  <div id="linkedTag"></div>
+</div>
+
+<!-- ② 代理店からの確定データ（既存の代理店アプリと同じ仕組み） -->
+<div class="agency-picker" id="agencyPicker" style="display:none;">
+  <p class="picker-label">📋 代理店からの確定データを選ぶと、組・開催日・公演時間が自動で入ります</p>
+  <div class="picker-list" id="agencyPickerList"></div>
+</div>
+
+<form id="mealForm">
   <div class="panel">
-    <header>
-      <div class="kicker">THEATER LUNCH FORM ADMIN</div>
-      <h1>食事申込フォーム 管理者設定</h1>
-      <p>公演情報・店舗情報・最大4つのメニューを登録し、参加者用フォームとLINE案内文を作成します。</p>
-    </header>
 
-    <main>
-      <section class="section">
-        <h2>① 公演情報</h2>
-        <div class="grid2">
-          <div>
-            <label>公演日（開催日）</label>
-            <input type="date" id="performanceDate">
-          </div>
-          <div>
-            <label>組</label>
-            <input id="troupe" placeholder="例：星組">
-          </div>
-          <div>
-            <label>公演名</label>
-            <input id="performanceName" placeholder="例：〇〇〇〇">
-          </div>
-          <div>
-            <label>公演時間</label>
-            <select id="performanceTime">
-              <option value="13:00">13:00公演</option>
-              <option value="11:00">11:00公演</option>
-              <option value="other">その他</option>
-            </select>
-          </div>
-          <div>
-            <label>登録締め切り（食事メニュー登録締め切り）</label>
-            <input type="date" id="deadline">
-            <div class="help">公演日を入力すると「開催日の46日前」を自動セットします。必要に応じて手動で変更できます。</div>
-          </div>
-          <div>
-            <label>参加者用フォームURL</label>
-            <input id="formUrl" placeholder="保存すると自動発行されます" readonly>
-          </div>
-        </div>
-      </section>
+    <div class="row2">
+      <label class="field">
+        <span class="lbl">組</span>
+        <input type="text" id="troupeInput" placeholder="例:星" readonly>
+      </label>
+      <label class="field">
+        <span class="lbl">公演時間</span>
+        <input type="text" id="showTimeInput" placeholder="例:13:00" readonly>
+      </label>
+    </div>
 
-      <!-- ここが今回追加した「開催日から逆算したスケジュール」 -->
-      <section class="section">
-        <h2>② 開催日から逆算したスケジュール <span class="status-tag">自動計算</span></h2>
-        <div id="scheduleWrap">
-          <div class="schedule-empty" id="scheduleEmpty">公演日を入力すると、募集開始〜席札作成までのスケジュールを自動計算して表示します。</div>
-          <table class="schedule-table" id="scheduleTable" style="display:none">
-            <thead><tr><th>項目</th><th>開催日からの目安</th><th>日付</th></tr></thead>
-            <tbody id="scheduleBody"></tbody>
-          </table>
-        </div>
-        <div class="help">本日が該当する行は薄いオレンジ色で強調表示されます。</div>
-      </section>
+    <label class="field">
+      <span class="lbl">開催日</span>
+      <input type="date" id="eventDateInput" readonly>
+    </label>
+    <p class="note">上の「登録済みの観劇会」または「代理店確定データ」から選ぶと入ります。手入力はできません（既存の観劇会データとのズレを防ぐためです）。</p>
 
-      <section class="section">
-        <h2>③ 集合情報</h2>
-        <div class="grid2">
-          <div>
-            <label>集合時間</label>
-            <input id="meetingTime" value="11:30">
-            <div class="help">13時公演→11:30、11時公演→14:30を自動入力</div>
-          </div>
-          <div>
-            <label>集合場所</label>
-            <input id="meetingPlace" value="店の前">
-          </div>
-        </div>
-      </section>
+    <label class="field">
+      <span class="lbl">お食事メニュー登録締め切り</span>
+      <input type="date" id="deadlineInput">
+      <p class="note">開催日の42日前（食事メニュー申込締切の目安）を自動セットします。必要なら変更できます。</p>
+    </label>
 
-      <section class="section">
-        <h2>④ 店舗情報</h2>
-        <div class="grid2">
-          <div>
-            <label>店名</label>
-            <input id="restaurantName" placeholder="例：レストラン フェリエ">
-          </div>
-          <div>
-            <label>店舗写真</label>
-            <input type="file" accept="image/*" id="restaurantImage">
-          </div>
-        </div>
-        <div class="preview" id="restaurantPreview">店舗写真プレビュー</div>
-        <div class="help">保存時にSupabase Storageへアップロードし、参加者フォームにはその公開URLを表示します。</div>
-      </section>
+    <div class="schedule-box" id="scheduleBox" style="display:none;">
+      <div class="schedule-box-title">📅 この開催日をもとにした運営スケジュール(目安)</div>
+      <div class="schedule-row"><span>募集開始</span><b id="schStart"></b></div>
+      <div class="schedule-row"><span>観劇会申込締切(参加者決定)</span><b id="schDeadline"></b></div>
+      <div class="schedule-row"><span>食事フォーム入力開始</span><b id="schMealStart"></b></div>
+      <div class="schedule-row"><span>食事メニュー申込締切</span><b id="schMealDeadline"></b></div>
+      <div class="schedule-row"><span>振込案内開始</span><b id="schPayStart"></b></div>
+      <div class="schedule-row"><span>入金締切</span><b id="schPayDeadline"></b></div>
+      <div class="schedule-row highlight"><span>開催日</span><b id="schEventDate"></b></div>
+      <div class="schedule-row"><span>席札作成</span><b id="schNamecard"></b></div>
+    </div>
 
-      <section class="section">
-        <h2>⑤ メニュー登録（最大4個）</h2>
-        <div class="grid4">
-          <div class="menu-card">
-            <h3>メニュー1</h3>
-            <label>メニュー名</label>
-            <input id="menu1Name" placeholder="ヒレカツカレーセット">
-            <label style="margin-top:9px">価格</label>
-            <input type="number" id="menu1Price" placeholder="1850">
-            <label style="margin-top:9px">写真</label>
-            <input type="file" accept="image/*" id="menu1Image">
-            <div class="preview" id="menu1Preview">画像プレビュー</div>
-          </div>
-          <div class="menu-card">
-            <h3>メニュー2</h3>
-            <label>メニュー名</label>
-            <input id="menu2Name" placeholder="ハンバーグドリアセット">
-            <label style="margin-top:9px">価格</label>
-            <input type="number" id="menu2Price" placeholder="1850">
-            <label style="margin-top:9px">写真</label>
-            <input type="file" accept="image/*" id="menu2Image">
-            <div class="preview" id="menu2Preview">画像プレビュー</div>
-          </div>
-          <div class="menu-card">
-            <h3>メニュー3</h3>
-            <label>メニュー名</label>
-            <input id="menu3Name" placeholder="ミックスサンドイッチセット">
-            <label style="margin-top:9px">価格</label>
-            <input type="number" id="menu3Price" placeholder="1450">
-            <label style="margin-top:9px">写真</label>
-            <input type="file" accept="image/*" id="menu3Image">
-            <div class="preview" id="menu3Preview">画像プレビュー</div>
-          </div>
-          <div class="menu-card">
-            <h3>メニュー4</h3>
-            <label>メニュー名</label>
-            <input id="menu4Name" placeholder="ハンバーグプレートセット">
-            <label style="margin-top:9px">価格</label>
-            <input type="number" id="menu4Price" placeholder="1800">
-            <label style="margin-top:9px">写真</label>
-            <input type="file" accept="image/*" id="menu4Image">
-            <div class="preview" id="menu4Preview">画像プレビュー</div>
-          </div>
-        </div>
-        <div class="help">使わないメニュー欄は空欄のままでOK。参加者用フォームには入力済みメニューだけ表示します。</div>
-      </section>
+    <label class="field" style="margin-top:16px">
+      <span class="lbl">集合時間</span>
+      <input type="text" id="meetingTimeInput" placeholder="例:11:30">
+      <p class="note">13時公演→11:30、11時公演→14:30を目安に自動入力(手動変更可)</p>
+    </label>
+    <label class="field">
+      <span class="lbl">集合場所</span>
+      <input type="text" id="meetingPlaceInput" value="店の前">
+    </label>
 
-      <section class="section">
-        <h2>⑥ LINEコピペ用メッセージ</h2>
-        <div class="copybox">
-          <textarea id="lineMessage"></textarea>
-          <button class="copy" type="button" id="copyBtn">LINE用メッセージをコピー</button>
-        </div>
-        <div class="help">保存すると発行されたフォームURLが自動的に文中へ入ります。</div>
-      </section>
+    <label class="field">
+      <span class="lbl">店名</span>
+      <input type="text" id="restaurantNameInput" placeholder="例:レストラン フェリエ">
+    </label>
+    <label class="field">
+      <span class="lbl">店舗写真</span>
+      <input type="file" accept="image/*" id="restaurantImageInput">
+      <div class="preview" id="restaurantPreview">店舗写真プレビュー</div>
+    </label>
 
-      <div class="actions">
-        <button class="secondary" type="button" id="previewBtn">参加者フォームをプレビュー</button>
-        <button class="primary" type="button" id="saveBtn">保存してフォームを作成</button>
-      </div>
-      <div class="saved" id="saved"></div>
-      <div class="error-box" id="errorBox"></div>
-    </main>
+    <div id="menuCards"></div>
+    <p class="note">組を選ぶと、開催回登録時に入力したメニュー候補（名前・価格）が自動で入ります。写真はここで追加してください。</p>
+
+    <div class="actions">
+      <button type="button" class="secondary" id="previewBtn">参加者フォームをプレビュー</button>
+      <button type="button" id="saveBtn">保存してフォームを作成</button>
+    </div>
+    <p class="status" id="statusMsg"></p>
+  </div>
+</form>
+
+<div style="max-width:480px;margin:16px auto 0;padding:0 20px;">
+  <div class="copybox" id="lineBox" style="display:none">
+    <p class="lbl" style="margin-bottom:10px">LINEコピペ用メッセージ</p>
+    <textarea id="lineMessage" readonly></textarea>
+    <button type="button" class="copy" id="copyBtn">LINE用メッセージをコピー</button>
   </div>
 </div>
 
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
-/* =========================================================
-   Supabase 接続設定
-   （まりさんの既存プロジェクトの認証情報を利用しています。
-    このメール申込機能を別のSupabaseプロジェクトに分けたい場合は
-    ここのURL・キーを差し替えてください）
-   ========================================================= */
-const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  const PARTICIPANT_FORM_BASE = "https://takarazuka-mikokoro.vercel.app/lunch-entry.html";
+  let sb = null;
 
-// 参加者フォームのURL（デプロイ先に合わせて変更してください）
-const PARTICIPANT_FORM_BASE = "https://takarazuka-mikokoro.vercel.app/lunch-entry.html";
+  window.addEventListener('error', (ev)=>{
+    const box = document.getElementById('statusMsg');
+    box.classList.add('err');
+    box.textContent = '予期しないエラー:' + (ev.message || '');
+  });
 
-let sb = null;
-function waitForLibs(cb){
-  if(window.supabase && window.supabase.createClient){ cb(); }
-  else { setTimeout(()=>waitForLibs(cb), 100); }
-}
-</script>
-<script src="https://unpkg.com/@supabase/supabase-js@2" async></script>
-<script>
-waitForLibs(()=>{
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-});
-
-/* =========================================================
-   ① 開催日から逆算したスケジュール（今回の追加機能）
-   ========================================================= */
-const SCHEDULE_ITEMS = [
-  { label:"募集開始",              offset:-65 },
-  { label:"観劇会申込締切",         offset:-57 },
-  { label:"食事フォーム入力開始",   offset:-53 },
-  { label:"食事メニュー登録締め切り", offset:-46 },
-  { label:"振込案内開始",           offset:-44 },
-  { label:"入金締切",              offset:-30 },
-  { label:"開催日",                offset:0 },
-  { label:"席札・名刺作成",         offset:-3 }
-];
-
-function addDays(date, days){
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-function fmtFull(d){
-  const w = ["日","月","火","水","木","金","土"][d.getDay()];
-  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${w}）`;
-}
-function sameDay(a,b){
-  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
-}
-
-function renderSchedule(){
-  const val = document.getElementById("performanceDate").value;
-  const empty = document.getElementById("scheduleEmpty");
-  const table = document.getElementById("scheduleTable");
-  const body = document.getElementById("scheduleBody");
-
-  if(!val){
-    empty.style.display = "block";
-    table.style.display = "none";
-    return;
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('ライブラリの読み込みに失敗しました。再読み込みしてください。'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
   }
-  const eventDate = new Date(val + "T00:00:00");
-  const today = new Date(); today.setHours(0,0,0,0);
 
-  body.innerHTML = SCHEDULE_ITEMS.map(item=>{
-    const d = addDays(eventDate, item.offset);
-    const offsetLabel = item.offset === 0 ? "―" : `${Math.abs(item.offset)}日前`;
-    const isToday = sameDay(d, today);
-    return `<tr class="${isToday ? "today" : ""}">
-      <td>${item.label}</td>
-      <td>${offsetLabel}</td>
-      <td class="date">${fmtFull(d)}${isToday ? "　← 本日" : ""}</td>
-    </tr>`;
-  }).join("");
+  let selectedEvent = null; // events テーブルの行（食事フォームの元にする公演）
 
-  empty.style.display = "none";
-  table.style.display = "table";
-
-  // 食事メニュー登録締め切りを自動でデフォルト提案（未入力の時だけ）
-  const deadlineInput = document.getElementById("deadline");
-  if(!deadlineInput.dataset.userEdited){
-    const suggested = addDays(eventDate, -46);
-    deadlineInput.value = suggested.toISOString().slice(0,10);
+  // ---- ① 登録済みの観劇会（events）を選択肢として表示 ----
+  async function loadEventPicker(){
+    const list = document.getElementById('eventPickerList');
+    try{
+      const { data, error } = await sb
+        .from('events')
+        .select('id, event_number, troupe, event_date, show_time, meal_menu_options')
+        .order('event_date', { ascending:false })
+        .limit(10);
+      if(error) throw error;
+      if(!data || data.length === 0){
+        list.innerHTML = '<span class="picker-empty">まだ観劇会が登録されていません。先に「開催回 新規登録」から観劇会を作成してください。</span>';
+        return;
+      }
+      list.innerHTML = data.map((ev,i)=>`
+        <button type="button" class="picker-btn" data-index="${i}">
+          第${ev.event_number || '?'}回 ${ev.troupe || ''}組 ${ev.event_date} ${ev.show_time || ''}
+        </button>
+      `).join('');
+      list.querySelectorAll('.picker-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=> applyEvent(data[Number(btn.dataset.index)]));
+      });
+    }catch(e){
+      list.innerHTML = '<span class="picker-empty">観劇会一覧の取得に失敗しました。</span>';
+      console.error(e);
+    }
   }
-}
-document.getElementById("performanceDate").addEventListener("input", ()=>{
-  renderSchedule();
-  updateLineMessage();
-});
-document.getElementById("deadline").addEventListener("input", (e)=>{
-  e.target.dataset.userEdited = "1"; // 手動変更したら自動上書きを止める
-  updateLineMessage();
-});
 
-/* =========================================================
-   ② LINEコピペ用メッセージ
-   ========================================================= */
-function fmtDate(v){
-  if(!v) return "○月○日";
-  const d = new Date(v + "T00:00:00");
-  return `${d.getMonth()+1}月${d.getDate()}日`;
-}
-function syncMeetingTime(){
-  const v=document.getElementById("performanceTime").value;
-  if(v==="13:00") document.getElementById("meetingTime").value="11:30";
-  else if(v==="11:00") document.getElementById("meetingTime").value="14:30";
-  updateLineMessage();
-}
-function updateLineMessage(){
-  const date=fmtDate(document.getElementById("performanceDate").value);
-  const troupe=document.getElementById("troupe").value.trim() || "○○組";
-  const perf=document.getElementById("performanceName").value.trim();
-  const deadline=fmtDate(document.getElementById("deadline").value);
-  const place=document.getElementById("meetingPlace").value.trim() || "店の前";
-  const time=document.getElementById("meetingTime").value.trim() || "○時○分";
-  const url=document.getElementById("formUrl").value.trim() || "【保存すると発行されるURL】";
+  function applyEvent(ev){
+    selectedEvent = ev;
+    document.getElementById('troupeInput').value = ev.troupe || '';
+    document.getElementById('showTimeInput').value = ev.show_time || '';
+    document.getElementById('eventDateInput').value = ev.event_date || '';
+    document.getElementById('linkedTag').innerHTML =
+      `<span class="linked-tag">✓ 第${ev.event_number || '?'}回 ${ev.troupe || ''}組公演にリンク済み</span>`;
 
-  const title = perf ? `${date} ${troupe}「${perf}」公演観劇会` : `${date} ${troupe}公演観劇会`;
+    // メニュー候補（「食事なし」は除く）を自動反映
+    const options = (ev.meal_menu_options || []).filter(m => m.name !== '食事なし');
+    renderMenuCards(options);
 
-  document.getElementById("lineMessage").value =
-`${title}にお申し込みいただき、ありがとうございます。
+    syncMeetingTime();
+    recalcSchedule();
+    updateLineMessage();
+  }
+
+  // ---- ② 代理店確定データからも組・開催日・公演時間を自動入力できるようにする ----
+  async function loadAgencyPicker(){
+    const picker = document.getElementById('agencyPicker');
+    const list = document.getElementById('agencyPickerList');
+    try{
+      const { data, error } = await sb
+        .from('agency_confirmations')
+        .select('troupe, event_date, show_time, seat_type, confirmed_count')
+        .order('event_date', { ascending: false })
+        .limit(10);
+      if(error || !data || data.length === 0) return;
+
+      list.innerHTML = data.map((row, i) => `
+        <button type="button" class="picker-btn" data-index="${i}">
+          ${row.troupe}組 ${row.event_date} ${row.show_time || ''} ${row.seat_type}(${row.confirmed_count}枚)
+        </button>
+      `).join('');
+      picker.style.display = 'block';
+
+      list.querySelectorAll('.picker-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const row = data[Number(btn.dataset.index)];
+          document.getElementById('troupeInput').value = row.troupe || '';
+          document.getElementById('showTimeInput').value = row.show_time || '';
+          document.getElementById('eventDateInput').value = row.event_date || '';
+          document.getElementById('linkedTag').innerHTML =
+            '<span class="linked-tag" style="background:var(--rose)">代理店データから入力(観劇会は未リンク)</span>';
+          selectedEvent = null; // 代理店データだけでは events.id が分からないため未リンク扱い
+          syncMeetingTime();
+          recalcSchedule();
+          updateLineMessage();
+        });
+      });
+    } catch(e){ console.warn('代理店データの取得に失敗しました', e); }
+  }
+
+  // ---- メニューカード（写真だけここで追加する） ----
+  function renderMenuCards(options){
+    const wrap = document.getElementById('menuCards');
+    const list = options.length ? options : [{ name:'', price:'' }];
+    wrap.innerHTML = list.slice(0,4).map((m,i)=>`
+      <div class="menu-card">
+        <h3>メニュー${i+1}</h3>
+        <label class="lbl">メニュー名</label>
+        <input type="text" class="menuName" value="${m.name || ''}" placeholder="例:ヒレカツカレーセット">
+        <label class="lbl" style="margin-top:8px">価格</label>
+        <input type="number" class="menuPrice" value="${m.price || ''}" placeholder="例:1850">
+        <label class="lbl" style="margin-top:8px">写真</label>
+        <input type="file" accept="image/*" class="menuImage">
+        <div class="preview">画像プレビュー</div>
+      </div>
+    `).join('');
+    wrap.querySelectorAll('.menu-card').forEach(card=>{
+      const input = card.querySelector('.menuImage');
+      const preview = card.querySelector('.preview');
+      input.addEventListener('change', ()=>{
+        const f = input.files[0];
+        if(f){ preview.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="">`; }
+      });
+    });
+  }
+
+  // ---- 集合時間の自動セット ----
+  function syncMeetingTime(){
+    const t = document.getElementById('showTimeInput').value;
+    if(t === '13:00') document.getElementById('meetingTimeInput').value = '11:30';
+    else if(t === '11:00') document.getElementById('meetingTimeInput').value = '14:30';
+  }
+
+  // ---- 開催日から逆算したスケジュール（実際の運用スケジュールに合わせた日数） ----
+  function fmtDate(d){
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function fmtDateJpShort(d){
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getMonth()+1}/${d.getDate()}(${w})`;
+  }
+  function addDays(base, diff){ const d = new Date(base.getTime()); d.setDate(d.getDate()+diff); return d; }
+
+  function recalcSchedule(){
+    const val = document.getElementById('eventDateInput').value;
+    if(!val){ document.getElementById('scheduleBox').style.display = 'none'; return; }
+    const eventDate = new Date(val + 'T00:00:00');
+
+    const recruitmentStart = addDays(eventDate, -59);
+    const applyDeadline    = addDays(eventDate, -51);
+    const mealFormStart    = addDays(eventDate, -49);
+    const mealDeadline     = addDays(eventDate, -42);
+    const paymentStart     = addDays(eventDate, -40);
+    const paymentDeadline  = addDays(eventDate, -30);
+    const namecardPrep     = addDays(eventDate, -3);
+
+    document.getElementById('schStart').textContent = fmtDateJpShort(recruitmentStart);
+    document.getElementById('schDeadline').textContent = fmtDateJpShort(applyDeadline);
+    document.getElementById('schMealStart').textContent = fmtDateJpShort(mealFormStart);
+    document.getElementById('schMealDeadline').textContent = fmtDateJpShort(mealDeadline);
+    document.getElementById('schPayStart').textContent = fmtDateJpShort(paymentStart);
+    document.getElementById('schPayDeadline').textContent = fmtDateJpShort(paymentDeadline);
+    document.getElementById('schEventDate').textContent = fmtDateJpShort(eventDate);
+    document.getElementById('schNamecard').textContent = fmtDateJpShort(namecardPrep);
+    document.getElementById('scheduleBox').style.display = 'block';
+
+    // 食事メニュー登録締め切りを自動提案（未入力/未編集の時だけ）
+    const deadlineInput = document.getElementById('deadlineInput');
+    if(!deadlineInput.dataset.userEdited){
+      deadlineInput.value = fmtDate(mealDeadline);
+    }
+  }
+  document.getElementById('deadlineInput').addEventListener('input', e=>{
+    e.target.dataset.userEdited = '1';
+    updateLineMessage();
+  });
+
+  // ---- LINEコピペ用メッセージ ----
+  function fmtDateJp(v){
+    if(!v) return '○月○日';
+    const d = new Date(v + 'T00:00:00');
+    return `${d.getMonth()+1}月${d.getDate()}日`;
+  }
+  function updateLineMessage(){
+    const box = document.getElementById('lineBox');
+    const url = document.getElementById('lineMessage')._formUrl || '';
+    if(!url){ box.style.display = 'none'; return; }
+    const date = fmtDateJp(document.getElementById('eventDateInput').value);
+    const troupe = document.getElementById('troupeInput').value || '○○組';
+    const deadline = fmtDateJp(document.getElementById('deadlineInput').value);
+    const place = document.getElementById('meetingPlaceInput').value.trim() || '店の前';
+    const time = document.getElementById('meetingTimeInput').value.trim() || '○時○分';
+
+    document.getElementById('lineMessage').value =
+`${date} ${troupe}公演観劇会にお申し込みいただき、ありがとうございます。
 
 下記フォームより、当日のお食事メニューとドリンクをお選びください。
 
@@ -401,149 +439,115 @@ ${time}
 
 当日は上記の場所・時間にお集まりください。
 どうぞよろしくお願いいたします。`;
-}
-["troupe","performanceName","meetingPlace","meetingTime","formUrl"]
-  .forEach(id=>document.getElementById(id).addEventListener("input",updateLineMessage));
-document.getElementById("performanceTime").addEventListener("change",syncMeetingTime);
+    box.style.display = 'block';
+  }
 
-/* =========================================================
-   ③ 画像プレビュー
-   ========================================================= */
-function filePreview(inputId, previewId){
-  document.getElementById(inputId).addEventListener("change",e=>{
-    const f=e.target.files?.[0];
-    if(!f) return;
-    const url=URL.createObjectURL(f);
-    document.getElementById(previewId).innerHTML=`<img src="${url}" alt="">`;
+  document.getElementById('copyBtn').addEventListener('click', async ()=>{
+    const ta = document.getElementById('lineMessage');
+    try{
+      await navigator.clipboard.writeText(ta.value);
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'コピーしました';
+      setTimeout(()=> btn.textContent = 'LINE用メッセージをコピー', 1600);
+    }catch(e){ ta.select(); document.execCommand('copy'); }
   });
-}
-filePreview("restaurantImage","restaurantPreview");
-[1,2,3,4].forEach(i=>filePreview(`menu${i}Image`,`menu${i}Preview`));
 
-document.getElementById("copyBtn").addEventListener("click",async()=>{
-  const ta=document.getElementById("lineMessage");
-  try{
-    await navigator.clipboard.writeText(ta.value);
-    document.getElementById("copyBtn").textContent="コピーしました";
-    setTimeout(()=>document.getElementById("copyBtn").textContent="LINE用メッセージをコピー",1600);
-  }catch(e){
-    ta.select();
-    document.execCommand("copy");
-  }
-});
+  // ---- 店舗写真プレビュー ----
+  document.getElementById('restaurantImageInput').addEventListener('change', e=>{
+    const f = e.target.files[0];
+    if(f){ document.getElementById('restaurantPreview').innerHTML = `<img src="${URL.createObjectURL(f)}" alt="">`; }
+  });
 
-/* =========================================================
-   ④ Supabaseへの保存
-     ・画像がある場合は Storage の "meal-photos" バケットへアップロード
-     ・meal_events → meal_menus の順で保存
-     ・保存後、参加者用フォームURL（?event_id=...）を発行して表示
-   ========================================================= */
-async function uploadImage(file, pathPrefix){
-  if(!file) return null;
-  const ext = file.name.split(".").pop();
-  const path = `${pathPrefix}-${Date.now()}.${ext}`;
-  const { error } = await sb.storage.from("meal-photos").upload(path, file, { upsert:true });
-  if(error){ throw error; }
-  const { data } = sb.storage.from("meal-photos").getPublicUrl(path);
-  return data.publicUrl;
-}
-
-document.getElementById("saveBtn").addEventListener("click", async ()=>{
-  const errorBox = document.getElementById("errorBox");
-  const saved = document.getElementById("saved");
-  errorBox.classList.remove("show");
-  saved.classList.remove("show");
-
-  if(!sb){
-    errorBox.textContent = "Supabaseへの接続準備中です。数秒後にもう一度お試しください。";
-    errorBox.classList.add("show");
-    return;
-  }
-  const performanceDate = document.getElementById("performanceDate").value;
-  if(!performanceDate){
-    errorBox.textContent = "公演日を入力してください。";
-    errorBox.classList.add("show");
-    return;
+  // ---- 保存 ----
+  async function uploadImage(file, pathPrefix){
+    if(!file) return null;
+    const ext = file.name.split('.').pop();
+    const path = `${pathPrefix}-${Date.now()}.${ext}`;
+    const { error } = await sb.storage.from('meal-photos').upload(path, file, { upsert:true });
+    if(error) throw error;
+    const { data } = sb.storage.from('meal-photos').getPublicUrl(path);
+    return data.publicUrl;
   }
 
-  const saveBtn = document.getElementById("saveBtn");
-  saveBtn.disabled = true;
-  saveBtn.textContent = "保存しています…";
+  document.getElementById('saveBtn').addEventListener('click', async ()=>{
+    const statusMsg = document.getElementById('statusMsg');
+    statusMsg.className = 'status'; statusMsg.textContent = '';
 
-  try{
-    const restaurantFile = document.getElementById("restaurantImage").files[0];
-    const restaurantPhotoUrl = restaurantFile ? await uploadImage(restaurantFile, "restaurant") : null;
-
-    const eventPayload = {
-      performance_date: performanceDate,
-      troupe: document.getElementById("troupe").value.trim(),
-      performance_name: document.getElementById("performanceName").value.trim(),
-      performance_time: document.getElementById("performanceTime").value,
-      deadline: document.getElementById("deadline").value || null,
-      meeting_time: document.getElementById("meetingTime").value.trim(),
-      meeting_place: document.getElementById("meetingPlace").value.trim(),
-      restaurant_name: document.getElementById("restaurantName").value.trim(),
-      restaurant_photo_url: restaurantPhotoUrl
-    };
-
-    const { data: eventRow, error: eventError } = await sb
-      .from("meal_events")
-      .insert(eventPayload)
-      .select()
-      .single();
-    if(eventError) throw eventError;
-
-    const menuInputs = [1,2,3,4]
-      .map(i=>({
-        name: document.getElementById(`menu${i}Name`).value.trim(),
-        price: Number(document.getElementById(`menu${i}Price`).value || 0),
-        file: document.getElementById(`menu${i}Image`).files[0],
-        sort_order: i
-      }))
-      .filter(m=>m.name);
-
-    const menuRows = [];
-    for(const m of menuInputs){
-      const photoUrl = m.file ? await uploadImage(m.file, `menu-${eventRow.id}-${m.sort_order}`) : null;
-      menuRows.push({
-        event_id: eventRow.id,
-        name: m.name,
-        price: m.price,
-        photo_url: photoUrl,
-        sort_order: m.sort_order,
-        active: true
-      });
+    if(!selectedEvent){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '先に「登録済みの観劇会」から公演を選んでください(代理店データだけでは保存できません)。';
+      return;
     }
-    if(menuRows.length){
-      const { error: menuError } = await sb.from("meal_menus").insert(menuRows);
-      if(menuError) throw menuError;
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true; saveBtn.textContent = '保存しています…';
+
+    try{
+      const restaurantFile = document.getElementById('restaurantImageInput').files[0];
+      const restaurantPhotoUrl = restaurantFile ? await uploadImage(restaurantFile, `restaurant-${selectedEvent.id}`) : null;
+
+      const { error: settingsErr } = await sb.from('meal_settings').upsert({
+        event_id: selectedEvent.id,
+        deadline: document.getElementById('deadlineInput').value || null,
+        meeting_time: document.getElementById('meetingTimeInput').value.trim(),
+        meeting_place: document.getElementById('meetingPlaceInput').value.trim(),
+        restaurant_name: document.getElementById('restaurantNameInput').value.trim(),
+        restaurant_photo_url: restaurantPhotoUrl,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'event_id' });
+      if(settingsErr) throw settingsErr;
+
+      // 既存メニューを入れ替え
+      await sb.from('meal_menus').delete().eq('event_id', selectedEvent.id);
+      const cards = Array.from(document.querySelectorAll('#menuCards .menu-card'));
+      const menuRows = [];
+      for(let i=0;i<cards.length;i++){
+        const name = cards[i].querySelector('.menuName').value.trim();
+        if(!name) continue;
+        const price = Number(cards[i].querySelector('.menuPrice').value || 0);
+        const file = cards[i].querySelector('.menuImage').files[0];
+        const photoUrl = file ? await uploadImage(file, `menu-${selectedEvent.id}-${i}`) : null;
+        menuRows.push({ event_id:selectedEvent.id, name, price, photo_url:photoUrl, sort_order:i, active:true });
+      }
+      if(menuRows.length){
+        const { error: menuErr } = await sb.from('meal_menus').insert(menuRows);
+        if(menuErr) throw menuErr;
+      }
+
+      const formUrl = `${PARTICIPANT_FORM_BASE}?event_id=${selectedEvent.id}`;
+      document.getElementById('lineMessage')._formUrl = formUrl;
+      updateLineMessage();
+
+      statusMsg.classList.add('ok');
+      statusMsg.innerHTML = `保存しました。参加者用フォームURL:<br><a href="${formUrl}" target="_blank">${formUrl}</a>`;
+    }catch(err){
+      console.error(err);
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '保存に失敗しました:' + (err.message || err);
+    }finally{
+      saveBtn.disabled = false; saveBtn.textContent = '保存してフォームを作成';
     }
+  });
 
-    const formUrl = `${PARTICIPANT_FORM_BASE}?event_id=${eventRow.id}`;
-    document.getElementById("formUrl").value = formUrl;
-    updateLineMessage();
+  document.getElementById('previewBtn').addEventListener('click', ()=>{
+    const url = document.getElementById('lineMessage')._formUrl;
+    if(url) window.open(url, '_blank');
+    else alert('先に「保存してフォームを作成」を押してください。保存後にプレビューできます。');
+  });
 
-    saved.innerHTML = `保存しました。参加者用フォームURL：<br><a href="${formUrl}" target="_blank">${formUrl}</a>`;
-    saved.classList.add("show");
-  }catch(err){
-    console.error(err);
-    errorBox.textContent = "保存に失敗しました：" + (err.message || err);
-    errorBox.classList.add("show");
-  }finally{
-    saveBtn.disabled = false;
-    saveBtn.textContent = "保存してフォームを作成";
+  async function init(){
+    try{
+      await waitForLib(10000);
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      renderMenuCards([]);
+      await loadEventPicker();
+      await loadAgencyPicker();
+    }catch(e){
+      const statusMsg = document.getElementById('statusMsg');
+      statusMsg.classList.add('err');
+      statusMsg.textContent = e.message;
+    }
   }
-});
-
-document.getElementById("previewBtn").addEventListener("click",()=>{
-  const url = document.getElementById("formUrl").value;
-  if(url){ window.open(url, "_blank"); }
-  else{ alert("先に「保存してフォームを作成」を押してください。保存後にプレビューできます。"); }
-});
-
-renderSchedule();
-syncMeetingTime();
-updateLineMessage();
+  init();
 </script>
 </body>
 </html>
