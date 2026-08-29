@@ -213,7 +213,8 @@
     (data || []).forEach(r=>{
       const p = r.participants || {};
       const a = r.answers || {};
-      const key = p.email || p.id || (a.full_name + Math.random());
+      const nameKey = (p.name || a.full_name || '').trim();
+      const key = nameKey + '||' + (p.email || p.id || '');
       if(!groups[key]){
         groups[key] = {
           name: p.name || a.full_name || '(名前不明)',
