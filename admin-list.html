@@ -67,6 +67,10 @@
   th{ color:var(--gold-soft); font-weight:700; background:var(--navy-card-2); position:sticky; top:0; }
   tr:last-child td{ border-bottom:none; }
   tr:hover td{ background:rgba(154,134,201,0.05); }
+  tr.row-accepted td{ background:rgba(79,143,102,0.08); }
+  tr.row-declined td{ background:rgba(165,84,74,0.08); }
+  tr.row-accepted:hover td{ background:rgba(79,143,102,0.14); }
+  tr.row-declined:hover td{ background:rgba(165,84,74,0.14); }
   td.name{ font-weight:700; font-family:'Shippori Mincho', serif; }
   .badge{ padding:3px 10px; border-radius:12px; font-size:11.5px; font-weight:700; display:inline-block; }
   .badge.pending{ background:rgba(154,134,201,0.15); color:var(--gold-soft); }
@@ -82,6 +86,18 @@
   .actions button.accept{ border-color:var(--ok); color:var(--ok); }
   .actions button.decline{ border-color:var(--rose); color:var(--rose); }
   .actions button:disabled{ opacity:.4; cursor:default; }
+  .actions button.accept:disabled{ background:var(--ok); color:#fff; opacity:1; border-color:var(--ok); }
+  .actions button.decline:disabled{ background:var(--rose); color:#fff; opacity:1; border-color:var(--rose); }
+
+  .mark-circle{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:50%; font-size:12px; font-weight:700;
+    border:2px solid currentColor;
+  }
+  .mark-circle.seat-together{ color:var(--gold-soft); }
+  .mark-circle.seat-lottery{ color:var(--muted); border-style:dashed; }
+  .mark-circle.meal-yes{ color:#fff; background:var(--rose); border-color:var(--rose); }
+  .mark-circle.meal-no{ color:var(--muted); border-color:var(--line); }
 
   .mini-badge{
     display:inline-block; min-width:22px; text-align:center; font-size:12px; font-weight:700;
@@ -95,21 +111,21 @@
   }
   .detail-row td{ padding:8px 12px; background:var(--navy-card-2); }
   .detail-box{ display:flex; gap:20px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); white-space:normal; }
+  .detail-logs{ margin-top:10px; font-size:12px; color:var(--rose); white-space:normal; }
+  .detail-logs b{ color:var(--gold-soft); display:block; margin-bottom:4px; }
+  .log-item{ margin-bottom:4px; line-height:1.6; }
   .detail-box b{ color:var(--gold-soft); }
 
   .empty-msg, .status-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
   .status-msg.err{ color:var(--rose); }
 
   .penalty-badge{
-    display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700;
-    padding:3px 9px; border-radius:12px; background:rgba(165,84,74,0.12); color:var(--rose);
-    cursor:pointer; border:none;
+    display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700;
+    padding:5px 11px; border-radius:12px; background:rgba(165,84,74,0.14); color:var(--rose);
+    cursor:pointer; border:1px solid var(--rose);
   }
-  .penalty-badge.zero{ background:var(--navy-card-2); color:var(--muted); }
-  .penalty-btn{
-    font-size:11.5px; padding:5px 9px; border-radius:6px; border:1px solid var(--line);
-    background:var(--navy-card-2); color:var(--cream); cursor:pointer; margin-left:6px; font-family:inherit;
-  }
+  .penalty-badge.zero{ background:var(--navy-card-2); color:var(--muted); border-color:var(--line); }
+  .penalty-badge::after{ content:" ・記録する"; font-weight:500; font-size:11px; opacity:.85; }
 
   .modal-overlay{
     display:none; position:fixed; inset:0; background:rgba(20,15,30,0.55);
@@ -154,6 +170,22 @@
   }
   .modal-btn-row .save:disabled{ opacity:.5; }
 
+  .modal-box select{
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream);
+    border-radius:8px; padding:11px 13px; font-size:14px; font-family:inherit; margin-bottom:4px;
+  }
+  .toggle-group{ display:flex; gap:8px; margin-bottom:4px; }
+  .toggle-opt{
+    flex:1; text-align:center; padding:11px 8px; border-radius:8px;
+    background:var(--navy-card-2); border:1px solid var(--line);
+    font-size:13.5px; font-weight:500; cursor:pointer; position:relative; color:var(--cream);
+  }
+  .toggle-opt input{ position:absolute; opacity:0; pointer-events:none; }
+  .toggle-opt.checked{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border-color:var(--gold-soft); color:#fffaf3; font-weight:700;
+  }
+
   .summary-bar{
     max-width:1000px; margin:16px auto 0; padding:0 16px;
     display:flex; gap:12px; flex-wrap:wrap;
@@ -168,24 +200,30 @@
   .summary-label{ display:block; font-size:11.5px; color:var(--muted); margin-top:2px; }
 
   @media print{
+    @page{ size: landscape; margin: 8mm; }
     body{ background:#fff !important; color:#000 !important; padding:0; }
-    .toolbar, .refresh-btn, .actions, .penalty-btn, .modal-overlay, #printBtn{ display:none !important; }
+    .toolbar, .refresh-btn, .actions, .penalty-btn, .modal-overlay, #printBtn, .detail-row{ display:none !important; }
     .hero:not(#printTitle){ display:none !important; }
-    #printTitle{ display:block !important; padding:10px 0; }
-    #printTitle h1{ color:#000; }
-    .summary-bar{ margin:0 auto 10px; }
-    .summary-item{ border-color:#999; background:#fff; }
+    #printTitle{ display:block !important; padding:2px 0; }
+    #printTitle h1{ color:#000; font-size:15px; margin:0; }
+    .summary-bar{ margin:0 auto 6px; gap:8px; }
+    .summary-item{ border-color:#999; background:#fff; padding:6px 8px; }
+    .summary-num{ font-size:16px; }
+    .summary-label{ font-size:9px; }
     .summary-num, .summary-label{ color:#000 !important; }
-    table{ border-color:#999 !important; }
-    th{ background:#eee !important; color:#000 !important; }
-    td{ color:#000 !important; border-color:#ccc !important; }
-    .badge{ border:1px solid #999; }
-    .table-wrap{ overflow:visible; }
-    table{ min-width:0; font-size:11px; }
+    table{ border-color:#999 !important; width:100%; min-width:0 !important; table-layout:fixed; }
+    th{ background:#eee !important; color:#000 !important; font-size:9.5px; padding:4px 5px; }
+    td{ color:#000 !important; border-color:#ccc !important; font-size:9.5px; padding:4px 5px; white-space:normal; word-break:break-word; }
+    .badge{ border:1px solid #999; padding:1px 6px; font-size:9px; }
+    .table-wrap{ overflow:visible; padding:0; }
+    .print-hide{ display:none !important; }
+    .name-btn{ text-decoration:none; font-size:9.5px; }
+    .mark-circle{ width:16px; height:16px; font-size:9px; }
   }
 </style>
 </head>
 <body>
+
 
 <div class="modal-overlay" id="penaltyModal">
   <div class="modal-box">
@@ -206,6 +244,50 @@
     <div class="modal-btn-row">
       <button class="cancel" id="modalCancel">閉じる</button>
       <button class="save" id="modalSave">記録する</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="changeModal">
+  <div class="modal-box">
+    <h3>変更・キャンセルを記録</h3>
+    <p class="modal-points">電話やLINEで来た急な変更を、ここから記録できます。</p>
+
+    <label>どなたの申込みですか?</label>
+    <select id="changePersonSelect"><option value="">選んでください</option></select>
+
+    <div id="changeCurrentInfo" class="notes-history empty" style="margin-top:12px;">名前を選ぶと現在の内容が表示されます。</div>
+
+    <div id="changeFields" style="display:none; margin-top:16px;">
+      <label>ご参加人数(枚数)</label>
+      <div class="toggle-group">
+        <label class="toggle-opt"><input type="radio" name="changeCount" value="1">同伴者なし(1枚)</label>
+        <label class="toggle-opt"><input type="radio" name="changeCount" value="2">同伴者あり(2枚)</label>
+      </div>
+
+      <label style="margin-top:14px;">お食事</label>
+      <div class="toggle-group">
+        <label class="toggle-opt"><input type="radio" name="changeMeal" value="ご参加">出席</label>
+        <label class="toggle-opt"><input type="radio" name="changeMeal" value="食事は欠席">欠席</label>
+      </div>
+
+      <label class="modal-checkbox" style="margin-top:14px;">
+        <input type="checkbox" id="changeCancel">
+        <span>この申込み自体をキャンセルする</span>
+      </label>
+
+      <label style="margin-top:6px;">変更内容・理由(必須)</label>
+      <textarea id="changeNote" placeholder="例:8/30 21:00 LINEにて連絡。同伴者が来られなくなったため1枚に変更希望。"></textarea>
+
+      <label class="modal-checkbox">
+        <input type="checkbox" id="changePenalty" checked>
+        <span>ペナルティポイントを +1 する</span>
+      </label>
+    </div>
+
+    <div class="modal-btn-row" style="margin-top:16px;">
+      <button class="cancel" id="changeModalCancel">閉じる</button>
+      <button class="save" id="changeModalSave" disabled>この内容で記録する</button>
     </div>
   </div>
 </div>
@@ -239,6 +321,7 @@
   <span class="count-badge" id="statusBreakdown"></span>
   <button class="refresh-btn" id="refreshBtn">更新</button>
   <button class="refresh-btn" id="printBtn">🖨 PDF印刷</button>
+  <button class="refresh-btn" id="changeBtn" style="background:var(--rose); border-color:var(--rose);">📝 変更・キャンセルを記録</button>
 </div>
 
 <div class="table-wrap">
@@ -246,8 +329,8 @@
     <thead>
       <tr>
         <th>操作</th>
-        <th>参加回数</th>
-        <th>ペナルティ</th>
+        <th class="print-hide">参加回数</th>
+        <th class="print-hide">ペナルティ</th>
         <th>氏名</th>
         <th>回生</th>
         <th>同伴者</th>
@@ -340,6 +423,7 @@
 
   let currentRows = [];
   let recentCounts = {};
+  let changeLogsMap = {};
 
   async function loadRegistrations(eventId){
     const tbody = document.getElementById('tableBody');
@@ -384,6 +468,22 @@
       }
     }
 
+    // 変更・キャンセル履歴を取得
+    changeLogsMap = {};
+    if(pids.length > 0){
+      const { data: logData, error: logErr } = await sb
+        .from('change_logs')
+        .select('participant_id, change_type, before_summary, after_summary, note, created_at')
+        .in('participant_id', pids)
+        .order('created_at', { ascending: false });
+      if(!logErr && logData){
+        logData.forEach(row=>{
+          if(!changeLogsMap[row.participant_id]) changeLogsMap[row.participant_id] = [];
+          changeLogsMap[row.participant_id].push(row);
+        });
+      }
+    }
+
     renderBreakdown(currentRows);
     renderTable(currentRows);
   }
@@ -424,24 +524,37 @@
       const points = p.penalty_points || 0;
       const recentCount = recentCounts[p.id] ?? '-';
       const rowId = r.id;
+      if(status === '参加決定') tr.classList.add('row-accepted');
+      if(status === 'お断り') tr.classList.add('row-declined');
 
       tr.innerHTML = `
         <td class="actions">
           <button class="accept" data-id="${r.id}" data-status="参加決定" ${status==='参加決定' ? 'disabled' : ''}>決定</button>
           <button class="decline" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>お断り</button>
         </td>
-        <td><span class="mini-badge">${recentCount}</span></td>
-        <td><button class="penalty-badge ${points > 0 ? '' : 'zero'}" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠ ${points}</button></td>
+        <td class="print-hide"><span class="mini-badge">${recentCount}</span></td>
+        <td class="print-hide"><button class="penalty-badge ${points > 0 ? '' : 'zero'}" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠ ${points}</button></td>
         <td class="name"><button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button></td>
         <td>${escapeHtml(a.grade || '')}</td>
         <td>${a.participant_count === '2' ? 'あり' : 'なし'}</td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
-        <td>${escapeHtml(a.seat_pref || '-')}</td>
-        <td>${a.meal === 'ご参加' ? '参加' : '不参加'}</td>
+        <td>${a.seat_pref === '連席希望'
+              ? '<span class="mark-circle seat-together" title="連席希望">連</span>'
+              : a.seat_pref === '抽選'
+                ? '<span class="mark-circle seat-lottery" title="抽選">抽</span>'
+                : '-'}</td>
+        <td>${a.meal === 'ご参加'
+              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
+              : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
         <td>${formatDateTimeJp(r.applied_at)}</td>
         <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
       `;
       tbody.appendChild(tr);
+
+      const logs = changeLogsMap[p.id] || [];
+      const logsHtml = logs.length > 0
+        ? logs.map(l => `<div class="log-item">[${new Date(l.created_at).toLocaleDateString('ja-JP')}] <b>${escapeHtml(l.change_type)}</b>:${escapeHtml(l.before_summary)} → ${escapeHtml(l.after_summary)}${l.note ? '(' + escapeHtml(l.note) + ')' : ''}</div>`).join('')
+        : '';
 
       const detailTr = document.createElement('tr');
       detailTr.className = 'detail-row';
@@ -453,6 +566,7 @@
             <span><b>メール:</b> ${escapeHtml(p.email || a.email || '')}</span>
             <span><b>携帯:</b> ${escapeHtml(p.phone || a.emergency_phone || '')}</span>
           </div>
+          ${logsHtml ? `<div class="detail-logs"><b>変更・キャンセル履歴</b>${logsHtml}</div>` : ''}
         </td>
       `;
       tbody.appendChild(detailTr);
@@ -613,6 +727,7 @@
         updatePrintTitle();
         window.print();
       });
+      document.getElementById('changeBtn').addEventListener('click', openChangeModal);
       updatePrintTitle();
     } catch(e){
       statusMsg.classList.add('err');
@@ -625,6 +740,153 @@
     const opt = sel.options[sel.selectedIndex];
     document.getElementById('printEventName').textContent = opt ? `申込者一覧:${opt.textContent}` : '申込者一覧';
   }
+
+  // ---- 変更・キャンセル受付モーダル ----
+  function openChangeModal(){
+    const sel = document.getElementById('changePersonSelect');
+    sel.innerHTML = '<option value="">選んでください</option>';
+    currentRows.forEach(r=>{
+      const p = r.participants || {};
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = `${p.name || r.answers?.full_name || '(名前不明)'}`;
+      sel.appendChild(opt);
+    });
+    document.getElementById('changeFields').style.display = 'none';
+    document.getElementById('changeCurrentInfo').textContent = '名前を選ぶと現在の内容が表示されます。';
+    document.getElementById('changeCurrentInfo').classList.add('empty');
+    document.getElementById('changeNote').value = '';
+    document.getElementById('changeCancel').checked = false;
+    document.getElementById('changePenalty').checked = true;
+    document.getElementById('changeModalSave').disabled = true;
+    document.getElementById('changeModal').classList.add('show');
+  }
+
+  function closeChangeModal(){
+    document.getElementById('changeModal').classList.remove('show');
+  }
+  document.getElementById('changeModalCancel').addEventListener('click', closeChangeModal);
+  document.getElementById('changeModal').addEventListener('click', (e)=>{
+    if(e.target.id === 'changeModal') closeChangeModal();
+  });
+
+  document.getElementById('changePersonSelect').addEventListener('change', (e)=>{
+    const regId = e.target.value;
+    const box = document.getElementById('changeCurrentInfo');
+    const fields = document.getElementById('changeFields');
+    const saveBtn = document.getElementById('changeModalSave');
+
+    if(!regId){
+      box.textContent = '名前を選ぶと現在の内容が表示されます。';
+      box.classList.add('empty');
+      fields.style.display = 'none';
+      saveBtn.disabled = true;
+      return;
+    }
+    const target = currentRows.find(r => r.id === regId);
+    const a = target.answers || {};
+    box.classList.remove('empty');
+    box.textContent =
+      `現在の内容:枚数${a.participant_count || '1'}枚 ／ お食事:${a.meal === 'ご参加' ? '参加' : '不参加'} ／ 状態:${statusLabel[target.status || '審査中']}`;
+
+    fields.style.display = 'block';
+    // 現在の値をトグルに反映
+    const countRadio = document.querySelector(`input[name=changeCount][value="${a.participant_count || '1'}"]`);
+    if(countRadio) countRadio.checked = true;
+    const mealRadio = document.querySelector(`input[name=changeMeal][value="${a.meal || 'ご参加'}"]`);
+    if(mealRadio) mealRadio.checked = true;
+    document.querySelectorAll('#changeFields .toggle-opt').forEach(opt=>{
+      const input = opt.querySelector('input');
+      opt.classList.toggle('checked', input.checked);
+    });
+    checkChangeSaveEnabled();
+  });
+
+  document.getElementById('changeFields').addEventListener('change', (e)=>{
+    if(e.target.type === 'radio'){
+      const group = document.querySelectorAll(`input[name="${e.target.name}"]`);
+      group.forEach(g => g.closest('.toggle-opt')?.classList.remove('checked'));
+      e.target.closest('.toggle-opt')?.classList.add('checked');
+    }
+    checkChangeSaveEnabled();
+  });
+  document.getElementById('changeNote').addEventListener('input', checkChangeSaveEnabled);
+
+  function checkChangeSaveEnabled(){
+    const regId = document.getElementById('changePersonSelect').value;
+    const note = document.getElementById('changeNote').value.trim();
+    document.getElementById('changeModalSave').disabled = !(regId && note);
+  }
+
+  document.getElementById('changeModalSave').addEventListener('click', async ()=>{
+    const statusMsg = document.getElementById('statusMsg');
+    const saveBtn = document.getElementById('changeModalSave');
+    const regId = document.getElementById('changePersonSelect').value;
+    const target = currentRows.find(r => r.id === regId);
+    if(!target) return;
+
+    const before = target.answers || {};
+    const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${before.meal === 'ご参加' ? '参加' : '不参加'} / 状態${statusLabel[target.status || '審査中']}`;
+
+    const isCancel = document.getElementById('changeCancel').checked;
+    const newCount = document.querySelector('input[name=changeCount]:checked')?.value || before.participant_count || '1';
+    const newMeal = document.querySelector('input[name=changeMeal]:checked')?.value || before.meal;
+    const note = document.getElementById('changeNote').value.trim();
+    const addPenalty = document.getElementById('changePenalty').checked;
+
+    const afterSummary = isCancel
+      ? 'キャンセル'
+      : `枚数${newCount}枚 / 食事${newMeal === 'ご参加' ? '参加' : '不参加'}`;
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中…';
+    try{
+      const newAnswers = { ...before, participant_count: newCount, meal: newMeal };
+      const updatePayload = { answers: newAnswers, wants_meal: newMeal === 'ご参加' };
+      if(isCancel) updatePayload.status = 'キャンセル';
+
+      const { error: updErr } = await sb
+        .from('registrations')
+        .update(updatePayload)
+        .eq('id', regId);
+      if(updErr) throw updErr;
+
+      const { error: logErr } = await sb
+        .from('change_logs')
+        .insert({
+          registration_id: regId,
+          participant_id: target.participants?.id || null,
+          event_id: currentEventId,
+          change_type: isCancel ? 'キャンセル' : '内容変更',
+          before_summary: beforeSummary,
+          after_summary: afterSummary,
+          note: note
+        });
+      if(logErr) throw logErr;
+
+      if(addPenalty && target.participants?.id){
+        const existingPoints = target.participants.penalty_points || 0;
+        const existingNotes = target.participants.penalty_notes || '';
+        const dateStr = new Date().toLocaleDateString('ja-JP');
+        const newNotes = existingNotes
+          ? `${existingNotes}\n[${dateStr}] (変更記録) ${note}`
+          : `[${dateStr}] (変更記録) ${note}`;
+        await sb
+          .from('participants')
+          .update({ penalty_points: existingPoints + 1, penalty_notes: newNotes })
+          .eq('id', target.participants.id);
+      }
+
+      closeChangeModal();
+      loadRegistrations(currentEventId);
+    } catch(e){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '記録に失敗しました:' + (e.message || '');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'この内容で記録する';
+    }
+  });
 
   init();
 </script>
