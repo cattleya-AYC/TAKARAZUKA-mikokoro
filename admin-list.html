@@ -85,9 +85,86 @@
 
   .empty-msg, .status-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
   .status-msg.err{ color:var(--rose); }
+
+  .penalty-badge{
+    display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700;
+    padding:3px 9px; border-radius:12px; background:rgba(165,84,74,0.12); color:var(--rose);
+    cursor:pointer; border:none;
+  }
+  .penalty-badge.zero{ background:var(--navy-card-2); color:var(--muted); }
+  .penalty-btn{
+    font-size:11.5px; padding:5px 9px; border-radius:6px; border:1px solid var(--line);
+    background:var(--navy-card-2); color:var(--cream); cursor:pointer; margin-left:6px; font-family:inherit;
+  }
+
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(20,15,30,0.55);
+    z-index:100; align-items:flex-end; justify-content:center;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background:var(--navy-card); border:1px solid var(--gold); border-radius:16px 16px 0 0;
+    max-width:480px; width:100%; max-height:85vh; overflow-y:auto;
+    padding:22px 20px 26px; box-shadow:0 -4px 24px rgba(0,0,0,0.2);
+  }
+  @media (min-width: 560px){
+    .modal-overlay{ align-items:center; }
+    .modal-box{ border-radius:16px; }
+  }
+  .modal-box h3{
+    font-family:'Shippori Mincho', serif; font-size:17px; margin:0 0 4px; color:var(--gold-soft);
+  }
+  .modal-box .modal-points{ font-size:13px; color:var(--muted); margin-bottom:14px; }
+  .modal-box .notes-history{
+    background:var(--navy-card-2); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; font-size:12.5px; line-height:1.8; white-space:pre-wrap;
+    max-height:160px; overflow-y:auto; margin-bottom:16px; color:var(--cream);
+  }
+  .modal-box .notes-history.empty{ color:var(--muted); }
+  .modal-box label{ font-size:13px; color:var(--gold-soft); font-weight:700; display:block; margin-bottom:6px; }
+  .modal-box textarea{
+    width:100%; min-height:90px; background:var(--navy-card-2); border:1px solid var(--line);
+    color:var(--cream); border-radius:8px; padding:11px 13px; font-size:14px; font-family:inherit; resize:vertical;
+  }
+  .modal-box textarea:focus{ outline:none; border-color:var(--gold); }
+  .modal-checkbox{ display:flex; align-items:center; gap:8px; margin:12px 0 18px; font-size:13px; }
+  .modal-checkbox input{ width:16px; height:16px; accent-color:var(--gold); }
+  .modal-btn-row{ display:flex; gap:10px; }
+  .modal-btn-row button{
+    flex:1; padding:12px; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; font-weight:700;
+  }
+  .modal-btn-row .cancel{ background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream); }
+  .modal-btn-row .save{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft); color:#fffaf3;
+  }
+  .modal-btn-row .save:disabled{ opacity:.5; }
 </style>
 </head>
 <body>
+
+<div class="modal-overlay" id="penaltyModal">
+  <div class="modal-box">
+    <h3 id="modalName"></h3>
+    <p class="modal-points" id="modalPoints"></p>
+
+    <label>これまでの記録</label>
+    <div class="notes-history" id="modalHistory"></div>
+
+    <label>新しく記録する内容</label>
+    <textarea id="modalTextarea" placeholder="例:当日11時にドタキャン連絡あり。理由は体調不良とのこと。過去にも直前キャンセルが1回あり。"></textarea>
+
+    <label class="modal-checkbox">
+      <input type="checkbox" id="modalIncrement" checked>
+      <span>ペナルティポイントを +1 する</span>
+    </label>
+
+    <div class="modal-btn-row">
+      <button class="cancel" id="modalCancel">閉じる</button>
+      <button class="save" id="modalSave">記録する</button>
+    </div>
+  </div>
+</div>
 
 <div class="hero">
   <div class="eyebrow">管理者用</div>
@@ -98,7 +175,14 @@
 
 <div class="toolbar">
   <select id="eventSelect"><option>読み込み中…</option></select>
+  <select id="statusFilter">
+    <option value="all">すべて表示</option>
+    <option value="審査中">審査中のみ</option>
+    <option value="参加決定">参加決定のみ</option>
+    <option value="お断り">お断りのみ</option>
+  </select>
   <span class="count-badge" id="countBadge"></span>
+  <span class="count-badge" id="statusBreakdown"></span>
   <button class="refresh-btn" id="refreshBtn">更新</button>
 </div>
 
@@ -116,6 +200,7 @@
         <th>メール</th>
         <th>申込日時</th>
         <th>状態</th>
+        <th>ペナルティ</th>
         <th>操作</th>
       </tr>
     </thead>
@@ -199,6 +284,8 @@
     });
   }
 
+  let currentRows = [];
+
   async function loadRegistrations(eventId){
     const tbody = document.getElementById('tableBody');
     const table = document.getElementById('dataTable');
@@ -213,25 +300,49 @@
 
     const { data, error } = await sb
       .from('registrations')
-      .select('*, participants(name, email, phone)')
+      .select('*, participants(id, name, email, phone, penalty_points, penalty_notes)')
       .eq('event_id', eventId)
       .order('applied_at', { ascending: false });
 
     if(error) throw error;
 
-    if(!data || data.length === 0){
+    currentRows = data || [];
+
+    if(currentRows.length === 0){
       emptyMsg.style.display = 'block';
       countBadge.textContent = '0件';
+      document.getElementById('statusBreakdown').textContent = '';
       return;
     }
 
-    countBadge.textContent = `${data.length}件`;
+    renderBreakdown(currentRows);
+    renderTable(currentRows);
+  }
 
-    data.forEach(r=>{
+  function renderBreakdown(rows){
+    const counts = { '審査中':0, '参加決定':0, 'お断り':0, 'キャンセル':0 };
+    rows.forEach(r => { const s = r.status || '審査中'; counts[s] = (counts[s]||0) + 1; });
+    document.getElementById('statusBreakdown').textContent =
+      `審査中${counts['審査中']} / 決定${counts['参加決定']} / お断り${counts['お断り']}`;
+  }
+
+  function renderTable(rows){
+    const tbody = document.getElementById('tableBody');
+    const table = document.getElementById('dataTable');
+    const countBadge = document.getElementById('countBadge');
+    const filter = document.getElementById('statusFilter').value;
+
+    const filtered = filter === 'all' ? rows : rows.filter(r => (r.status || '審査中') === filter);
+
+    tbody.innerHTML = '';
+    countBadge.textContent = `${filtered.length}件`;
+
+    filtered.forEach(r=>{
       const p = r.participants || {};
       const a = r.answers || {};
       const tr = document.createElement('tr');
       const status = r.status || '審査中';
+      const points = p.penalty_points || 0;
 
       tr.innerHTML = `
         <td class="name">${escapeHtml(p.name || a.full_name || '')}</td>
@@ -244,6 +355,10 @@
         <td>${escapeHtml(p.email || a.email || '')}</td>
         <td>${formatDateTimeJp(r.applied_at)}</td>
         <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
+        <td>
+          <button class="penalty-badge ${points > 0 ? '' : 'zero'}" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠ ${points}</button>
+          <button class="penalty-btn" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">+記録</button>
+        </td>
         <td class="actions">
           <button class="accept" data-id="${r.id}" data-status="参加決定" ${status==='参加決定' ? 'disabled' : ''}>決定</button>
           <button class="decline" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>お断り</button>
@@ -258,6 +373,7 @@
       btn.addEventListener('click', async ()=>{
         const id = btn.getAttribute('data-id');
         const newStatus = btn.getAttribute('data-status');
+        const statusMsg = document.getElementById('statusMsg');
         btn.disabled = true;
         try{
           const { error } = await sb
@@ -265,7 +381,7 @@
             .update({ status: newStatus, decided_at: new Date().toISOString() })
             .eq('id', id);
           if(error) throw error;
-          loadRegistrations(eventId);
+          loadRegistrations(currentEventId);
         } catch(e){
           statusMsg.classList.add('err');
           statusMsg.textContent = '更新に失敗しました:' + (e.message || '');
@@ -273,11 +389,105 @@
         }
       });
     });
+
+    tbody.querySelectorAll('[data-open-modal]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const pid = btn.getAttribute('data-pid');
+        const pname = btn.getAttribute('data-pname');
+        const statusMsg = document.getElementById('statusMsg');
+        if(!pid){
+          statusMsg.classList.add('err');
+          statusMsg.textContent = '参加者情報が見つかりませんでした。';
+          return;
+        }
+        openPenaltyModal(pid, pname);
+      });
+    });
   }
+
+  let modalCurrentPid = null;
+
+  function openPenaltyModal(pid, pname){
+    const target = currentRows.find(r => r.participants && r.participants.id === pid);
+    const points = target?.participants?.penalty_points || 0;
+    const notes = target?.participants?.penalty_notes || '';
+
+    modalCurrentPid = pid;
+    document.getElementById('modalName').textContent = `${pname} さん`;
+    document.getElementById('modalPoints').textContent = `現在のペナルティポイント:${points}`;
+
+    const historyBox = document.getElementById('modalHistory');
+    if(notes.trim()){
+      historyBox.textContent = notes;
+      historyBox.classList.remove('empty');
+    } else {
+      historyBox.textContent = 'まだ記録はありません。';
+      historyBox.classList.add('empty');
+    }
+
+    document.getElementById('modalTextarea').value = '';
+    document.getElementById('modalIncrement').checked = true;
+    document.getElementById('penaltyModal').classList.add('show');
+  }
+
+  function closePenaltyModal(){
+    document.getElementById('penaltyModal').classList.remove('show');
+    modalCurrentPid = null;
+  }
+
+  document.getElementById('modalCancel').addEventListener('click', closePenaltyModal);
+  document.getElementById('penaltyModal').addEventListener('click', (e)=>{
+    if(e.target.id === 'penaltyModal') closePenaltyModal();
+  });
+
+  document.getElementById('modalSave').addEventListener('click', async ()=>{
+    const statusMsg = document.getElementById('statusMsg');
+    const saveBtn = document.getElementById('modalSave');
+    const text = document.getElementById('modalTextarea').value.trim();
+    const doIncrement = document.getElementById('modalIncrement').checked;
+
+    if(!text){
+      alert('記録する内容を入力してください。');
+      return;
+    }
+    if(!modalCurrentPid){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '参加者情報が見つかりませんでした。';
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中…';
+    try{
+      const target = currentRows.find(r => r.participants && r.participants.id === modalCurrentPid);
+      const existingPoints = target?.participants?.penalty_points || 0;
+      const existingNotes = target?.participants?.penalty_notes || '';
+      const dateStr = new Date().toLocaleDateString('ja-JP');
+      const newNotes = existingNotes ? `${existingNotes}\n[${dateStr}] ${text}` : `[${dateStr}] ${text}`;
+      const newPoints = doIncrement ? existingPoints + 1 : existingPoints;
+
+      const { error } = await sb
+        .from('participants')
+        .update({ penalty_points: newPoints, penalty_notes: newNotes })
+        .eq('id', modalCurrentPid);
+      if(error) throw error;
+
+      closePenaltyModal();
+      loadRegistrations(currentEventId);
+    } catch(e){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '記録に失敗しました:' + (e.message || '');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '記録する';
+    }
+  });
 
   function escapeHtml(str){
     return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
+
+  let currentEventId = null;
 
   async function init(){
     const statusMsg = document.getElementById('statusMsg');
@@ -287,11 +497,18 @@
       await loadEvents();
       const sel = document.getElementById('eventSelect');
       if(events.length > 0){
-        await loadRegistrations(sel.value);
+        currentEventId = sel.value;
+        await loadRegistrations(currentEventId);
       }
-      sel.addEventListener('change', ()=> loadRegistrations(sel.value));
+      sel.addEventListener('change', ()=>{
+        currentEventId = sel.value;
+        loadRegistrations(currentEventId);
+      });
       document.getElementById('refreshBtn').addEventListener('click', ()=>{
-        if(sel.value) loadRegistrations(sel.value);
+        if(currentEventId) loadRegistrations(currentEventId);
+      });
+      document.getElementById('statusFilter').addEventListener('change', ()=>{
+        renderTable(currentRows);
       });
     } catch(e){
       statusMsg.classList.add('err');
