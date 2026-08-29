@@ -125,6 +125,39 @@
   }
   .ty-closing{ font-family:'Shippori Mincho', serif; font-size:13.5px; color:var(--gold-soft); font-weight:700; }
 
+  .cs-next-box{
+    text-align:center; margin-top:22px; border:1px solid var(--gold); border-radius:12px;
+    padding:28px 18px 22px; position:relative; background:var(--navy-card-2);
+  }
+  .cs-next-title{
+    position:absolute; top:-13px; left:50%; transform:translateX(-50%);
+    background:var(--gold-soft); color:#fffaf3; font-size:11.5px; font-weight:700;
+    padding:4px 16px; border-radius:12px; white-space:nowrap;
+  }
+  .cs-next-main{
+    font-family:'Shippori Mincho', serif; font-size:19px; font-weight:700; color:var(--rose);
+    line-height:1.6;
+  }
+  .cs-next-sub{
+    font-size:14px; color:var(--gold-soft); margin-top:5px; font-weight:700; letter-spacing:.02em;
+  }
+  .cs-next-divider{
+    border-top:1px dashed var(--line); margin:18px auto; max-width:180px;
+  }
+  .cs-next-start-label{
+    display:inline-block; background:var(--rose); color:#fff; font-size:11px; font-weight:700;
+    padding:3px 14px; border-radius:12px; margin-bottom:9px;
+  }
+  .cs-next-start{
+    font-family:'Shippori Mincho', serif; font-size:21px; font-weight:700; color:var(--gold-soft);
+    line-height:1.5;
+  }
+
+  .cs-closed-list{
+    margin-top:20px; padding-top:14px; border-top:1px solid var(--line);
+    font-size:11px; color:var(--muted-text); line-height:2; text-align:center;
+  }
+
   .cs-bullet{
     display:flex; align-items:flex-start; gap:10px; text-align:left; font-size:12.5px;
     color:var(--cream); line-height:1.8; padding:10px 4px;
@@ -253,7 +286,16 @@
 
     <div class="ty-divider"><span></span></div>
 
-    <div class="cs-bullet">
+    <div class="cs-next-box">
+      <div class="cs-next-title">次回のご案内</div>
+      <div class="cs-next-main" id="csEventTitle">第◯回 ◯◯組観劇会</div>
+      <div class="cs-next-sub" id="csEventDate">◯月◯日　◯時公演</div>
+      <div class="cs-next-divider"></div>
+      <div class="cs-next-start-label">募集開始日時</div>
+      <div class="cs-next-start" id="csStartDate">◯月◯日 ◯時〜</div>
+    </div>
+
+    <div class="cs-bullet" style="margin-top:24px;">
       <span class="cs-mark">❖</span>
       <span>募集開始後は、申込フォームより<br>お手続きいただけます。</span>
     </div>
@@ -264,6 +306,8 @@
     </div>
 
     <p class="ty-closing" style="margin-top:22px;">皆様からのお申込みを<br>心よりお待ちしております</p>
+
+    <div class="cs-closed-list" id="csClosedList" style="display:none;"></div>
   </div>
 </div>
 
@@ -465,6 +509,14 @@
     return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日(${weekdayJp[d.getDay()]})`;
   }
 
+  function formatDateTimeJp(isoStr){
+    const d = new Date(isoStr);
+    const h = d.getHours();
+    const m = d.getMinutes();
+    const timeStr = m === 0 ? `${h}時` : `${h}時${m}分`;
+    return `${d.getMonth()+1}月${d.getDate()}日(${weekdayJp[d.getDay()]}) ${timeStr}〜`;
+  }
+
   // ---- 組ごとの上品なテーマカラー ----
   const troupeThemes = {
     '花': { bg:'#f6e9ec', card:'#fffbf9', card2:'#fbeef1', gold:'#c98a9b', goldSoft:'#9c5e6f', text:'#3d2830', muted:'#a9838d', line:'rgba(201,138,155,0.35)' },
@@ -541,7 +593,19 @@
 
     if(upcomingEvents.length > 0){
       upcomingEvents.sort((a,b)=> new Date(a.recruitment_start_date) - new Date(b.recruitment_start_date));
-      renderComingSoon(upcomingEvents[0]);
+      const nextEvent = upcomingEvents[0];
+
+      // 表示回より後の開催で、既に募集締切済みのものを小さく案内する
+      const todayStr = new Date().toISOString().slice(0,10);
+      const { data: closedData } = await sb
+        .from('events')
+        .select('*')
+        .lt('application_deadline', nowIso)
+        .gte('event_date', todayStr)
+        .neq('id', nextEvent.id)
+        .order('event_date', { ascending: true });
+
+      renderComingSoon(nextEvent, closedData || []);
       return;
     }
 
@@ -563,9 +627,32 @@
     document.getElementById('closedCard').style.display = 'block';
   }
 
-  function renderComingSoon(ev){
+  function renderComingSoon(ev, closedEvents){
     hideAllStateCards();
     document.querySelector('.hero').style.display = 'none';
+    applyTroupeTheme(ev.troupe);
+
+    document.getElementById('csEventTitle').textContent =
+      `第${ev.event_number || ''}回 ${ev.troupe || ''}組観劇会`;
+
+    const dateStr = ev.event_date ? formatDateJp(ev.event_date) : '';
+    document.getElementById('csEventDate').textContent =
+      dateStr ? `${dateStr}　${ev.show_time || ''}公演` : (ev.show_time ? `${ev.show_time}公演` : '');
+
+    document.getElementById('csStartDate').textContent =
+      ev.recruitment_start_date ? formatDateTimeJp(ev.recruitment_start_date) : '追ってご案内いたします';
+
+    const listEl = document.getElementById('csClosedList');
+    if(closedEvents && closedEvents.length > 0){
+      listEl.innerHTML = closedEvents.map(c =>
+        `<div>${formatDateJp(c.event_date)} ${c.troupe || ''}組公演の募集は締め切りました</div>`
+      ).join('');
+      listEl.style.display = 'block';
+    } else {
+      listEl.style.display = 'none';
+      listEl.innerHTML = '';
+    }
+
     document.getElementById('comingSoonCard').style.display = 'block';
   }
 
