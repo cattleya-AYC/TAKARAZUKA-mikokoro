@@ -180,6 +180,8 @@
   </form>
 </div>
 
+<button id="logoutBtn" type="button" style="position:fixed;top:10px;right:10px;z-index:1000;padding:6px 12px;border:1px solid var(--gold-soft, #6d5aa3);border-radius:20px;background:var(--navy-card, #fffdf9);color:var(--gold-soft, #6d5aa3);font-size:11px;font-weight:700;cursor:pointer;display:none;">ログアウト</button>
+
 <div class="hero">
   <div class="eyebrow">管理者用</div>
   <h1>新しい開催回を登録</h1>
@@ -624,6 +626,7 @@
     const { data: { session } } = await supabase.auth.getSession();
     if(session){
       document.getElementById('authGate').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'inline-block';
     } else {
       document.getElementById('authGate').style.display = 'flex';
     }
@@ -642,6 +645,7 @@
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if(error) throw error;
       document.getElementById('authGate').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'inline-block';
       await refreshAfterLogin();
     }catch(err){
       errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
@@ -652,6 +656,11 @@
   });
 
   checkAuth();
+
+  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+    await sb.auth.signOut();
+    location.reload();
+  });
 </script>
 </body>
 </html>
