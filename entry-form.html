@@ -75,6 +75,65 @@
     color:var(--gold-soft); font-weight:700; letter-spacing:.03em;
   }
   .info-card b{ color:var(--gold-soft); font-weight:700; }
+
+  /* 締切後カード */
+  .ty-card{
+    background:var(--navy-card); border:2px solid var(--gold); border-radius:14px;
+    padding:30px 22px; margin-top:16px; text-align:center;
+    box-shadow:inset 0 0 0 3px var(--navy-card), inset 0 0 0 5px var(--line);
+  }
+  .ty-badge{
+    display:inline-block; font-family:'Shippori Mincho', serif; font-size:12px; letter-spacing:.14em;
+    color:var(--gold-soft); border:1px solid var(--gold); border-radius:20px; padding:4px 16px; margin-bottom:14px;
+  }
+  .ty-headline{
+    font-family:'Shippori Mincho', serif; font-size:24px; color:var(--rose); font-weight:700;
+    margin:0 0 12px; letter-spacing:.04em;
+  }
+  .ty-sub{ font-size:12.5px; color:var(--cream); line-height:1.9; margin:0 0 6px; }
+  .ty-divider{ display:flex; align-items:center; justify-content:center; margin:20px auto; max-width:220px; }
+  .ty-divider span{
+    display:block; width:100%; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+    position:relative;
+  }
+  .ty-wait{
+    font-family:'Shippori Mincho', serif; font-size:17px; font-weight:700; color:var(--gold-soft);
+    line-height:1.7; margin:0 0 10px;
+  }
+  .ty-info-box{
+    text-align:left; margin-top:22px; border:1px solid var(--gold); border-radius:10px;
+    padding:18px 16px 8px; position:relative;
+  }
+  .ty-info-title{
+    position:absolute; top:-13px; left:50%; transform:translateX(-50%);
+    background:var(--gold-soft); color:#fffaf3; font-size:11.5px; font-weight:700;
+    padding:4px 16px; border-radius:12px; white-space:nowrap;
+  }
+  .ty-info-row{
+    display:flex; gap:10px; padding:8px 0; border-bottom:1px dashed var(--line); font-size:12.5px;
+  }
+  .ty-info-row:last-child{ border-bottom:none; }
+  .ty-info-label{
+    flex-shrink:0; width:76px; background:var(--rose); color:#fff; text-align:center;
+    border-radius:6px; padding:3px 4px; font-size:11px; font-weight:700;
+  }
+  .ty-info-value{ color:var(--cream); padding-top:2px; }
+  .ty-note{
+    margin-top:20px; font-size:11.5px; color:var(--muted-text); line-height:1.9;
+    border-top:1px solid var(--line); padding-top:14px;
+  }
+  .ty-closing{ font-family:'Shippori Mincho', serif; font-size:13.5px; color:var(--gold-soft); font-weight:700; }
+
+  .cs-bullet{
+    display:flex; align-items:flex-start; gap:10px; text-align:left; font-size:12.5px;
+    color:var(--cream); line-height:1.8; padding:10px 4px;
+  }
+  .cs-mark{ color:var(--gold); flex-shrink:0; font-size:14px; margin-top:1px; }
+  .cs-bullet-divider{
+    border-top:1px dotted var(--line); margin:2px 4px;
+  }
+  .cs-line{ color:var(--rose); }
   .info-card ul{ margin:0; padding-left:1.1em; }
   .info-card li{ margin-bottom:4px; }
   .poster-img{ width:100%; border-radius:6px; display:block; margin-top:16px; }
@@ -184,6 +243,58 @@
 <div class="wrap" id="closedCard" style="display:none;">
   <div class="info-card" style="text-align:center;">
     <b>現在、募集中の回はありません</b><br>次回の観劇会募集をお待ちください。
+  </div>
+</div>
+
+<div class="wrap" id="comingSoonCard" style="display:none;">
+  <div class="ty-card">
+    <div class="ty-badge">小林タカラヅカ倶楽部</div>
+    <h2 class="ty-headline">募集開始まで<br>しばらくお待ちください</h2>
+
+    <div class="ty-divider"><span></span></div>
+
+    <div class="cs-bullet">
+      <span class="cs-mark">❖</span>
+      <span>募集開始後は、申込フォームより<br>お手続きいただけます。</span>
+    </div>
+    <div class="cs-bullet-divider"></div>
+    <div class="cs-bullet">
+      <span class="cs-mark">❖</span>
+      <span>最新情報は<b class="cs-line">公式LINE</b>にて<br>ご案内いたします。</span>
+    </div>
+
+    <p class="ty-closing" style="margin-top:22px;">皆様からのお申込みを<br>心よりお待ちしております</p>
+  </div>
+</div>
+
+<div class="wrap" id="thankYouCard" style="display:none;">
+  <div class="ty-card">
+    <div class="ty-badge">観劇会お申込み</div>
+    <h2 class="ty-headline">募集は締め切りました</h2>
+    <p class="ty-sub">たくさんのお申込みをいただき、<br>誠にありがとうございました。</p>
+
+    <div class="ty-divider"><span></span></div>
+
+    <p class="ty-wait">次回の募集開始まで<br>しばらくお待ちください</p>
+    <p class="ty-sub">次回の観劇会も、皆様にお楽しみいただけるよう<br>心を込めて企画してまいります。</p>
+
+    <div class="ty-info-box">
+      <div class="ty-info-title"><span>今回の公演情報</span></div>
+      <div class="ty-info-row"><span class="ty-info-label">公演名</span><span id="tyName" class="ty-info-value"></span></div>
+      <div class="ty-info-row"><span class="ty-info-label">公演日</span><span id="tyDate" class="ty-info-value"></span></div>
+      <div class="ty-info-row"><span class="ty-info-label">開演時間</span><span id="tyTime" class="ty-info-value"></span></div>
+      <div class="ty-info-row"><span class="ty-info-label">会場</span><span class="ty-info-value">宝塚大劇場</span></div>
+      <div class="ty-info-row"><span class="ty-info-label">座席種類</span><span id="tySeat" class="ty-info-value"></span></div>
+      <div class="ty-info-row"><span class="ty-info-label">募集期間</span><span id="tyPeriod" class="ty-info-value"></span></div>
+    </div>
+
+    <div class="ty-note">
+      お申込みの結果につきましては、個別にご連絡いたします。<br>
+      今後とも小林タカラヅカ倶楽部をどうぞよろしくお願いいたします。
+    </div>
+
+    <div class="ty-divider"><span></span></div>
+    <p class="ty-closing">✨ 次回の募集を楽しみにお待ちくださいませ ✨</p>
   </div>
 </div>
 
@@ -391,29 +502,98 @@
     } catch(e){ console.warn('候補の取得に失敗しました', e); }
   }
 
+  function hideAllStateCards(){
+    document.getElementById('closedCard').style.display = 'none';
+    document.getElementById('comingSoonCard').style.display = 'none';
+    document.getElementById('thankYouCard').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'none';
+  }
+
   async function loadCurrentEvent(){
     if(!sb){
       document.getElementById('eyebrowText').textContent = '接続未設定';
       return;
     }
     const nowIso = new Date().toISOString();
+    const nowMs = Date.now();
+
+    // 締切前の開催回を全て取得(募集中・募集開始前の両方を含む)
     let { data, error } = await sb
       .from('events')
       .select('*')
       .gte('application_deadline', nowIso)
-      .order('event_date', { ascending: true })
-      .limit(1);
+      .order('event_date', { ascending: true });
 
     if(error){ console.error(error); }
 
-    if(!data || data.length === 0){
-      document.getElementById('closedCard').style.display = 'block';
-      document.getElementById('mainContent').style.display = 'none';
-      document.querySelector('.hero').style.display = 'none';
+    const all = data || [];
+    const openEvents = all.filter(ev =>
+      !ev.recruitment_start_date || new Date(ev.recruitment_start_date).getTime() <= nowMs
+    );
+    const upcomingEvents = all.filter(ev =>
+      ev.recruitment_start_date && new Date(ev.recruitment_start_date).getTime() > nowMs
+    );
+
+    if(openEvents.length > 0){
+      renderOpenEvent(openEvents[0]);
       return;
     }
 
-    currentEvent = data[0];
+    if(upcomingEvents.length > 0){
+      upcomingEvents.sort((a,b)=> new Date(a.recruitment_start_date) - new Date(b.recruitment_start_date));
+      renderComingSoon(upcomingEvents[0]);
+      return;
+    }
+
+    // 募集中・募集前がなければ、直近で締め切った回を「ありがとうございました」として表示
+    const { data: pastData } = await sb
+      .from('events')
+      .select('*')
+      .lt('application_deadline', nowIso)
+      .order('application_deadline', { ascending: false })
+      .limit(1);
+
+    if(pastData && pastData.length > 0){
+      renderThankYou(pastData[0]);
+      return;
+    }
+
+    hideAllStateCards();
+    document.querySelector('.hero').style.display = 'none';
+    document.getElementById('closedCard').style.display = 'block';
+  }
+
+  function renderComingSoon(ev){
+    hideAllStateCards();
+    document.querySelector('.hero').style.display = 'none';
+    document.getElementById('comingSoonCard').style.display = 'block';
+  }
+
+  function renderThankYou(ev){
+    hideAllStateCards();
+    document.querySelector('.hero').style.display = 'none';
+    applyTroupeTheme(ev.troupe);
+    document.getElementById('eyebrowText').textContent = `${ev.troupe || ''}組公演`;
+    document.getElementById('eventMeta').innerHTML =
+      `第${ev.event_number || ''}回 ${ev.troupe || ''}組公演<br>${formatDateJp(ev.event_date)} ${ev.show_time || ''}公演`;
+    document.getElementById('deadlineBox').textContent = '';
+
+    document.getElementById('tyName').textContent = `第${ev.event_number || ''}回 宝塚観劇会【${ev.troupe || ''}組】`;
+    document.getElementById('tyDate').textContent = formatDateJp(ev.event_date);
+    document.getElementById('tyTime').textContent = ev.show_time ? `${ev.show_time}公演` : '';
+    document.getElementById('tySeat').textContent = ev.seat_type || 'S席';
+
+    const startStr = ev.recruitment_start_date ? formatDateJp(ev.recruitment_start_date.slice(0,10)) : '';
+    const endStr = ev.application_deadline ? formatDateJp(ev.application_deadline.slice(0,10)) : '';
+    document.getElementById('tyPeriod').textContent = startStr ? `${startStr} 〜 ${endStr}` : `〜 ${endStr}`;
+
+    document.getElementById('thankYouCard').style.display = 'block';
+  }
+
+  function renderOpenEvent(ev){
+    hideAllStateCards();
+    document.querySelector('.hero').style.display = 'block';
+    currentEvent = ev;
     applyTroupeTheme(currentEvent.troupe);
     const total = (currentEvent.base_price || 0);
     const deadlineStr = currentEvent.application_deadline

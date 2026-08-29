@@ -59,6 +59,10 @@
     width:100%; background:var(--navy-card-2); border:1px solid var(--line);
     color:var(--cream); border-radius:8px; padding:11px 13px; font-size:15px; font-family:inherit;
   }
+  input[type=date]{
+    -webkit-appearance:none; appearance:none;
+    height:44px; line-height:1.2; box-sizing:border-box;
+  }
   input:focus, select:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 2px var(--line); }
   /* プレースホルダーは「例」であって入力済みではないことが分かるよう、はっきり暗めのグレーにする */
   ::placeholder{ color:var(--muted); opacity:1; }
@@ -135,6 +139,12 @@
         <option value="13:00">13時公演</option>
       </select>
     </label>
+
+    <label class="field">
+      <span class="lbl">募集開始日(任意)</span>
+      <input type="date" name="recruitment_start">
+    </label>
+    <p class="note">未入力の場合、登録してすぐ募集開始になります</p>
 
     <label class="field">
       <span class="lbl">申込締切日</span>
@@ -318,6 +328,7 @@
         troupe: fd.get('troupe'),
         event_date: fd.get('event_date'),
         show_time: fd.get('show_time'),
+        recruitment_start_date: fd.get('recruitment_start') ? (fd.get('recruitment_start') + 'T00:00:00+09:00') : null,
         application_deadline: fd.get('deadline') + 'T23:59:59+09:00',
         seat_type: fd.get('seat_type'),
         capacity: Number(fd.get('capacity')),
