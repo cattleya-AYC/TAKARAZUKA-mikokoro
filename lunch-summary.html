@@ -23,6 +23,19 @@
   #loadingNote, #missingNote{ text-align:center; padding:40px 10px; color:var(--muted); }
   #missingNote{ display:none; color:var(--rose); font-weight:700; }
 
+  .event-picker{
+    border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:16px;
+    background:var(--navy-card);
+  }
+  .event-picker label{
+    display:block; font-size:12px; color:var(--gold-soft); font-weight:700; margin-bottom:7px;
+  }
+  .event-picker select{
+    width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:8px;
+    background:var(--navy-card-2); color:var(--cream); font:inherit;
+  }
+  .event-picker .hint{ margin-top:7px; font-size:11.5px; color:var(--muted); }
+
   .alert-banner{
     display:none; align-items:center; gap:14px; padding:16px 18px; border-radius:12px; margin-bottom:16px;
     border:1px solid var(--rose); background:var(--warn-bg);
@@ -114,7 +127,13 @@
 
 <div class="wrap">
   <div id="loadingNote">読み込み中です…</div>
-  <div id="missingNote">URLに公演（?event_id=…）が指定されていません。lunch-admin.html で発行した集計ページURLをお使いください。</div>
+  <div id="missingNote">公演データを取得できませんでした。</div>
+
+  <div class="event-picker" id="eventPickerBox" style="display:none">
+    <label for="eventPicker">表示する開催回</label>
+    <select id="eventPicker"></select>
+    <div class="hint">最新の開催回を初期表示します。必要に応じて過去の開催回へ切り替えできます。</div>
+  </div>
 
   <div id="content" style="display:none">
     <div class="alert-banner" id="alertBanner">
@@ -184,34 +203,69 @@
   function fmtDate(v){ if(!v) return '―'; const d=new Date(v+'T00:00:00'); return `${d.getMonth()+1}月${d.getDate()}日`; }
   function getEventId(){ return new URLSearchParams(window.location.search).get('event_id'); }
 
+  function eventOptionLabel(ev){
+    return `第${ev.event_number||''}回 ${fmtDate(ev.event_date)} ${ev.troupe||''}組 ${ev.show_time||''}`;
+  }
+
+  async function loadEventChoices(preferredId){
+    const { data, error } = await sb
+      .from('events')
+      .select('id,event_number,event_date,troupe,show_time')
+      .order('event_date', { ascending:false });
+    if(error) throw error;
+    const list = data || [];
+    if(!list.length) return null;
+
+    const picker = document.getElementById('eventPicker');
+    picker.innerHTML = list.map(ev =>
+      `<option value="${ev.id}">${eventOptionLabel(ev)}</option>`
+    ).join('');
+
+    const chosen = (preferredId && list.some(ev=>ev.id===preferredId))
+      ? preferredId
+      : list[0].id;
+
+    picker.value = chosen;
+    document.getElementById('eventPickerBox').style.display = 'block';
+    return chosen;
+  }
+
+  async function loadSelectedEvent(eventId){
+    document.getElementById('loadingNote').style.display = 'block';
+    document.getElementById('missingNote').style.display = 'none';
+    document.getElementById('content').style.display = 'none';
+
+    const { data: ev, error: evErr } = await sb.from('events').select('*').eq('id', eventId).single();
+    if(evErr || !ev) throw evErr || new Error('not found');
+    eventRow = ev;
+
+    const { data: settings } = await sb.from('meal_settings').select('*').eq('event_id', eventId).maybeSingle();
+    settingsRow = settings || {};
+
+    await Promise.all([loadRegistrants(eventId), loadOrders(eventId)]);
+
+    document.getElementById('loadingNote').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    document.getElementById('eventLabel').textContent = `第${ev.event_number||''}回 ${fmtDate(ev.event_date)} ${ev.troupe||''}組`;
+    render();
+  }
+
   async function init(){
     document.getElementById('loadingNote').style.display = 'block';
     document.getElementById('missingNote').style.display = 'none';
     document.getElementById('content').style.display = 'none';
 
-    const eventId = getEventId();
-    if(!eventId){
-      document.getElementById('loadingNote').style.display = 'none';
-      document.getElementById('missingNote').style.display = 'block';
-      return;
-    }
     try{
       await waitForLib(10000);
       sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      const { data: ev, error: evErr } = await sb.from('events').select('*').eq('id', eventId).single();
-      if(evErr || !ev) throw evErr || new Error('not found');
-      eventRow = ev;
-
-      const { data: settings } = await sb.from('meal_settings').select('*').eq('event_id', eventId).maybeSingle();
-      settingsRow = settings || {};
-
-      await Promise.all([loadRegistrants(eventId), loadOrders(eventId)]);
-
-      document.getElementById('loadingNote').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      document.getElementById('eventLabel').textContent = `第${ev.event_number||''}回 ${fmtDate(ev.event_date)} ${ev.troupe||''}組`;
-      render();
+      const chosenId = await loadEventChoices(getEventId());
+      if(!chosenId){
+        document.getElementById('loadingNote').style.display = 'none';
+        document.getElementById('missingNote').style.display = 'block';
+        return;
+      }
+      await loadSelectedEvent(chosenId);
     }catch(err){
       console.error(err);
       document.getElementById('loadingNote').style.display = 'none';
@@ -358,6 +412,16 @@
     document.getElementById('drinkSummary').innerHTML = Object.entries(drinkMap).map(([n,q])=>
       `<tr><td>${n}</td><td class="num">${q}</td></tr>`).join('');
   }
+
+  document.getElementById('eventPicker').addEventListener('change', async (e)=>{
+    try{
+      await loadSelectedEvent(e.target.value);
+    }catch(err){
+      console.error(err);
+      document.getElementById('missingNote').style.display = 'block';
+      document.getElementById('missingNote').textContent = '選択した公演データの読み込みに失敗しました。';
+    }
+  });
 
   document.getElementById('search').addEventListener('input', render);
   document.getElementById('filterBtn').addEventListener('click', ()=>{

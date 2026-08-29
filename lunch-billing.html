@@ -22,6 +22,19 @@
   #loadingNote, #missingNote{ text-align:center; padding:40px 10px; color:var(--muted); }
   #missingNote{ display:none; color:var(--rose); font-weight:700; }
 
+  .event-picker{
+    border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:16px;
+    background:var(--navy-card);
+  }
+  .event-picker label{
+    display:block; font-size:12px; color:var(--gold-soft); font-weight:700; margin-bottom:7px;
+  }
+  .event-picker select{
+    width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:8px;
+    background:var(--navy-card-2); color:var(--cream); font:inherit;
+  }
+  .event-picker .hint{ margin-top:7px; font-size:11.5px; color:var(--muted); }
+
   .section{ border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; background:var(--navy-card); }
   .section h2{ margin:0 0 12px; font-size:16px; color:var(--gold-soft); font-family:'Shippori Mincho', serif; }
   .section-sub{ font-size:11.5px; color:var(--muted); margin:-6px 0 12px; }
@@ -93,7 +106,13 @@
 
 <div class="wrap">
   <div id="loadingNote">読み込み中です…</div>
-  <div id="missingNote">URLに公演（?event_id=…）が指定されていません。lunch-admin.html で発行したURLの event_id を使ってください。</div>
+  <div id="missingNote">公演データを取得できませんでした。</div>
+
+  <div class="event-picker" id="eventPickerBox" style="display:none">
+    <label for="eventPicker">表示する開催回</label>
+    <select id="eventPicker"></select>
+    <div class="hint">最新の開催回を初期表示します。必要に応じて過去の開催回へ切り替えできます。</div>
+  </div>
 
   <div id="content" style="display:none">
 
@@ -160,52 +179,86 @@
   function yen(n){ return (n||0).toLocaleString('ja-JP') + '円'; }
   function fmtDate(v){ if(!v) return '―'; const d=new Date(v+'T00:00:00'); return `${d.getMonth()+1}月${d.getDate()}日`; }
   function getEventId(){ return new URLSearchParams(window.location.search).get('event_id'); }
-  function normalizeName(name){ return (name || '').replace(/[\s\u3000]/g, ''); }
 
-  async function init(){
-    // 表示状態を必ずリセットしてから判定する（戻る操作などで古い表示が残らないように）
+  function eventOptionLabel(ev){
+    return `第${ev.event_number||''}回 ${fmtDate(ev.event_date)} ${ev.troupe||''}組 ${ev.show_time||''}`;
+  }
+
+  async function loadEventChoices(preferredId){
+    const { data, error } = await sb
+      .from('events')
+      .select('id,event_number,event_date,troupe,show_time')
+      .order('event_date', { ascending:false });
+    if(error) throw error;
+    const list = data || [];
+    if(!list.length) return null;
+
+    const picker = document.getElementById('eventPicker');
+    picker.innerHTML = list.map(ev =>
+      `<option value="${ev.id}">${eventOptionLabel(ev)}</option>`
+    ).join('');
+
+    const chosen = (preferredId && list.some(ev=>ev.id===preferredId))
+      ? preferredId
+      : list[0].id;
+
+    picker.value = chosen;
+    document.getElementById('eventPickerBox').style.display = 'block';
+    return chosen;
+  }
+
+  async function loadSelectedEvent(eventId){
     document.getElementById('loadingNote').style.display = 'block';
     document.getElementById('missingNote').style.display = 'none';
     document.getElementById('content').style.display = 'none';
 
-    const eventId = getEventId();
-    if(!eventId){
-      document.getElementById('loadingNote').style.display = 'none';
-      document.getElementById('missingNote').style.display = 'block';
-      return;
+    const { data: ev, error: evErr } = await sb.from('events').select('*').eq('id', eventId).single();
+    if(evErr || !ev) throw evErr || new Error('not found');
+    eventRow = ev;
+
+    const { data: bank } = await sb.from('event_bank_info').select('*').eq('event_id', eventId).maybeSingle();
+    if(bank){
+      bankInfo = bank;
+      savedForThisEvent = true;
+    } else {
+      const { data: lastBank } = await sb.from('event_bank_info').select('*').order('updated_at', { ascending:false }).limit(1).maybeSingle();
+      bankInfo = lastBank || null;
+      savedForThisEvent = false;
     }
+    fillBankForm(bankInfo);
+
+    const { data: regRows, error: regErr } = await sb.from('registrations').select('answers, status').eq('event_id', eventId);
+    if(regErr) throw regErr;
+    registrations = (regRows || [])
+      .filter(r => r.status !== 'お断り' && r.status !== 'キャンセル')
+      .map(r => ({ name: r.answers?.full_name || '(不明)', count: Number(r.answers?.participant_count) || 1 }));
+
+    await loadOrders(eventId);
+
+    document.getElementById('loadingNote').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    document.getElementById('eventLabel').textContent = `第${ev.event_number||''}回 ${fmtDate(ev.event_date)} ${ev.troupe||''}組`;
+    document.getElementById('ticketUnitPrice').textContent = yen(ev.base_price);
+    render();
+  }
+  function normalizeName(name){ return (name || '').replace(/[\s\u3000]/g, ''); }
+
+  async function init(){
+    document.getElementById('loadingNote').style.display = 'block';
+    document.getElementById('missingNote').style.display = 'none';
+    document.getElementById('content').style.display = 'none';
+
     try{
       await waitForLib(10000);
       sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      const { data: ev, error: evErr } = await sb.from('events').select('*').eq('id', eventId).single();
-      if(evErr || !ev) throw evErr || new Error('not found');
-      eventRow = ev;
-
-      const { data: bank } = await sb.from('event_bank_info').select('*').eq('event_id', eventId).maybeSingle();
-      if(bank){
-        bankInfo = bank;
-        savedForThisEvent = true;
-      } else {
-        const { data: lastBank } = await sb.from('event_bank_info').select('*').order('updated_at', { ascending:false }).limit(1).maybeSingle();
-        bankInfo = lastBank || null; // 初期値としてのみ使用。まだこの公演用には保存されていない
-        savedForThisEvent = false;
+      const chosenId = await loadEventChoices(getEventId());
+      if(!chosenId){
+        document.getElementById('loadingNote').style.display = 'none';
+        document.getElementById('missingNote').style.display = 'block';
+        return;
       }
-      fillBankForm(bankInfo);
-
-      const { data: regRows, error: regErr } = await sb.from('registrations').select('answers, status').eq('event_id', eventId);
-      if(regErr) throw regErr;
-      registrations = (regRows || [])
-        .filter(r => r.status !== 'お断り' && r.status !== 'キャンセル')
-        .map(r => ({ name: r.answers?.full_name || '(不明)', count: Number(r.answers?.participant_count) || 1 }));
-
-      await loadOrders(eventId);
-
-      document.getElementById('loadingNote').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      document.getElementById('eventLabel').textContent = `第${ev.event_number||''}回 ${fmtDate(ev.event_date)} ${ev.troupe||''}組`;
-      document.getElementById('ticketUnitPrice').textContent = yen(ev.base_price);
-      render();
+      await loadSelectedEvent(chosenId);
     }catch(err){
       console.error(err);
       document.getElementById('loadingNote').style.display = 'none';
@@ -396,6 +449,16 @@
 
     document.getElementById('grandTotal').textContent = yen(rows.reduce((s,r)=>s+r.total,0));
   }
+
+  document.getElementById('eventPicker').addEventListener('change', async (e)=>{
+    try{
+      await loadSelectedEvent(e.target.value);
+    }catch(err){
+      console.error(err);
+      document.getElementById('missingNote').style.display = 'block';
+      document.getElementById('missingNote').textContent = '選択した公演データの読み込みに失敗しました。';
+    }
+  });
 
   document.getElementById('search').addEventListener('input', render);
   document.getElementById('printBtn').addEventListener('click', ()=> window.print());
