@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>直近7回 申込者一覧(管理者用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
+      var(--navy-deep);
+    color:var(--cream);
+    font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; letter-spacing:.03em; }
+  .sub{ font-size:12.5px; color:var(--muted); margin-top:6px; }
+  .divider{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    max-width:160px; margin:10px auto 0; opacity:.85;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .divider .gem{
+    width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
+    border:1px solid var(--gold-soft); flex-shrink:0;
+  }
+
+  .toolbar{ max-width:700px; margin:14px auto 0; padding:0 16px; display:flex; gap:10px; align-items:center; }
+  .count-badge{
+    font-size:12.5px; color:var(--gold-soft); background:var(--navy-card);
+    border:1px solid var(--gold); border-radius:20px; padding:5px 14px; font-weight:700;
+  }
+  .refresh-btn{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft); color:#fffaf3;
+    border-radius:8px; padding:9px 16px; font-size:13px; cursor:pointer; font-weight:700; font-family:inherit;
+  }
+
+  .table-wrap{ max-width:700px; margin:16px auto 0; padding:0 16px 16px; overflow-x:auto; }
+  table{
+    border-collapse:separate; border-spacing:0; width:100%; min-width:520px; font-size:13px;
+    background:var(--navy-card); border:1px solid var(--gold); border-radius:12px; overflow:hidden;
+  }
+  th, td{ padding:11px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th{ color:var(--gold-soft); font-weight:700; background:var(--navy-card-2); }
+  tr:last-child td{ border-bottom:none; }
+  tr:hover td{ background:rgba(154,134,201,0.05); }
+  td.name{ font-weight:700; font-family:'Shippori Mincho', serif; }
+  .grade-tag{ font-size:11px; color:var(--muted); font-weight:400; margin-left:6px; }
+  .rank{ color:var(--gold-soft); font-weight:700; width:28px; }
+
+  .penalty-badge{
+    display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700;
+    padding:4px 10px; border-radius:12px; cursor:pointer; border:1px solid var(--rose);
+    background:rgba(165,84,74,0.1); color:var(--rose); font-family:inherit;
+  }
+  .penalty-badge.zero{ background:var(--navy-card-2); color:var(--muted); border-color:var(--line); }
+
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(20,15,30,0.55);
+    z-index:100; align-items:flex-end; justify-content:center;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background:var(--navy-card); border:1px solid var(--gold); border-radius:16px 16px 0 0;
+    max-width:480px; width:100%; max-height:80vh; overflow-y:auto;
+    padding:22px 20px 26px;
+  }
+  @media (min-width: 560px){ .modal-overlay{ align-items:center; } .modal-box{ border-radius:16px; } }
+  .modal-box h3{ font-family:'Shippori Mincho', serif; font-size:17px; margin:0 0 12px; color:var(--gold-soft); }
+  .notes-history{
+    background:var(--navy-card-2); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; font-size:12.5px; line-height:1.8; white-space:pre-wrap; color:var(--cream);
+    max-height:300px; overflow-y:auto; margin-bottom:16px;
+  }
+  .notes-history.empty{ color:var(--muted); }
+  .modal-box button{
+    width:100%; padding:12px; border-radius:8px; font-size:14px; cursor:pointer; font-weight:700;
+    background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream); font-family:inherit;
+  }
+
+  .empty-msg, .status-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
+  .status-msg.err{ color:var(--rose); }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">管理者用</div>
+  <h1>直近7回 申込者一覧</h1>
+  <div class="divider"><span class="gem"></span></div>
+  <p class="sub">直近7回の開催回を集計しています</p>
+</div>
+
+<div class="toolbar">
+  <span class="count-badge" id="countBadge"></span>
+  <button class="refresh-btn" id="refreshBtn">更新</button>
+</div>
+
+<div class="table-wrap">
+  <table id="dataTable" style="display:none;">
+    <thead>
+      <tr>
+        <th class="rank">#</th>
+        <th>氏名</th>
+        <th>申込回数</th>
+        <th>食事回数</th>
+        <th>ペナルティ</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <p class="empty-msg" id="emptyMsg" style="display:none;">データがありません。</p>
+  <p class="status-msg" id="statusMsg"></p>
+</div>
+
+<div class="modal-overlay" id="penaltyModal">
+  <div class="modal-box">
+    <h3 id="modalName"></h3>
+    <div class="notes-history" id="modalHistory"></div>
+    <button id="modalClose">閉じる</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  const RECENT_EVENTS_ONLY = true;
+
+  let sb = null;
+
+  window.addEventListener('error', (ev)=>{
+    const box = document.getElementById('statusMsg');
+    box.classList.add('err');
+    box.textContent = '予期しないエラー:' + (ev.message || '');
+  });
+  window.addEventListener('unhandledrejection', (ev)=>{
+    const box = document.getElementById('statusMsg');
+    box.classList.add('err');
+    box.textContent = '予期しないエラー:' + (ev.reason?.message || ev.reason || '');
+  });
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('ライブラリの読み込みに失敗しました。再読み込みしてください。'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  function gradeDigits(grade){
+    if(!grade) return '';
+    const m = String(grade).match(/\d+/);
+    return m ? m[0] : '';
+  }
+
+  function escapeHtml(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function loadData(){
+    const statusMsg = document.getElementById('statusMsg');
+    const table = document.getElementById('dataTable');
+    const emptyMsg = document.getElementById('emptyMsg');
+    const countBadge = document.getElementById('countBadge');
+    statusMsg.textContent = ''; statusMsg.classList.remove('err');
+    table.style.display = 'none'; emptyMsg.style.display = 'none';
+
+    let eventIds = null;
+    if(RECENT_EVENTS_ONLY){
+      const { data: evData, error: evErr } = await sb
+        .from('events')
+        .select('id, event_date')
+        .order('event_date', { ascending: false })
+        .limit(7);
+      if(evErr) throw evErr;
+      eventIds = (evData || []).map(e => e.id);
+      if(eventIds.length === 0){
+        emptyMsg.style.display = 'block';
+        countBadge.textContent = '0名';
+        return;
+      }
+    }
+
+    let query = sb
+      .from('registrations')
+      .select('event_id, answers, wants_meal, participants(id, name, email, penalty_points, penalty_notes)');
+    if(eventIds){
+      query = query.in('event_id', eventIds);
+    }
+    const { data, error } = await query;
+    if(error) throw error;
+
+    const groups = {};
+    (data || []).forEach(r=>{
+      const p = r.participants || {};
+      const a = r.answers || {};
+      const key = p.email || p.id || (a.full_name + Math.random());
+      if(!groups[key]){
+        groups[key] = {
+          name: p.name || a.full_name || '(名前不明)',
+          grade: gradeDigits(a.grade),
+          count: 0,
+          mealCount: 0,
+          penaltyTotal: 0,
+          notes: []
+        };
+      }
+      const g = groups[key];
+      g.count += 1;
+      if(r.wants_meal) g.mealCount += 1;
+      if(p.penalty_points) g.penaltyTotal += p.penalty_points;
+      if(p.penalty_notes && !g.notes.includes(p.penalty_notes)) g.notes.push(p.penalty_notes);
+      if(!g.grade && gradeDigits(a.grade)) g.grade = gradeDigits(a.grade);
+    });
+
+    const list = Object.values(groups);
+    list.sort((a, b)=>{
+      if(b.count !== a.count) return b.count - a.count;
+      if(b.mealCount !== a.mealCount) return b.mealCount - a.mealCount;
+      return a.penaltyTotal - b.penaltyTotal;
+    });
+
+    if(list.length === 0){
+      emptyMsg.style.display = 'block';
+      countBadge.textContent = '0名';
+      return;
+    }
+
+    countBadge.textContent = `${list.length}名`;
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = list.map((g, i) => `
+      <tr>
+        <td class="rank">${i+1}</td>
+        <td class="name">${escapeHtml(g.name)}${g.grade ? `<span class="grade-tag">${escapeHtml(g.grade)}回生</span>` : ''}</td>
+        <td>${g.count}回</td>
+        <td>${g.mealCount}回</td>
+        <td>
+          <button class="penalty-badge ${g.penaltyTotal > 0 ? '' : 'zero'}" data-name="${escapeHtml(g.name)}" data-notes="${escapeHtml(g.notes.join('\\n\\n'))}">⚠ ${g.penaltyTotal}</button>
+        </td>
+      </tr>
+    `).join('');
+    table.style.display = 'table';
+
+    tbody.querySelectorAll('.penalty-badge').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.getElementById('modalName').textContent = btn.getAttribute('data-name') + ' さんの記録';
+        const notes = btn.getAttribute('data-notes');
+        const box = document.getElementById('modalHistory');
+        if(notes){
+          box.textContent = notes;
+          box.classList.remove('empty');
+        } else {
+          box.textContent = 'まだ記録はありません。';
+          box.classList.add('empty');
+        }
+        document.getElementById('penaltyModal').classList.add('show');
+      });
+    });
+  }
+
+  document.getElementById('modalClose').addEventListener('click', ()=>{
+    document.getElementById('penaltyModal').classList.remove('show');
+  });
+  document.getElementById('penaltyModal').addEventListener('click', (e)=>{
+    if(e.target.id === 'penaltyModal') document.getElementById('penaltyModal').classList.remove('show');
+  });
+
+  async function init(){
+    const statusMsg = document.getElementById('statusMsg');
+    try{
+      await waitForLib(10000);
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      await loadData();
+      document.getElementById('refreshBtn').addEventListener('click', loadData);
+    } catch(e){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = e.message || String(e);
+    }
+  }
+  init();
+</script>
+</body>
+</html>
