@@ -210,6 +210,7 @@
       console.error(err);
       document.getElementById('loadingNote').style.display = 'none';
       document.getElementById('missingNote').style.display = 'block';
+      document.getElementById('content').style.display = 'none';
     }
   }
 
@@ -303,6 +304,16 @@
     if(bankInfo.account_type || bankInfo.account_number) lines.push(`${bankInfo.account_type || ''}　${bankInfo.account_number || ''}`.trim());
     if(bankInfo.account_holder) lines.push(`口座名義　${bankInfo.account_holder}`);
     return lines;
+  }
+
+  function billingRows(){
+    const unit = eventRow.base_price || 0;
+    return registrations.map(r=>{
+      const order = orderByName(r.name);
+      const ticketPrice = unit * r.count;
+      const mealPrice = order ? order.items.reduce((s,i)=>s+(i.price||0),0) : 0;
+      return { name:r.name, count:r.count, ticketPrice, mealPrice, total:ticketPrice+mealPrice, order };
+    });
   }
 
   function lineText(row){
