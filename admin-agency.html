@@ -20,8 +20,7 @@
     background:
       radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
       var(--navy-deep);
-    color:var(--cream);
-    font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+    color:var(--cream); font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
   }
   .hero{ text-align:center; padding:36px 20px 18px; }
   .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
@@ -37,6 +36,18 @@
   .divider .gem{
     width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
     border:1px solid var(--gold-soft); flex-shrink:0;
+  }
+
+  .edit-banner{
+    max-width:480px; margin:14px auto 0; padding:12px 16px;
+    background:var(--gold-soft); color:#fff; border-radius:10px;
+    font-size:13px; font-weight:700; display:none;
+  }
+  .edit-banner.show{ display:block; }
+  .edit-banner button{
+    width:auto; margin:8px 0 0; padding:6px 12px;
+    background:#fff; color:var(--gold-soft); font-size:12px; font-weight:700;
+    border:0; border-radius:8px; cursor:pointer; font-family:inherit;
   }
 
   form{ max-width:480px; margin:14px auto 0; padding:0 20px; }
@@ -85,9 +96,12 @@
   .history h3{ font-family:'Shippori Mincho', serif; font-size:15px; color:var(--gold-soft); margin:0 0 10px; }
   .history-item{
     background:var(--navy-card); border:1px solid var(--line); border-radius:8px;
-    padding:10px 14px; font-size:13px; margin-bottom:8px; display:flex; justify-content:space-between;
+    padding:10px 14px; font-size:13px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;
+    cursor:pointer;
   }
+  .history-item:active{ border-color:var(--gold); }
   .history-item b{ color:var(--gold-soft); }
+  .history-item .edit-hint{ font-size:11px; color:var(--muted); flex-shrink:0; margin-left:10px; }
 
   .nav-links{
     max-width:480px; margin:24px auto 0; padding:0 20px;
@@ -106,6 +120,11 @@
   <div class="eyebrow">管理者用</div>
   <h1>旅行代理店 確定枚数入力</h1>
   <div class="divider"><span class="gem"></span></div>
+</div>
+
+<div class="edit-banner" id="editBanner">
+  <span id="editBannerLabel"></span>
+  <button type="button" id="cancelEditBtn">新規登録に戻る</button>
 </div>
 
 <form id="agencyForm">
@@ -151,7 +170,7 @@
 </form>
 
 <div class="history">
-  <h3>直近の登録履歴</h3>
+  <h3>直近の登録履歴(タップして修正)</h3>
   <div id="historyList"></div>
 </div>
 
@@ -160,6 +179,8 @@
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
   let sb = null;
+  let editingId = null;
+  let historyData = [];
 
   window.addEventListener('error', (ev)=>{
     const box = document.getElementById('statusMsg');
@@ -196,16 +217,50 @@
       .order('event_date', { ascending: false })
       .limit(10);
     if(error || !data || data.length === 0){
+      historyData = [];
       list.innerHTML = '<p style="color:var(--muted); font-size:13px;">まだ登録がありません。</p>';
       return;
     }
-    list.innerHTML = data.map(row => `
-      <div class="history-item">
+    historyData = data;
+    list.innerHTML = data.map((row, i) => `
+      <div class="history-item" data-index="${i}">
         <span><b>${row.troupe}組</b> ${row.event_date} ${row.show_time} / ${row.seat_type}</span>
-        <span><b>${row.confirmed_count}枚</b></span>
+        <span><b>${row.confirmed_count}枚</b><span class="edit-hint">編集する</span></span>
       </div>
     `).join('');
+    list.querySelectorAll('.history-item').forEach(el=>{
+      el.addEventListener('click', ()=> enterEditMode(historyData[Number(el.dataset.index)]));
+    });
   }
+
+  function enterEditMode(row){
+    editingId = row.id;
+    form.querySelector('select[name=troupe]').value = row.troupe || '';
+    form.querySelector('input[name=event_date]').value = row.event_date || '';
+
+    form.querySelectorAll('.toggle-opt').forEach(el => el.classList.remove('checked'));
+    const timeRadio = form.querySelector(`input[name=show_time][value="${row.show_time}"]`);
+    if(timeRadio){ timeRadio.checked = true; timeRadio.closest('.toggle-opt').classList.add('checked'); }
+    const seatRadio = form.querySelector(`input[name=seat_type][value="${row.seat_type}"]`);
+    if(seatRadio){ seatRadio.checked = true; seatRadio.closest('.toggle-opt').classList.add('checked'); }
+
+    form.querySelector('input[name=confirmed_count]').value = row.confirmed_count || '';
+
+    document.getElementById('editBanner').classList.add('show');
+    document.getElementById('editBannerLabel').textContent =
+      `${row.troupe}組 ${row.event_date} ${row.show_time} を修正中`;
+    document.getElementById('submitBtn').textContent = '修正登録する';
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+
+  function exitEditMode(){
+    editingId = null;
+    form.reset();
+    form.querySelectorAll('.toggle-opt.checked').forEach(el => el.classList.remove('checked'));
+    document.getElementById('editBanner').classList.remove('show');
+    document.getElementById('submitBtn').textContent = 'この内容で登録する';
+  }
+  document.getElementById('cancelEditBtn').addEventListener('click', exitEditMode);
 
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
@@ -214,30 +269,39 @@
     statusMsg.className = 'status';
     statusMsg.textContent = '';
     submitBtn.disabled = true;
-    submitBtn.textContent = '登録中…';
+    submitBtn.textContent = editingId ? '修正中…' : '登録中…';
 
     try{
       const fd = new FormData(form);
-      const { error } = await sb.from('agency_confirmations').insert({
+      const payload = {
         troupe: fd.get('troupe'),
         event_date: fd.get('event_date'),
         show_time: fd.get('show_time'),
         seat_type: fd.get('seat_type'),
         confirmed_count: Number(fd.get('confirmed_count'))
-      });
-      if(error) throw error;
+      };
 
-      statusMsg.classList.add('ok');
-      statusMsg.textContent = '登録が完了しました。';
-      form.reset();
-      document.querySelectorAll('.toggle-opt.checked').forEach(el => el.classList.remove('checked'));
+      if(editingId){
+        const { error } = await sb.from('agency_confirmations').update(payload).eq('id', editingId);
+        if(error) throw error;
+        statusMsg.classList.add('ok');
+        statusMsg.textContent = '修正内容を保存しました。';
+        exitEditMode();
+      } else {
+        const { error } = await sb.from('agency_confirmations').insert(payload);
+        if(error) throw error;
+        statusMsg.classList.add('ok');
+        statusMsg.textContent = '登録が完了しました。';
+        form.reset();
+        form.querySelectorAll('.toggle-opt.checked').forEach(el => el.classList.remove('checked'));
+      }
       loadHistory();
     } catch(err){
       statusMsg.classList.add('err');
-      statusMsg.textContent = '登録に失敗しました:' + (err.message || '');
+      statusMsg.textContent = (editingId ? '修正に失敗しました:' : '登録に失敗しました:') + (err.message || '');
     } finally {
       submitBtn.disabled = false;
-      submitBtn.textContent = 'この内容で登録する';
+      submitBtn.textContent = editingId ? '修正登録する' : 'この内容で登録する';
     }
   });
 
