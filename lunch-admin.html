@@ -189,6 +189,11 @@
       <input type="text" id="meetingPlaceInput" value="店の前">
     </label>
 
+    <div class="event-picker" id="restaurantPicker" style="margin:0 0 16px;">
+      <p class="picker-label">🍽 よく使うお店を選ぶと、店舗写真・メニュー・金額が自動で入ります</p>
+      <div class="picker-list" id="restaurantPickerList"><span class="picker-empty">読み込み中…</span></div>
+    </div>
+
     <label class="field">
       <span class="lbl">店名</span>
       <input type="text" id="restaurantNameInput" placeholder="例:レストラン フェリエ">
@@ -201,7 +206,7 @@
 
     <div id="menuCards"></div>
     <button type="button" class="secondary" id="addMenuBtn" style="margin-top:4px">＋ メニューを追加</button>
-    <p class="note">組を選ぶと、開催回登録時に入力したメニュー候補（名前・価格）が自動で入ります。最大4つまで追加でき、写真はここで追加してください。</p>
+    <p class="note">上の「よく使うお店」から選ぶか、手入力できます。最大4つまで追加でき、保存すると次回のためにこのお店の内容が自動で記憶されます。</p>
 
     <div class="actions">
       <button type="button" class="secondary" id="previewBtn">参加者フォームをプレビュー</button>
@@ -251,10 +256,12 @@
   async function loadEventPicker(){
     const list = document.getElementById('eventPickerList');
     try{
+      const todayStr = new Date().toISOString().slice(0,10);
       const { data, error } = await sb
         .from('events')
         .select('id, event_number, troupe, event_date, show_time, meal_menu_options')
-        .order('event_date', { ascending:false })
+        .gte('event_date', todayStr)
+        .order('event_date', { ascending:true })
         .limit(10);
       if(error) throw error;
       if(!data || data.length === 0){
@@ -327,15 +334,51 @@
     updateLineMessage();
   }
 
+  // ---- ③ よく使うお店を選ぶと、店舗写真・メニューを自動で読み込む ----
+  async function loadRestaurantPicker(){
+    const list = document.getElementById('restaurantPickerList');
+    try{
+      const { data, error } = await sb
+        .from('restaurant_presets')
+        .select('*')
+        .order('updated_at', { ascending:false })
+        .limit(10);
+      if(error) throw error;
+      if(!data || data.length === 0){
+        list.innerHTML = '<span class="picker-empty">まだお店が登録されていません。保存すると自動で記憶されます。</span>';
+        return;
+      }
+      list.innerHTML = data.map((r,i)=>`
+        <button type="button" class="picker-btn" data-index="${i}">${r.name}</button>
+      `).join('');
+      list.querySelectorAll('.picker-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=> applyRestaurantPreset(data[Number(btn.dataset.index)]));
+      });
+    }catch(e){
+      list.innerHTML = '<span class="picker-empty">お店一覧の取得に失敗しました。</span>';
+      console.error(e);
+    }
+  }
+
+  function applyRestaurantPreset(preset){
+    document.getElementById('restaurantNameInput').value = preset.name || '';
+    existingRestaurantPhotoUrl = preset.photo_url || null;
+    document.getElementById('restaurantPreview').innerHTML =
+      existingRestaurantPhotoUrl ? `<img src="${existingRestaurantPhotoUrl}" alt="">` : '店舗写真プレビュー';
+    renderMenuCards((preset.menus || []).map(m => ({ name:m.name, price:m.price, photoUrl:m.photo_url })));
+  }
+
   // ---- ② 代理店確定データからも組・開催日・公演時間を自動入力できるようにする ----
   async function loadAgencyPicker(){
     const picker = document.getElementById('agencyPicker');
     const list = document.getElementById('agencyPickerList');
     try{
+      const todayStr = new Date().toISOString().slice(0,10);
       const { data, error } = await sb
         .from('agency_confirmations')
         .select('troupe, event_date, show_time, seat_type, confirmed_count')
-        .order('event_date', { ascending: false })
+        .gte('event_date', todayStr)
+        .order('event_date', { ascending: true })
         .limit(10);
       if(error || !data || data.length === 0) return;
 
@@ -590,6 +633,17 @@ ${time}
         if(menuErr) throw menuErr;
       }
 
+      // よく使うお店として記憶しておく（次回同じ店名を選べば自動で読み込める）
+      const restaurantName = document.getElementById('restaurantNameInput').value.trim();
+      if(restaurantName){
+        await sb.from('restaurant_presets').upsert({
+          name: restaurantName,
+          photo_url: restaurantPhotoUrl,
+          menus: menuRows.map(m => ({ name: m.name, price: m.price, photo_url: m.photo_url })),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'name' });
+      }
+
       const formUrl = `${PARTICIPANT_FORM_BASE}?event_id=${selectedEvent.id}`;
       document.getElementById('lineMessage')._formUrl = formUrl;
       updateLineMessage();
@@ -618,6 +672,7 @@ ${time}
       renderMenuCards([]);
       await loadEventPicker();
       await loadAgencyPicker();
+      await loadRestaurantPicker();
     }catch(e){
       const statusMsg = document.getElementById('statusMsg');
       statusMsg.classList.add('err');

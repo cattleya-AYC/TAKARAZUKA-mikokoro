@@ -236,13 +236,6 @@
     </div>
 
     <label class="field">
-      <span class="lbl">お食事メニュー(参加決定後に選んでもらいます)</span>
-      <div id="menuList"></div>
-      <button type="button" class="add-menu-btn" id="addMenuBtn">+ メニューを追加</button>
-    </label>
-    <p class="note">「食事なし」は自動で選択肢に含まれます。メニューごとに金額が違う場合はここで設定してください。</p>
-
-    <label class="field">
       <span class="lbl">ポスター画像(任意)</span>
       <input type="file" name="poster" accept="image/*">
       <img id="preview" class="preview">
@@ -318,10 +311,12 @@
     const list = document.getElementById('editPickerList');
     try{
       const supabase = getSupabase();
+      const todayStr = new Date().toISOString().slice(0,10);
       const { data, error } = await supabase
         .from('events')
         .select('*')
-        .order('event_date', { ascending:false })
+        .gte('event_date', todayStr)
+        .order('event_date', { ascending:true })
         .limit(10);
       if(error) throw error;
       if(!data || data.length === 0){
@@ -362,14 +357,6 @@
     document.getElementById('recruitmentStartInput').value = ev.recruitment_start_date ? ev.recruitment_start_date.slice(0,10) : document.getElementById('recruitmentStartInput').value;
     document.getElementById('deadlineInput').value = ev.application_deadline ? ev.application_deadline.slice(0,10) : document.getElementById('deadlineInput').value;
 
-    menuList.innerHTML = '';
-    const menuOptions = (ev.meal_menu_options || []).filter(m => m.name !== '食事なし');
-    if(menuOptions.length){
-      menuOptions.forEach(m => addMenuRow(m.name, m.price));
-    } else {
-      addMenuRow();
-    }
-
     const preview = document.getElementById('preview');
     if(editingPosterUrl){
       preview.src = editingPosterUrl;
@@ -390,8 +377,6 @@
     document.getElementById('editModeTag').style.display = 'none';
     document.getElementById('submitBtn').textContent = 'この内容で登録する';
     document.getElementById('eventForm').reset();
-    menuList.innerHTML = '';
-    addMenuRow();
     document.getElementById('preview').style.display = 'none';
     document.getElementById('scheduleBox').style.display = 'none';
     loadPreviousEvent();
@@ -406,10 +391,12 @@
     const list = document.getElementById('agencyPickerList');
     try{
       const supabase = getSupabase();
+      const todayStr = new Date().toISOString().slice(0,10);
       const { data, error } = await supabase
         .from('agency_confirmations')
         .select('troupe, event_date, show_time, seat_type, confirmed_count')
-        .order('event_date', { ascending: false })
+        .gte('event_date', todayStr)
+        .order('event_date', { ascending: true })
         .limit(10);
       if(error || !data || data.length === 0) return;
 
@@ -435,22 +422,6 @@
     } catch(e){ console.warn('代理店データの取得に失敗しました', e); }
   }
   loadAgencyPicker();
-
-  // ---- お食事メニュー(名前+価格)の動的リスト ----
-  const menuList = document.getElementById('menuList');
-  function addMenuRow(name='', price=''){
-    const row = document.createElement('div');
-    row.className = 'menu-row';
-    row.innerHTML = `
-      <input type="text" class="menu-name" placeholder="例:和食コース" value="${name}">
-      <input type="number" class="price" placeholder="例:3000" value="${price}">
-      <button type="button" class="remove">×</button>
-    `;
-    row.querySelector('.remove').addEventListener('click', ()=> row.remove());
-    menuList.appendChild(row);
-  }
-  addMenuRow(); // 最初に1行表示
-  document.getElementById('addMenuBtn').addEventListener('click', ()=> addMenuRow());
 
   // ---- 席種に応じて料金を自動計算(S席:8000+手数料200円 / S+席:11000+手数料200円) ----
   const seatPrices = { 'S席': 8000 + 200, 'S+席': 11000 + 200 };
@@ -553,14 +524,6 @@
         posterUrl = pub.publicUrl;
       }
 
-      // メニュー一覧を組み立て(「食事なし」は自動追加)
-      const menuOptions = [{ name:'食事なし', price:0 }];
-      menuList.querySelectorAll('.menu-row').forEach(row=>{
-        const name = row.querySelector('.menu-name').value.trim();
-        const price = Number(row.querySelector('.price').value || 0);
-        if(name) menuOptions.push({ name, price });
-      });
-
       const title = `第${fd.get('event_number')}回 ${fd.get('troupe')}組観劇会`;
       const payload = {
         title,
@@ -573,7 +536,6 @@
         seat_type: fd.get('seat_type'),
         capacity: Number(fd.get('capacity')),
         base_price: Number(fd.get('base_price')),
-        meal_menu_options: menuOptions,
         poster_image_url: posterUrl
       };
 
@@ -592,8 +554,6 @@
         form.reset();
         updateBasePrice();
         preview.style.display = 'none';
-        menuList.innerHTML = '';
-        addMenuRow();
         loadPreviousEvent();
         loadEditPicker();
       }
