@@ -55,6 +55,33 @@
   .search{ width:100%; max-width:300px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; background:var(--navy-card-2); color:var(--cream); margin-bottom:14px; }
   .empty-note{ padding:20px; text-align:center; color:var(--muted); }
   @media(max-width:800px){ .info{ grid-template-columns:1fr; } .grid2{ grid-template-columns:1fr; } }
+
+  /* ---- 印刷用:背景色なし・A4 1枚に収める ---- */
+  @media print{
+    @page{ size: A4 landscape; margin: 8mm; }
+    html, body{ background:#fff !important; color:#000 !important; padding:0; }
+    .hero{ padding:0 0 8px; }
+    .eyebrow{ color:#000 !important; }
+    h1{ font-size:16px; margin:0; }
+    .wrap{ max-width:none; padding:0; }
+
+    .actions, .search, .copy-btn, #saveBankBtn, .bank-section{ display:none !important; }
+
+    .info{ grid-template-columns:repeat(3,1fr); gap:4px; margin-bottom:8px; }
+    .info-card{ border:1px solid #999 !important; background:#fff !important; padding:6px; border-radius:0; }
+    .info-card .label{ font-size:9px; color:#333 !important; }
+    .info-card .value{ font-size:14px; }
+    .info-card .value.rose{ color:#000 !important; }
+
+    .section{ border:1px solid #999 !important; background:#fff !important; border-radius:0; padding:8px; margin-bottom:8px; break-inside:avoid; }
+    .section h2{ color:#000 !important; font-size:12px; margin:0 0 6px; }
+
+    table{ font-size:10px; }
+    th,td{ padding:4px 5px; border-bottom:1px solid #ccc !important; }
+    th{ background:#fff !important; color:#000 !important; border-bottom:1px solid #000 !important; }
+    .total-cell{ color:#000 !important; }
+    .table-wrap{ overflow:visible; }
+  }
 </style>
 </head>
 <body>
@@ -76,7 +103,7 @@
       <div class="info-card"><div class="label">合計請求額(全体)</div><div class="value rose" id="grandTotal">―</div></div>
     </section>
 
-    <section class="section">
+    <section class="section bank-section">
       <h2>振込先設定</h2>
       <p class="section-sub">保存すると、この公演専用の振込先として記録されます。後で振込先を変更しても、すでに保存済みの他の公演の内容は変わりません。</p>
       <div class="grid2">
@@ -93,7 +120,10 @@
 
     <section class="section">
       <h2>金額一覧</h2>
-      <input class="search" id="search" placeholder="お名前で検索">
+      <div class="actions" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+        <input class="search" id="search" placeholder="お名前で検索" style="margin-bottom:0;flex:1;min-width:180px;">
+        <button class="secondary" id="printBtn" type="button">印刷</button>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>名前</th><th>人数</th><th class="num">チケット代</th><th class="num">食事代</th><th class="num">合計請求額</th><th></th></tr></thead>
@@ -299,6 +329,7 @@
   }
 
   document.getElementById('search').addEventListener('input', render);
+  document.getElementById('printBtn').addEventListener('click', ()=> window.print());
 
   init();
 </script>
