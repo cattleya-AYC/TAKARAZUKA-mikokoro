@@ -95,9 +95,54 @@
     .total-cell{ color:#000 !important; }
     .table-wrap{ overflow:visible; }
   }
+
+  #authGate{
+    position:fixed; inset:0; z-index:9999;
+    background:var(--navy-deep);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  #authGate .box{
+    max-width:340px; width:100%;
+    background:var(--navy-card); border:1px solid var(--gold);
+    border-radius:14px; padding:28px 24px;
+  }
+  #authGate .title{
+    text-align:center; margin-bottom:18px;
+    font-family:'Shippori Mincho',serif; font-size:13px; letter-spacing:.16em;
+    color:var(--gold-soft); font-weight:700;
+  }
+  #authGate label{ display:block; margin-bottom:14px; }
+  #authGate .lbl{ font-size:13px; color:var(--gold-soft); font-weight:700; display:block; margin-bottom:6px; }
+  #authGate input{
+    width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:8px;
+    background:var(--navy-card-2); color:var(--cream); font-size:15px; font-family:inherit;
+  }
+  #authGate button{
+    width:100%; padding:13px; border:1px solid var(--gold-soft); border-radius:8px;
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    color:#fffaf3; font-weight:700; font-size:15px; cursor:pointer;
+    font-family:'Shippori Mincho','Noto Sans JP',sans-serif;
+  }
+  #authGate .err{ text-align:center; font-size:12.5px; color:var(--rose); margin-top:12px; display:none; }
 </style>
 </head>
 <body>
+
+<div id="authGate">
+  <form class="box" id="loginForm">
+    <div class="title">管理者ログイン</div>
+    <label>
+      <span class="lbl">メールアドレス</span>
+      <input type="email" id="loginEmail" required autocomplete="username">
+    </label>
+    <label>
+      <span class="lbl">パスワード</span>
+      <input type="password" id="loginPassword" required autocomplete="current-password">
+    </label>
+    <button type="submit" id="loginBtn">ログイン</button>
+    <p class="err" id="loginError"></p>
+  </form>
+</div>
 
 <div class="hero">
   <div class="eyebrow">管理者用</div>
@@ -243,15 +288,12 @@
   }
   function normalizeName(name){ return (name || '').replace(/[\s\u3000]/g, ''); }
 
-  async function init(){
+  async function startApp(){
     document.getElementById('loadingNote').style.display = 'block';
     document.getElementById('missingNote').style.display = 'none';
     document.getElementById('content').style.display = 'none';
 
     try{
-      await waitForLib(10000);
-      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
       const chosenId = await loadEventChoices(getEventId());
       if(!chosenId){
         document.getElementById('loadingNote').style.display = 'none';
@@ -266,6 +308,40 @@
       document.getElementById('content').style.display = 'none';
     }
   }
+
+  async function init(){
+    await waitForLib(10000);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      document.getElementById('authGate').style.display = 'none';
+      await startApp();
+    } else {
+      document.getElementById('authGate').style.display = 'flex';
+    }
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errEl.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'ログインしています…';
+    try{
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      document.getElementById('authGate').style.display = 'none';
+      await startApp();
+    }catch(err){
+      errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'ログイン';
+    }
+  });
 
   async function loadOrders(eventId){
     const { data: orderRows, error: orderErr } = await sb.from('meal_orders').select('*').eq('event_id', eventId);
