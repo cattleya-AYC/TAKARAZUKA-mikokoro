@@ -310,7 +310,7 @@
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
 
-  let supabase = null;
+  let sb = null;
   let currentEvent = null;
 
   // 外部ライブラリ(非同期読み込み)が使えるようになるまで待ってから初期化する
@@ -333,7 +333,7 @@
   waitForLibs(10000).then(()=>{
     try { window.emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
     try {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } catch(e){ console.warn('Supabase未設定です', e); }
     document.getElementById('globalErrorBox').style.display = 'none';
     loadCurrentEvent();
@@ -372,12 +372,12 @@
   }
 
   async function loadCurrentEvent(){
-    if(!supabase){
+    if(!sb){
       document.getElementById('eyebrowText').textContent = '接続未設定';
       return;
     }
     const nowIso = new Date().toISOString();
-    let { data, error } = await supabase
+    let { data, error } = await sb
       .from('events')
       .select('*')
       .gte('application_deadline', nowIso)
@@ -518,7 +518,7 @@
     const data = Object.fromEntries(fd.entries());
     data.agree = form.querySelector('[name=agree]').checked;
 
-    if(!supabase){
+    if(!sb){
       statusMsg.style.display='block';
       statusMsg.textContent = 'Supabaseの接続設定が未完了です(管理者にご連絡ください)';
       return;
@@ -533,7 +533,7 @@
     submitBtn.textContent = '送信中…';
 
     try {
-      let { data: existing } = await supabase
+      let { data: existing } = await sb
         .from('participants')
         .select('id')
         .eq('email', data.email)
@@ -541,7 +541,7 @@
 
       let participantId = existing?.id;
       if(!participantId){
-        const { data: created, error: pErr } = await supabase
+        const { data: created, error: pErr } = await sb
           .from('participants')
           .insert({
             name: data.full_name,
@@ -554,7 +554,7 @@
         participantId = created.id;
       }
 
-      const { error: rErr } = await supabase
+      const { error: rErr } = await sb
         .from('registrations')
         .insert({
           participant_id: participantId,
