@@ -200,7 +200,8 @@
     </label>
 
     <div id="menuCards"></div>
-    <p class="note">組を選ぶと、開催回登録時に入力したメニュー候補（名前・価格）が自動で入ります。写真はここで追加してください。</p>
+    <button type="button" class="secondary" id="addMenuBtn" style="margin-top:4px">＋ メニューを追加</button>
+    <p class="note">組を選ぶと、開催回登録時に入力したメニュー候補（名前・価格）が自動で入ります。最大4つまで追加でき、写真はここで追加してください。</p>
 
     <div class="actions">
       <button type="button" class="secondary" id="previewBtn">参加者フォームをプレビュー</button>
@@ -326,31 +327,66 @@
     } catch(e){ console.warn('代理店データの取得に失敗しました', e); }
   }
 
-  // ---- メニューカード（写真だけここで追加する） ----
+  // ---- メニューカード（最大4つまで追加可能。写真はここで追加する） ----
+  const MAX_MENUS = 4;
+
   function renderMenuCards(options){
     const wrap = document.getElementById('menuCards');
-    const list = options.length ? options : [{ name:'', price:'' }];
-    wrap.innerHTML = list.slice(0,4).map((m,i)=>`
-      <div class="menu-card">
-        <h3>メニュー${i+1}</h3>
-        <label class="lbl">メニュー名</label>
-        <input type="text" class="menuName" value="${m.name || ''}" placeholder="例:ヒレカツカレーセット">
-        <label class="lbl" style="margin-top:8px">価格</label>
-        <input type="number" class="menuPrice" value="${m.price || ''}" placeholder="例:1850">
-        <label class="lbl" style="margin-top:8px">写真</label>
-        <input type="file" accept="image/*" class="menuImage">
-        <div class="preview">画像プレビュー</div>
+    const list = options.length ? options.slice(0, MAX_MENUS) : [{ name:'', price:'' }];
+    wrap.innerHTML = '';
+    list.forEach((m,i)=> addMenuCard(m.name || '', m.price || ''));
+    updateAddMenuBtn();
+  }
+
+  function addMenuCard(name='', price=''){
+    const wrap = document.getElementById('menuCards');
+    if(wrap.querySelectorAll('.menu-card').length >= MAX_MENUS) return;
+
+    const card = document.createElement('div');
+    card.className = 'menu-card';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 class="cardTitle"></h3>
+        <button type="button" class="removeMenuBtn" style="width:auto;margin:0;padding:6px 10px;background:var(--navy-card);border:1px solid var(--rose);color:var(--rose);font-size:12px;">削除</button>
       </div>
-    `).join('');
-    wrap.querySelectorAll('.menu-card').forEach(card=>{
-      const input = card.querySelector('.menuImage');
-      const preview = card.querySelector('.preview');
-      input.addEventListener('change', ()=>{
-        const f = input.files[0];
-        if(f){ preview.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="">`; }
-      });
+      <label class="lbl">メニュー名</label>
+      <input type="text" class="menuName" value="${name}" placeholder="例:ヒレカツカレーセット">
+      <label class="lbl" style="margin-top:8px">価格</label>
+      <input type="number" class="menuPrice" value="${price}" placeholder="例:1850">
+      <label class="lbl" style="margin-top:8px">写真</label>
+      <input type="file" accept="image/*" class="menuImage">
+      <div class="preview">画像プレビュー</div>
+    `;
+    const input = card.querySelector('.menuImage');
+    const preview = card.querySelector('.preview');
+    input.addEventListener('change', ()=>{
+      const f = input.files[0];
+      if(f){ preview.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="">`; }
+    });
+    card.querySelector('.removeMenuBtn').addEventListener('click', ()=>{
+      card.remove();
+      renumberMenuCards();
+      updateAddMenuBtn();
+    });
+    wrap.appendChild(card);
+    renumberMenuCards();
+    updateAddMenuBtn();
+  }
+
+  function renumberMenuCards(){
+    document.querySelectorAll('#menuCards .menu-card').forEach((card,i)=>{
+      card.querySelector('.cardTitle').textContent = `メニュー${i+1}`;
     });
   }
+
+  function updateAddMenuBtn(){
+    const count = document.querySelectorAll('#menuCards .menu-card').length;
+    const btn = document.getElementById('addMenuBtn');
+    btn.disabled = count >= MAX_MENUS;
+    btn.textContent = count >= MAX_MENUS ? 'これ以上追加できません(最大4つ)' : '＋ メニューを追加';
+  }
+
+  document.getElementById('addMenuBtn').addEventListener('click', ()=> addMenuCard());
 
   // ---- 集合時間の自動セット ----
   function syncMeetingTime(){
