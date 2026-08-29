@@ -35,9 +35,9 @@
   }
   .hero{ text-align:center; padding:40px 20px 20px; }
   .eyebrow{
-    font-family:'Cormorant Garamond', serif;
-    font-size:12px; letter-spacing:.32em; color:var(--gold-soft);
-    text-transform:uppercase; margin-bottom:10px;
+    font-family:'Shippori Mincho', serif;
+    font-size:clamp(17px,4.6vw,20px); letter-spacing:.1em; color:var(--gold-soft);
+    font-weight:700; margin-bottom:10px;
   }
   h1{
     font-family:'Shippori Mincho', serif; font-weight:700;
@@ -55,7 +55,7 @@
     width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
     border:1px solid var(--gold-soft); flex-shrink:0;
   }
-  .hero p{ color:var(--muted-text); font-size:13px; margin:4px 0 0; line-height:1.9; }
+  .hero p{ color:var(--muted-text); font-size:15px; margin:4px 0 0; line-height:1.9; }
   .hero .deadline{
     display:inline-block; margin-top:14px; padding:6px 18px;
     background:var(--navy-card-2); border:1px solid var(--gold); border-radius:20px;
@@ -134,6 +134,7 @@
     padding:14px 16px; font-size:12.5px; line-height:1.85; color:var(--cream); margin-bottom:18px;
   }
   .notice-box.small{ font-size:12px; color:var(--muted-text); }
+  .notice-box a{ color:var(--gold-soft); word-break:break-all; }
 
   .agree{
     display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.7;
@@ -219,7 +220,7 @@
 
       <label class="field">
         <span class="lbl">お名前(保護者の方はお子様のお名前もあわせて) <span class="req">必須</span></span>
-        <input type="text" name="full_name" required placeholder="山田 花子">
+        <input type="text" name="full_name" required placeholder="小林 聖子">
       </label>
 
       <label class="field">
@@ -259,7 +260,8 @@
         ・お申込み後のキャンセルはできません<br>
         ・チケットの転売は固く禁止です<br>
         ・チケット代は指定口座へご入金いただきます(後日ご案内)<br>
-        ・ご不明点は公式LINEよりお問い合わせください
+        ・ご不明点は公式LINEよりお問い合わせください<br>
+        <a href="https://lin.ee/S21MDzhw" target="_blank" rel="noopener">https://lin.ee/S21MDzhw</a>
       </div>
 
       <label class="agree">
@@ -278,6 +280,7 @@
     <div class="mark">👑</div>
     <h2>お申込みを受け付けました</h2>
     <p>ご入力いただいたメールアドレス宛に申込み控えをお送りします。<br>お取次結果は締切後1週間以内に公式LINEでご連絡いたします。</p>
+    <p style="margin-top:18px; font-weight:700;">確認メールが届いているか、必ずご確認ください。<br>(迷惑メールフォルダも念のためご確認ください)</p>
   </div>
 </div>
 
