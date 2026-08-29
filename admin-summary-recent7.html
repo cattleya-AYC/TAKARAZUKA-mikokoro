@@ -166,6 +166,14 @@
     });
   }
 
+  function normalizeName(name){
+    if(!name) return '';
+    let s = String(name);
+    // 全角・半角スペースの表記ゆれのみ吸収(「追加」や（）内の情報は別人を示すことがあるため保持する)
+    s = s.replace(/[\s　]/g, '');
+    return s.trim();
+  }
+
   function gradeDigits(grade){
     if(!grade) return '';
     const m = String(grade).match(/\d+/);
@@ -213,7 +221,7 @@
     (data || []).forEach(r=>{
       const p = r.participants || {};
       const a = r.answers || {};
-      const nameKey = (p.name || a.full_name || '').trim();
+      const nameKey = normalizeName(p.name || a.full_name || '');
       const key = nameKey + '||' + (p.email || p.id || '');
       if(!groups[key]){
         groups[key] = {
