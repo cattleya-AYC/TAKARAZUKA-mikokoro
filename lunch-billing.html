@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>請求金額一覧(管理者用)</title>
+<link rel="icon" href="admin-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%), var(--navy-deep); color:var(--cream); font-family:'Noto Sans JP', sans-serif; padding:0 0 60px; }
+  .hero{ text-align:center; padding:32px 20px 16px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:22px; margin:8px 0 0; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 16px 40px; }
+  #loadingNote, #missingNote{ text-align:center; padding:40px 10px; color:var(--muted); }
+  #missingNote{ display:none; color:var(--rose); font-weight:700; }
+
+  .section{ border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; background:var(--navy-card); }
+  .section h2{ margin:0 0 12px; font-size:16px; color:var(--gold-soft); font-family:'Shippori Mincho', serif; }
+  .section-sub{ font-size:11.5px; color:var(--muted); margin:-6px 0 12px; }
+
+  label{ display:block; font-size:12.5px; color:var(--gold-soft); font-weight:700; margin:0 0 6px; }
+  input, textarea{ width:100%; background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream); border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit; }
+  textarea{ min-height:64px; resize:vertical; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field{ margin-bottom:12px; }
+
+  button{ border:0; border-radius:8px; padding:11px 15px; cursor:pointer; font:inherit; font-weight:700; }
+  .secondary{ background:var(--navy-card-2); color:var(--gold-soft); }
+  .primary{ background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fff; }
+  .status{ font-size:12.5px; margin-top:10px; }
+  .status.ok{ color:var(--ok); }
+  .status.err{ color:var(--rose); }
+
+  .info{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+  .info-card{ border:1px solid var(--line); border-radius:10px; padding:14px; background:var(--navy-card); }
+  .info-card .label{ font-size:12px; color:var(--muted); }
+  .info-card .value{ font-size:20px; margin-top:4px; }
+  .info-card .value.rose{ color:var(--rose); }
+
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th,td{ border-bottom:1px solid var(--line); padding:10px 8px; text-align:left; }
+  th{ background:var(--navy-card-2); color:var(--gold-soft); font-weight:700; }
+  .num{ text-align:right; }
+  .total-cell{ font-weight:700; color:var(--rose); }
+  .table-wrap{ overflow-x:auto; }
+  .copy-btn{ background:var(--navy-card-2); color:var(--gold-soft); border:1px solid var(--gold-soft); border-radius:6px; padding:6px 10px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .search{ width:100%; max-width:300px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; background:var(--navy-card-2); color:var(--cream); margin-bottom:14px; }
+  .empty-note{ padding:20px; text-align:center; color:var(--muted); }
+  @media(max-width:800px){ .info{ grid-template-columns:1fr; } .grid2{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">管理者用</div>
+  <h1>請求金額一覧</h1>
+</div>
+
+<div class="wrap">
+  <div id="loadingNote">読み込み中です…</div>
+  <div id="missingNote">URLに公演（?event_id=…）が指定されていません。lunch-admin.html で発行したURLの event_id を使ってください。</div>
+
+  <div id="content" style="display:none">
+
+    <section class="info">
+      <div class="info-card"><div class="label">公演</div><div class="value" id="eventLabel">―</div></div>
+      <div class="info-card"><div class="label">チケット単価(お一人様)</div><div class="value rose" id="ticketUnitPrice">―</div></div>
+      <div class="info-card"><div class="label">合計請求額(全体)</div><div class="value rose" id="grandTotal">―</div></div>
+    </section>
+
+    <section class="section">
+      <h2>振込先設定</h2>
+      <p class="section-sub">保存すると、この公演専用の振込先として記録されます。後で振込先を変更しても、すでに保存済みの他の公演の内容は変わりません。</p>
+      <div class="grid2">
+        <div class="field"><label>銀行名</label><input type="text" id="bankName" placeholder="例:○○銀行"></div>
+        <div class="field"><label>支店名</label><input type="text" id="branchName" placeholder="例:○○支店"></div>
+        <div class="field"><label>口座種別</label><input type="text" id="accountType" placeholder="例:普通"></div>
+        <div class="field"><label>口座番号</label><input type="text" id="accountNumber" placeholder="例:1234567"></div>
+        <div class="field"><label>口座名義</label><input type="text" id="accountHolder" placeholder="例:ヒョウジ タロウ"></div>
+      </div>
+      <div class="field"><label>注意事項・振込期限など(任意)</label><textarea id="bankNote" placeholder="例:○月○日までにお振込みください"></textarea></div>
+      <button class="primary" id="saveBankBtn" type="button">振込先を保存</button>
+      <p class="status" id="bankStatus"></p>
+    </section>
+
+    <section class="section">
+      <h2>金額一覧</h2>
+      <input class="search" id="search" placeholder="お名前で検索">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>名前</th><th>人数</th><th class="num">チケット代</th><th class="num">食事代</th><th class="num">合計請求額</th><th></th></tr></thead>
+          <tbody id="billingBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-note" id="emptyNote" style="display:none">対象の申込者がいません。</div>
+    </section>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  let sb = null, eventRow = null, bankInfo = null, registrations = [], orders = [];
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+  function yen(n){ return (n||0).toLocaleString('ja-JP') + '円'; }
+  function fmtDate(v){ if(!v) return '―'; const d=new Date(v+'T00:00:00'); return `${d.getMonth()+1}月${d.getDate()}日`; }
+  function getEventId(){ return new URLSearchParams(window.location.search).get('event_id'); }
+  function normalizeName(name){ return (name || '').replace(/[\s\u3000]/g, ''); }
+
+  async function init(){
+    const eventId = getEventId();
+    if(!eventId){
+      document.getElementById('loadingNote').style.display = 'none';
+      document.getElementById('missingNote').style.display = 'block';
+      return;
+    }
+    try{
+      await waitForLib(10000);
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const { data: ev, error: evErr } = await sb.from('events').select('*').eq('id', eventId).single();
+      if(evErr || !ev) throw evErr || new Error('not found');
+      eventRow = ev;
+
+      const { data: bank } = await sb.from('event_bank_info').select('*').eq('event_id', eventId).maybeSingle();
+      if(bank){
+        bankInfo = bank;
+      } else {
+        const { data: lastBank } = await sb.from('event_bank_info').select('*').order('updated_at', { ascending:false }).limit(1).maybeSingle();
+        bankInfo = lastBank || null; // 初期値としてのみ使用。まだこの公演用には保存されていない
+      }
+      fillBankForm(bankInfo);
+
+      const { data: regRows, error: regErr } = await sb.from('registrations').select('answers, status').eq('event_id', eventId);
+      if(regErr) throw regErr;
+      registrations = (regRows || [])
+        .filter(r => r.status !== 'お断り' && r.status !== 'キャンセル')
+        .map(r => ({ name: r.answers?.full_name || '(不明)', count: Number(r.answers?.participant_count) || 1 }));
+
+      await loadOrders(eventId);
+
+      document.getElementById('loadingNote').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+      document.getElementById('eventLabel').textContent = `第${ev.event_number||''}回 ${fmtDate(ev.event_date)} ${ev.troupe||''}組`;
+      document.getElementById('ticketUnitPrice').textContent = yen(ev.base_price);
+      render();
+    }catch(err){
+      console.error(err);
+      document.getElementById('loadingNote').style.display = 'none';
+      document.getElementById('missingNote').style.display = 'block';
+    }
+  }
+
+  async function loadOrders(eventId){
+    const { data: orderRows, error: orderErr } = await sb.from('meal_orders').select('*').eq('event_id', eventId);
+    if(orderErr) throw orderErr;
+    const ids = (orderRows||[]).map(o=>o.id);
+    const { data: itemRows, error: itemErr } = await sb
+      .from('meal_order_items').select('*')
+      .in('meal_order_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+    if(itemErr) throw itemErr;
+    orders = (orderRows||[]).map(o=>({
+      ...o,
+      items: (itemRows||[]).filter(i=>i.meal_order_id===o.id).sort((a,b)=>a.person_no-b.person_no)
+    }));
+  }
+  function orderByName(name){
+    const target = normalizeName(name);
+    return orders.find(o => normalizeName(o.representative_name) === target);
+  }
+
+  function fillBankForm(b){
+    document.getElementById('bankName').value = b?.bank_name || '';
+    document.getElementById('branchName').value = b?.branch_name || '';
+    document.getElementById('accountType').value = b?.account_type || '';
+    document.getElementById('accountNumber').value = b?.account_number || '';
+    document.getElementById('accountHolder').value = b?.account_holder || '';
+    document.getElementById('bankNote').value = b?.note || '';
+  }
+
+  document.getElementById('saveBankBtn').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('bankStatus');
+    statusEl.className = 'status'; statusEl.textContent = '';
+    const payload = {
+      event_id: eventRow.id,
+      bank_name: document.getElementById('bankName').value.trim(),
+      branch_name: document.getElementById('branchName').value.trim(),
+      account_type: document.getElementById('accountType').value.trim(),
+      account_number: document.getElementById('accountNumber').value.trim(),
+      account_holder: document.getElementById('accountHolder').value.trim(),
+      note: document.getElementById('bankNote').value.trim(),
+      updated_at: new Date().toISOString()
+    };
+    try{
+      const { error } = await sb.from('event_bank_info').upsert(payload, { onConflict:'event_id' });
+      if(error) throw error;
+      bankInfo = payload;
+      statusEl.classList.add('ok');
+      statusEl.textContent = 'この公演の振込先を保存しました。';
+    }catch(err){
+      console.error(err);
+      statusEl.classList.add('err');
+      statusEl.textContent = '保存に失敗しました:' + (err.message || err);
+    }
+  });
+
+  function bankInfoText(){
+    if(!bankInfo || !(bankInfo.bank_name || bankInfo.account_number)) return '';
+    const lines = ['', '【お振込み先】'];
+    if(bankInfo.bank_name || bankInfo.branch_name) lines.push(`${bankInfo.bank_name || ''} ${bankInfo.branch_name || ''}`.trim());
+    if(bankInfo.account_type || bankInfo.account_number) lines.push(`${bankInfo.account_type || ''} ${bankInfo.account_number || ''}`.trim());
+    if(bankInfo.account_holder) lines.push(`名義：${bankInfo.account_holder}`);
+    if(bankInfo.note) lines.push(bankInfo.note);
+    return lines.join('\n');
+  }
+
+  function billingRows(){
+    const unit = eventRow.base_price || 0;
+    return registrations.map(r=>{
+      const order = orderByName(r.name);
+      const ticketPrice = unit * r.count;
+      const mealPrice = order ? order.items.reduce((s,i)=>s+(i.price||0),0) : 0;
+      return { name:r.name, count:r.count, ticketPrice, mealPrice, total:ticketPrice+mealPrice, order };
+    });
+  }
+
+  function lineText(row){
+    const lines = [];
+    lines.push(`・${row.name}様 / ご参加人数：${row.count}名`);
+    const unit = eventRow.base_price || 0;
+    lines.push(`・【チケット代】${yen(unit)} × ${row.count}名 ＝ ${yen(row.ticketPrice)}`);
+    if(row.order && row.order.items.length){
+      row.order.items.forEach((item, idx)=>{
+        const label = idx === 0 ? '本人' : '同伴者';
+        lines.push(`・【お食事・${label}】${item.menu_name || ''} ${yen(item.price)} / ${item.drink || ''}`);
+      });
+      lines.push(`・食事代合計：${yen(row.mealPrice)}`);
+    }
+    lines.push(`・ご請求合計：${yen(row.total)}`);
+    lines.push(bankInfoText());
+    return lines.join('\n');
+  }
+
+  function render(){
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    const rows = billingRows().filter(r => !q || r.name.toLowerCase().includes(q));
+
+    const body = document.getElementById('billingBody');
+    body.innerHTML = '';
+    document.getElementById('emptyNote').style.display = rows.length ? 'none' : 'block';
+
+    rows.forEach((row, idx)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${row.name}様</td>
+        <td>${row.count}名</td>
+        <td class="num">${yen(row.ticketPrice)}</td>
+        <td class="num">${yen(row.mealPrice)}</td>
+        <td class="num total-cell">${yen(row.total)}</td>
+        <td><button type="button" class="copy-btn" data-idx="${idx}">LINE文をコピー</button></td>`;
+      body.appendChild(tr);
+    });
+
+    body.querySelectorAll('.copy-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const row = rows[Number(btn.dataset.idx)];
+        const text = lineText(row);
+        try{
+          await navigator.clipboard.writeText(text);
+          btn.textContent = 'コピーしました';
+          setTimeout(()=> btn.textContent = 'LINE文をコピー', 1600);
+        }catch(e){
+          alert(text); // クリップボードが使えない環境向けのフォールバック
+        }
+      });
+    });
+
+    document.getElementById('grandTotal').textContent = yen(rows.reduce((s,r)=>s+r.total,0));
+  }
+
+  document.getElementById('search').addEventListener('input', render);
+
+  init();
+</script>
+</body>
+</html>
