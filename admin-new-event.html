@@ -47,6 +47,19 @@
   .prev-card b{ color:var(--gold-soft); }
   .prev-card .empty{ color:var(--muted); }
 
+  .agency-picker{
+    max-width:480px; margin:12px auto 0; padding:14px 18px;
+    background:var(--navy-card); border:1px solid var(--rose); border-radius:10px;
+  }
+  .agency-picker-label{ font-size:12px; color:var(--rose); font-weight:700; margin:0 0 10px; }
+  .agency-picker-list{ display:flex; flex-wrap:wrap; gap:8px; }
+  .agency-picker-btn{
+    font-size:12.5px; font-weight:700; padding:9px 13px; border-radius:8px;
+    background:var(--navy-card-2); border:1px solid var(--rose); color:var(--rose);
+    cursor:pointer; font-family:inherit;
+  }
+  .agency-picker-btn:active{ background:var(--rose); color:#fff; }
+
   form{ max-width:480px; margin:14px auto 0; padding:0 20px; }
   .panel{
     background:var(--navy-card); border:1px solid var(--gold);
@@ -109,6 +122,11 @@
 
 <div class="prev-card" id="prevCard">前回の開催情報を確認中…</div>
 
+<div class="agency-picker" id="agencyPicker" style="display:none;">
+  <p class="agency-picker-label">📋 代理店からの確定データを選ぶと、下の項目に自動で入ります</p>
+  <div class="agency-picker-list" id="agencyPickerList"></div>
+</div>
+
 <form id="eventForm">
   <div class="panel">
 
@@ -119,7 +137,7 @@
       </label>
       <label class="field">
         <span class="lbl">組</span>
-        <select name="troupe" required>
+        <select name="troupe" id="troupeSelect" required>
           <option value="">選択</option>
           <option>花</option><option>月</option><option>雪</option><option>星</option><option>宙</option>
         </select>
@@ -128,12 +146,12 @@
 
     <label class="field">
       <span class="lbl">開催日</span>
-      <input type="date" name="event_date" required>
+      <input type="date" name="event_date" id="eventDateInput" required>
     </label>
 
     <label class="field">
       <span class="lbl">公演時間</span>
-      <select name="show_time" required>
+      <select name="show_time" id="showTimeSelect" required>
         <option value="">選択</option>
         <option value="11:00">11時公演</option>
         <option value="13:00">13時公演</option>
@@ -142,15 +160,15 @@
 
     <label class="field">
       <span class="lbl">募集開始日(任意)</span>
-      <input type="date" name="recruitment_start">
+      <input type="date" name="recruitment_start" id="recruitmentStartInput">
     </label>
     <p class="note">未入力の場合、登録してすぐ募集開始になります</p>
 
     <label class="field">
       <span class="lbl">申込締切日</span>
-      <input type="date" name="deadline" required>
+      <input type="date" name="deadline" id="deadlineInput" required>
     </label>
-    <p class="note">締切日の23:59まで受付します</p>
+    <p class="note">募集開始日を入れると、8日後を自動で入力します(手動で変更も可)。締切日の21:00まで受付します</p>
 
     <label class="field">
       <span class="lbl">席種</span>
@@ -163,7 +181,7 @@
     <div class="row2">
       <label class="field">
         <span class="lbl">定員(人)</span>
-        <input type="number" name="capacity" required>
+        <input type="number" name="capacity" id="capacityInput" required>
       </label>
       <label class="field">
         <span class="lbl">合計料金(円・自動計算)</span>
@@ -194,11 +212,15 @@
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
 
+  let _sbInstance = null;
   function getSupabase(){
     if(!window.supabase){
       throw new Error('Supabaseライブラリの読み込みに失敗しました(通信環境をご確認のうえ、画面を再読み込みしてください)');
     }
-    return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    if(!_sbInstance){
+      _sbInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+    return _sbInstance;
   }
 
   window.addEventListener('error', (ev)=>{
@@ -242,6 +264,41 @@
   }
   loadPreviousEvent();
 
+  // ---- 代理店からの確定データをボタンで選べるようにする ----
+  async function loadAgencyPicker(){
+    const picker = document.getElementById('agencyPicker');
+    const list = document.getElementById('agencyPickerList');
+    try{
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('agency_confirmations')
+        .select('troupe, event_date, show_time, seat_type, confirmed_count')
+        .order('event_date', { ascending: false })
+        .limit(10);
+      if(error || !data || data.length === 0) return;
+
+      list.innerHTML = data.map((row, i) => `
+        <button type="button" class="agency-picker-btn" data-index="${i}">
+          ${row.troupe}組 ${row.event_date} ${row.show_time || ''} ${row.seat_type}(${row.confirmed_count}枚)
+        </button>
+      `).join('');
+      picker.style.display = 'block';
+
+      list.querySelectorAll('.agency-picker-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const row = data[Number(btn.getAttribute('data-index'))];
+          document.getElementById('troupeSelect').value = row.troupe || '';
+          document.getElementById('eventDateInput').value = row.event_date || '';
+          document.getElementById('showTimeSelect').value = row.show_time || '';
+          document.getElementById('seatTypeSelect').value = row.seat_type || 'S席';
+          document.getElementById('capacityInput').value = row.confirmed_count || '';
+          updateBasePrice();
+        });
+      });
+    } catch(e){ console.warn('代理店データの取得に失敗しました', e); }
+  }
+  loadAgencyPicker();
+
   // ---- お食事メニュー(名前+価格)の動的リスト ----
   const menuList = document.getElementById('menuList');
   function addMenuRow(name='', price=''){
@@ -267,6 +324,17 @@
   }
   seatTypeSelect.addEventListener('change', updateBasePrice);
   updateBasePrice(); // 初期表示時にも反映
+
+  // ---- 募集開始日から、8日後を締切日の目安として自動入力 ----
+  document.getElementById('recruitmentStartInput').addEventListener('change', (e)=>{
+    if(!e.target.value) return;
+    const start = new Date(e.target.value + 'T00:00:00');
+    start.setDate(start.getDate() + 8);
+    const y = start.getFullYear();
+    const m = String(start.getMonth() + 1).padStart(2, '0');
+    const d = String(start.getDate()).padStart(2, '0');
+    document.getElementById('deadlineInput').value = `${y}-${m}-${d}`;
+  });
 
   const fileInput = document.querySelector('input[name=poster]');
   const preview = document.getElementById('preview');
@@ -329,7 +397,7 @@
         event_date: fd.get('event_date'),
         show_time: fd.get('show_time'),
         recruitment_start_date: fd.get('recruitment_start') ? (fd.get('recruitment_start') + 'T00:00:00+09:00') : null,
-        application_deadline: fd.get('deadline') + 'T23:59:59+09:00',
+        application_deadline: fd.get('deadline') + 'T21:00:00+09:00',
         seat_type: fd.get('seat_type'),
         capacity: Number(fd.get('capacity')),
         base_price: Number(fd.get('base_price')),
