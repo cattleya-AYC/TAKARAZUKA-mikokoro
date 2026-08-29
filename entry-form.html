@@ -561,6 +561,39 @@
     document.getElementById('mainContent').style.display = 'none';
   }
 
+  // ---- 確認用プレビューモード(本番データは一切変更しません) ----
+  async function runPreviewMode(mode){
+    // 締切後「ご登録ありがとうございました」画面
+    if(mode === 'thankyou' || mode === 'after'){
+      const { data } = await sb
+        .from('events')
+        .select('*')
+        .order('application_deadline', { ascending: false })
+        .limit(1);
+      if(data && data.length > 0){ renderThankYou(data[0]); return true; }
+    }
+
+    // 「募集開始まで、しばらくお待ちください」画面
+    if(mode === 'coming' || mode === 'before'){
+      const { data } = await sb
+        .from('events')
+        .select('*')
+        .order('event_date', { ascending: false })
+        .limit(1);
+      if(data && data.length > 0){ renderComingSoon(data[0], []); return true; }
+    }
+
+    // 「現在、募集中の回はありません」画面(データが1件も無い状態)
+    if(mode === 'none' || mode === 'closed'){
+      hideAllStateCards();
+      document.querySelector('.hero').style.display = 'none';
+      document.getElementById('closedCard').style.display = 'block';
+      return true;
+    }
+
+    return false;
+  }
+
   async function loadCurrentEvent(){
     if(!sb){
       document.getElementById('eyebrowText').textContent = '接続未設定';
