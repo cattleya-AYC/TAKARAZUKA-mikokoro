@@ -245,6 +245,7 @@
   }
 
   let selectedEvent = null; // events テーブルの行（食事フォームの元にする公演）
+  let existingRestaurantPhotoUrl = null; // 既存の店舗写真URL（再保存時に消さないため保持）
 
   // ---- ① 登録済みの観劇会（events）を選択肢として表示 ----
   async function loadEventPicker(){
@@ -274,20 +275,55 @@
     }
   }
 
-  function applyEvent(ev){
+  async function applyEvent(ev){
     selectedEvent = ev;
     document.getElementById('troupeInput').value = ev.troupe || '';
     document.getElementById('showTimeInput').value = ev.show_time || '';
     document.getElementById('eventDateInput').value = ev.event_date || '';
     document.getElementById('linkedTag').innerHTML =
-      `<span class="linked-tag">✓ 第${ev.event_number || '?'}回 ${ev.troupe || ''}組公演にリンク済み</span>`;
-
-    // メニュー候補（「食事なし」は除く）を自動反映
-    const options = (ev.meal_menu_options || []).filter(m => m.name !== '食事なし');
-    renderMenuCards(options);
+      `<span class="linked-tag">読み込み中…</span>`;
 
     syncMeetingTime();
     recalcSchedule();
+
+    // すでに保存済みの設定があれば読み込む（無ければ観劇会側のメニュー候補を使う）
+    let existingSettings = null, existingMenus = [];
+    try{
+      const { data: settingsRow } = await sb.from('meal_settings').select('*').eq('event_id', ev.id).maybeSingle();
+      existingSettings = settingsRow || null;
+      const { data: menuRows } = await sb.from('meal_menus').select('*').eq('event_id', ev.id).order('sort_order');
+      existingMenus = menuRows || [];
+    }catch(e){ console.warn('既存設定の取得に失敗しました', e); }
+
+    if(existingSettings){
+      document.getElementById('deadlineInput').value = existingSettings.deadline || '';
+      document.getElementById('deadlineInput').dataset.userEdited = '1'; // 自動上書きを防ぐ
+      document.getElementById('meetingTimeInput').value = existingSettings.meeting_time || '';
+      document.getElementById('meetingPlaceInput').value = existingSettings.meeting_place || '店の前';
+      document.getElementById('restaurantNameInput').value = existingSettings.restaurant_name || '';
+      existingRestaurantPhotoUrl = existingSettings.restaurant_photo_url || null;
+      const preview = document.getElementById('restaurantPreview');
+      preview.innerHTML = existingRestaurantPhotoUrl ? `<img src="${existingRestaurantPhotoUrl}" alt="">` : '店舗写真プレビュー';
+
+      const formUrl = `${PARTICIPANT_FORM_BASE}?event_id=${ev.id}`;
+      document.getElementById('lineMessage')._formUrl = formUrl;
+      document.getElementById('linkedTag').innerHTML =
+        `<span class="linked-tag">✓ 第${ev.event_number || '?'}回 ${ev.troupe || ''}組公演(保存済み設定を読み込みました)</span>`;
+    } else {
+      existingRestaurantPhotoUrl = null;
+      document.getElementById('restaurantPreview').innerHTML = '店舗写真プレビュー';
+      document.getElementById('lineMessage')._formUrl = '';
+      document.getElementById('linkedTag').innerHTML =
+        `<span class="linked-tag">✓ 第${ev.event_number || '?'}回 ${ev.troupe || ''}組公演にリンク済み(新規設定)</span>`;
+    }
+
+    if(existingMenus.length){
+      renderMenuCards(existingMenus.map(m => ({ name:m.name, price:m.price, photoUrl:m.photo_url })));
+    } else {
+      const options = (ev.meal_menu_options || []).filter(m => m.name !== '食事なし');
+      renderMenuCards(options);
+    }
+
     updateLineMessage();
   }
 
@@ -334,16 +370,17 @@
     const wrap = document.getElementById('menuCards');
     const list = options.length ? options.slice(0, MAX_MENUS) : [{ name:'', price:'' }];
     wrap.innerHTML = '';
-    list.forEach((m,i)=> addMenuCard(m.name || '', m.price || ''));
+    list.forEach((m)=> addMenuCard(m.name || '', m.price || '', m.photoUrl || null));
     updateAddMenuBtn();
   }
 
-  function addMenuCard(name='', price=''){
+  function addMenuCard(name='', price='', existingPhotoUrl=null){
     const wrap = document.getElementById('menuCards');
     if(wrap.querySelectorAll('.menu-card').length >= MAX_MENUS) return;
 
     const card = document.createElement('div');
     card.className = 'menu-card';
+    card.dataset.existingPhoto = existingPhotoUrl || '';
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <h3 class="cardTitle"></h3>
@@ -355,7 +392,7 @@
       <input type="number" class="menuPrice" value="${price}" placeholder="例:1850">
       <label class="lbl" style="margin-top:8px">写真</label>
       <input type="file" accept="image/*" class="menuImage">
-      <div class="preview">画像プレビュー</div>
+      <div class="preview">${existingPhotoUrl ? `<img src="${existingPhotoUrl}" alt="">` : '画像プレビュー'}</div>
     `;
     const input = card.querySelector('.menuImage');
     const preview = card.querySelector('.preview');
@@ -519,7 +556,9 @@ ${time}
 
     try{
       const restaurantFile = document.getElementById('restaurantImageInput').files[0];
-      const restaurantPhotoUrl = restaurantFile ? await uploadImage(restaurantFile, `restaurant-${selectedEvent.id}`) : null;
+      const restaurantPhotoUrl = restaurantFile
+        ? await uploadImage(restaurantFile, `restaurant-${selectedEvent.id}`)
+        : existingRestaurantPhotoUrl;
 
       const { error: settingsErr } = await sb.from('meal_settings').upsert({
         event_id: selectedEvent.id,
@@ -541,7 +580,9 @@ ${time}
         if(!name) continue;
         const price = Number(cards[i].querySelector('.menuPrice').value || 0);
         const file = cards[i].querySelector('.menuImage').files[0];
-        const photoUrl = file ? await uploadImage(file, `menu-${selectedEvent.id}-${i}`) : null;
+        const photoUrl = file
+          ? await uploadImage(file, `menu-${selectedEvent.id}-${i}`)
+          : (cards[i].dataset.existingPhoto || null);
         menuRows.push({ event_id:selectedEvent.id, name, price, photo_url:photoUrl, sort_order:i, active:true });
       }
       if(menuRows.length){
