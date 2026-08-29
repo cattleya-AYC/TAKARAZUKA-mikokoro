@@ -463,9 +463,9 @@ ${time}
     if(!file) return null;
     const ext = file.name.split('.').pop();
     const path = `${pathPrefix}-${Date.now()}.${ext}`;
-    const { error } = await sb.storage.from('meal-photos').upload(path, file, { upsert:true });
+    const { error } = await sb.storage.from('public photo').upload(path, file, { upsert:true });
     if(error) throw error;
-    const { data } = sb.storage.from('meal-photos').getPublicUrl(path);
+    const { data } = sb.storage.from('public photo').getPublicUrl(path);
     return data.publicUrl;
   }
 
