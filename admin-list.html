@@ -65,6 +65,9 @@
   }
   th, td{ padding:11px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
   th{ color:var(--gold-soft); font-weight:700; background:var(--navy-card-2); position:sticky; top:0; }
+  th.sortable{ cursor:pointer; user-select:none; }
+  th.sortable:hover{ color:var(--gold); }
+  .sort-arrow{ font-size:10px; opacity:.6; }
   tr:last-child td{ border-bottom:none; }
   tr:hover td{ background:rgba(154,134,201,0.05); }
   tr.row-accepted td{ background:rgba(79,143,102,0.08); }
@@ -329,15 +332,15 @@
     <thead>
       <tr>
         <th>操作</th>
-        <th class="print-hide">参加回数</th>
+        <th class="print-hide sortable" data-sort="recent">参加回数 <span class="sort-arrow" data-arrow="recent"></span></th>
         <th class="print-hide">ペナルティ</th>
         <th>氏名</th>
-        <th>回生</th>
+        <th class="sortable" data-sort="grade">回生 <span class="sort-arrow" data-arrow="grade"></span></th>
         <th>同伴者</th>
-        <th>枚数</th>
+        <th class="sortable" data-sort="count">枚数 <span class="sort-arrow" data-arrow="count"></span></th>
         <th>座席希望</th>
         <th>お食事</th>
-        <th>申込日時</th>
+        <th class="sortable" data-sort="applied">申込日時 <span class="sort-arrow" data-arrow="applied"></span></th>
         <th>状態</th>
       </tr>
     </thead>
@@ -504,13 +507,52 @@
     document.getElementById('sumMeals').textContent = meals;
   }
 
+  let sortState = { key: null, dir: 1 };
+
+  function gradeSortValue(grade){
+    if(!grade) return 0;
+    const m = String(grade).match(/\d+/);
+    return m ? Number(m[0]) : 0;
+  }
+
+  function applySorting(rows){
+    if(!sortState.key) return rows;
+    const sorted = [...rows];
+    sorted.sort((a, b)=>{
+      let va, vb;
+      switch(sortState.key){
+        case 'grade':
+          va = gradeSortValue(a.answers?.grade); vb = gradeSortValue(b.answers?.grade); break;
+        case 'count':
+          va = Number(a.answers?.participant_count) || 1; vb = Number(b.answers?.participant_count) || 1; break;
+        case 'applied':
+          va = new Date(a.applied_at).getTime(); vb = new Date(b.applied_at).getTime(); break;
+        case 'recent':
+          va = recentCounts[a.participants?.id] ?? -1; vb = recentCounts[b.participants?.id] ?? -1; break;
+        default:
+          return 0;
+      }
+      return (va - vb) * sortState.dir;
+    });
+    return sorted;
+  }
+
+  function updateSortArrows(){
+    document.querySelectorAll('.sort-arrow').forEach(el=>{
+      const key = el.getAttribute('data-arrow');
+      el.textContent = sortState.key === key ? (sortState.dir === 1 ? '▲' : '▼') : '';
+    });
+  }
+
   function renderTable(rows){
     const tbody = document.getElementById('tableBody');
     const table = document.getElementById('dataTable');
     const countBadge = document.getElementById('countBadge');
     const filter = document.getElementById('statusFilter').value;
 
-    const filtered = filter === 'all' ? rows : rows.filter(r => (r.status || '審査中') === filter);
+    let filtered = filter === 'all' ? rows : rows.filter(r => (r.status || '審査中') === filter);
+    filtered = applySorting(filtered);
+    updateSortArrows();
 
     tbody.innerHTML = '';
     countBadge.textContent = `${filtered.length}件`;
@@ -728,6 +770,18 @@
         window.print();
       });
       document.getElementById('changeBtn').addEventListener('click', openChangeModal);
+      document.querySelectorAll('th.sortable').forEach(th=>{
+        th.addEventListener('click', ()=>{
+          const key = th.getAttribute('data-sort');
+          if(sortState.key === key){
+            sortState.dir *= -1;
+          } else {
+            sortState.key = key;
+            sortState.dir = 1;
+          }
+          renderTable(currentRows);
+        });
+      });
       updatePrintTitle();
     } catch(e){
       statusMsg.classList.add('err');
