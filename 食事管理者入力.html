@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>観劇会 食事フォーム 管理者設定</title>
+<style>
+:root{
+  --bg:#f7f1eb;
+  --paper:#fffdf9;
+  --ink:#49362d;
+  --muted:#8b776d;
+  --rose:#d8888c;
+  --rose-dark:#c96f73;
+  --rose-soft:#f7e6e2;
+  --gold:#c9a56b;
+  --line:#ead9cf;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(232,180,178,.17),transparent 25%),
+    radial-gradient(circle at 90% 0%,rgba(201,165,107,.12),transparent 25%),
+    var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+}
+.wrap{max-width:980px;margin:24px auto;padding:0 14px 40px}
+.panel{
+  background:var(--paper);
+  border:1px solid #efe1d8;
+  border-radius:24px;
+  box-shadow:0 16px 42px rgba(77,51,38,.11);
+  overflow:hidden;
+}
+header{
+  padding:30px 24px 24px;
+  background:linear-gradient(180deg,#fff,#fff9f6);
+  border-bottom:1px solid var(--line);
+}
+header .kicker{
+  font-family:"Yu Mincho","Hiragino Mincho ProN",serif;
+  color:var(--gold);
+  letter-spacing:.16em;
+  font-size:13px;
+  margin-bottom:5px;
+}
+header h1{margin:0 0 7px;font-family:"Yu Mincho","Hiragino Mincho ProN",serif;font-size:34px}
+header p{margin:0;color:var(--muted)}
+main{padding:20px}
+.section{
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:16px;
+  background:#fff;
+}
+.section h2{margin:0 0 15px;font-size:20px;color:#8c5d5f}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+input,select,textarea{
+  width:100%;padding:12px;border:1px solid #ddcabe;border-radius:11px;
+  background:#fff;color:var(--ink);font:inherit;
+}
+textarea{min-height:104px;resize:vertical}
+.menu-card{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fffaf7}
+.menu-card h3{margin:0 0 10px;font-size:16px}
+.preview{
+  width:100%;aspect-ratio:4/3;border:1px dashed #d8c3b7;border-radius:10px;
+  display:grid;place-items:center;overflow:hidden;background:#faf4ef;
+  margin:10px 0 0;color:#a18d83;font-size:12px;
+}
+.preview img{width:100%;height:100%;object-fit:cover}
+.help{margin-top:7px;color:var(--muted);font-size:12px;line-height:1.6}
+.copybox{background:linear-gradient(180deg,#fffdfa,#fff7f3);border:1px solid var(--line);border-radius:14px;padding:14px}
+.copybox textarea{min-height:280px;line-height:1.8;background:#fff}
+.actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+button{border:0;border-radius:12px;padding:13px 18px;font:inherit;cursor:pointer}
+.secondary{background:#f3e8e2;color:#725b51}
+.primary{background:linear-gradient(#e49a9d,#cc7477);color:#fff}
+.primary:disabled{opacity:.5;cursor:not-allowed}
+.copy{width:100%;margin-top:10px;background:#f0ddd5;color:#704f45}
+.saved{display:none;padding:12px 14px;border-radius:10px;background:#f8eee9;margin-top:12px;font-size:14px;line-height:1.7}
+.saved.show{display:block}
+.saved a{color:#a85a52;font-weight:600;word-break:break-all}
+.error-box{display:none;padding:12px 14px;border-radius:10px;background:#fbe9e9;color:#8f3a3a;margin-top:12px;font-size:13px}
+.error-box.show{display:block}
+
+/* 逆算スケジュール */
+.schedule-table{width:100%;border-collapse:collapse;font-size:14px}
+.schedule-table th,.schedule-table td{padding:10px 9px;border-bottom:1px solid #eee1da;text-align:left}
+.schedule-table th{background:#fff8f5;color:#775f54;font-weight:600}
+.schedule-table td.date{font-weight:700;color:var(--rose-dark)}
+.schedule-table tr.today td{background:#fdf1ea}
+.schedule-empty{color:var(--muted);font-size:13px;padding:6px 2px}
+.status-tag{
+  font-size:11px;padding:3px 9px;border-radius:999px;background:var(--rose-soft);color:#8c5d5f;
+}
+
+@media(max-width:800px){ .grid4{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:620px){
+  .grid2,.grid4{grid-template-columns:1fr}
+  .schedule-table{font-size:12.5px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <header>
+      <div class="kicker">THEATER LUNCH FORM ADMIN</div>
+      <h1>食事申込フォーム 管理者設定</h1>
+      <p>公演情報・店舗情報・最大4つのメニューを登録し、参加者用フォームとLINE案内文を作成します。</p>
+    </header>
+
+    <main>
+      <section class="section">
+        <h2>① 公演情報</h2>
+        <div class="grid2">
+          <div>
+            <label>公演日（開催日）</label>
+            <input type="date" id="performanceDate">
+          </div>
+          <div>
+            <label>組</label>
+            <input id="troupe" placeholder="例：星組">
+          </div>
+          <div>
+            <label>公演名</label>
+            <input id="performanceName" placeholder="例：〇〇〇〇">
+          </div>
+          <div>
+            <label>公演時間</label>
+            <select id="performanceTime">
+              <option value="13:00">13:00公演</option>
+              <option value="11:00">11:00公演</option>
+              <option value="other">その他</option>
+            </select>
+          </div>
+          <div>
+            <label>登録締め切り（食事メニュー登録締め切り）</label>
+            <input type="date" id="deadline">
+            <div class="help">公演日を入力すると「開催日の46日前」を自動セットします。必要に応じて手動で変更できます。</div>
+          </div>
+          <div>
+            <label>参加者用フォームURL</label>
+            <input id="formUrl" placeholder="保存すると自動発行されます" readonly>
+          </div>
+        </div>
+      </section>
+
+      <!-- ここが今回追加した「開催日から逆算したスケジュール」 -->
+      <section class="section">
+        <h2>② 開催日から逆算したスケジュール <span class="status-tag">自動計算</span></h2>
+        <div id="scheduleWrap">
+          <div class="schedule-empty" id="scheduleEmpty">公演日を入力すると、募集開始〜席札作成までのスケジュールを自動計算して表示します。</div>
+          <table class="schedule-table" id="scheduleTable" style="display:none">
+            <thead><tr><th>項目</th><th>開催日からの目安</th><th>日付</th></tr></thead>
+            <tbody id="scheduleBody"></tbody>
+          </table>
+        </div>
+        <div class="help">本日が該当する行は薄いオレンジ色で強調表示されます。</div>
+      </section>
+
+      <section class="section">
+        <h2>③ 集合情報</h2>
+        <div class="grid2">
+          <div>
+            <label>集合時間</label>
+            <input id="meetingTime" value="11:30">
+            <div class="help">13時公演→11:30、11時公演→14:30を自動入力</div>
+          </div>
+          <div>
+            <label>集合場所</label>
+            <input id="meetingPlace" value="店の前">
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>④ 店舗情報</h2>
+        <div class="grid2">
+          <div>
+            <label>店名</label>
+            <input id="restaurantName" placeholder="例：レストラン フェリエ">
+          </div>
+          <div>
+            <label>店舗写真</label>
+            <input type="file" accept="image/*" id="restaurantImage">
+          </div>
+        </div>
+        <div class="preview" id="restaurantPreview">店舗写真プレビュー</div>
+        <div class="help">保存時にSupabase Storageへアップロードし、参加者フォームにはその公開URLを表示します。</div>
+      </section>
+
+      <section class="section">
+        <h2>⑤ メニュー登録（最大4個）</h2>
+        <div class="grid4">
+          <div class="menu-card">
+            <h3>メニュー1</h3>
+            <label>メニュー名</label>
+            <input id="menu1Name" placeholder="ヒレカツカレーセット">
+            <label style="margin-top:9px">価格</label>
+            <input type="number" id="menu1Price" placeholder="1850">
+            <label style="margin-top:9px">写真</label>
+            <input type="file" accept="image/*" id="menu1Image">
+            <div class="preview" id="menu1Preview">画像プレビュー</div>
+          </div>
+          <div class="menu-card">
+            <h3>メニュー2</h3>
+            <label>メニュー名</label>
+            <input id="menu2Name" placeholder="ハンバーグドリアセット">
+            <label style="margin-top:9px">価格</label>
+            <input type="number" id="menu2Price" placeholder="1850">
+            <label style="margin-top:9px">写真</label>
+            <input type="file" accept="image/*" id="menu2Image">
+            <div class="preview" id="menu2Preview">画像プレビュー</div>
+          </div>
+          <div class="menu-card">
+            <h3>メニュー3</h3>
+            <label>メニュー名</label>
+            <input id="menu3Name" placeholder="ミックスサンドイッチセット">
+            <label style="margin-top:9px">価格</label>
+            <input type="number" id="menu3Price" placeholder="1450">
+            <label style="margin-top:9px">写真</label>
+            <input type="file" accept="image/*" id="menu3Image">
+            <div class="preview" id="menu3Preview">画像プレビュー</div>
+          </div>
+          <div class="menu-card">
+            <h3>メニュー4</h3>
+            <label>メニュー名</label>
+            <input id="menu4Name" placeholder="ハンバーグプレートセット">
+            <label style="margin-top:9px">価格</label>
+            <input type="number" id="menu4Price" placeholder="1800">
+            <label style="margin-top:9px">写真</label>
+            <input type="file" accept="image/*" id="menu4Image">
+            <div class="preview" id="menu4Preview">画像プレビュー</div>
+          </div>
+        </div>
+        <div class="help">使わないメニュー欄は空欄のままでOK。参加者用フォームには入力済みメニューだけ表示します。</div>
+      </section>
+
+      <section class="section">
+        <h2>⑥ LINEコピペ用メッセージ</h2>
+        <div class="copybox">
+          <textarea id="lineMessage"></textarea>
+          <button class="copy" type="button" id="copyBtn">LINE用メッセージをコピー</button>
+        </div>
+        <div class="help">保存すると発行されたフォームURLが自動的に文中へ入ります。</div>
+      </section>
+
+      <div class="actions">
+        <button class="secondary" type="button" id="previewBtn">参加者フォームをプレビュー</button>
+        <button class="primary" type="button" id="saveBtn">保存してフォームを作成</button>
+      </div>
+      <div class="saved" id="saved"></div>
+      <div class="error-box" id="errorBox"></div>
+    </main>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Supabase 接続設定
+   （まりさんの既存プロジェクトの認証情報を利用しています。
+    このメール申込機能を別のSupabaseプロジェクトに分けたい場合は
+    ここのURL・キーを差し替えてください）
+   ========================================================= */
+const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+
+// 参加者フォームのURL（デプロイ先に合わせて変更してください）
+const PARTICIPANT_FORM_BASE = "https://takarazuka-mikokoro.vercel.app/申し込みフォーム.html";
+
+let sb = null;
+function waitForLibs(cb){
+  if(window.supabase && window.supabase.createClient){ cb(); }
+  else { setTimeout(()=>waitForLibs(cb), 100); }
+}
+</script>
+<script src="https://unpkg.com/@supabase/supabase-js@2" async></script>
+<script>
+waitForLibs(()=>{
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+});
+
+/* =========================================================
+   ① 開催日から逆算したスケジュール（今回の追加機能）
+   ========================================================= */
+const SCHEDULE_ITEMS = [
+  { label:"募集開始",              offset:-65 },
+  { label:"観劇会申込締切",         offset:-57 },
+  { label:"食事フォーム入力開始",   offset:-53 },
+  { label:"食事メニュー登録締め切り", offset:-46 },
+  { label:"振込案内開始",           offset:-44 },
+  { label:"入金締切",              offset:-30 },
+  { label:"開催日",                offset:0 },
+  { label:"席札・名刺作成",         offset:-3 }
+];
+
+function addDays(date, days){
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+function fmtFull(d){
+  const w = ["日","月","火","水","木","金","土"][d.getDay()];
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${w}）`;
+}
+function sameDay(a,b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+
+function renderSchedule(){
+  const val = document.getElementById("performanceDate").value;
+  const empty = document.getElementById("scheduleEmpty");
+  const table = document.getElementById("scheduleTable");
+  const body = document.getElementById("scheduleBody");
+
+  if(!val){
+    empty.style.display = "block";
+    table.style.display = "none";
+    return;
+  }
+  const eventDate = new Date(val + "T00:00:00");
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  body.innerHTML = SCHEDULE_ITEMS.map(item=>{
+    const d = addDays(eventDate, item.offset);
+    const offsetLabel = item.offset === 0 ? "―" : `${Math.abs(item.offset)}日前`;
+    const isToday = sameDay(d, today);
+    return `<tr class="${isToday ? "today" : ""}">
+      <td>${item.label}</td>
+      <td>${offsetLabel}</td>
+      <td class="date">${fmtFull(d)}${isToday ? "　← 本日" : ""}</td>
+    </tr>`;
+  }).join("");
+
+  empty.style.display = "none";
+  table.style.display = "table";
+
+  // 食事メニュー登録締め切りを自動でデフォルト提案（未入力の時だけ）
+  const deadlineInput = document.getElementById("deadline");
+  if(!deadlineInput.dataset.userEdited){
+    const suggested = addDays(eventDate, -46);
+    deadlineInput.value = suggested.toISOString().slice(0,10);
+  }
+}
+document.getElementById("performanceDate").addEventListener("input", ()=>{
+  renderSchedule();
+  updateLineMessage();
+});
+document.getElementById("deadline").addEventListener("input", (e)=>{
+  e.target.dataset.userEdited = "1"; // 手動変更したら自動上書きを止める
+  updateLineMessage();
+});
+
+/* =========================================================
+   ② LINEコピペ用メッセージ
+   ========================================================= */
+function fmtDate(v){
+  if(!v) return "○月○日";
+  const d = new Date(v + "T00:00:00");
+  return `${d.getMonth()+1}月${d.getDate()}日`;
+}
+function syncMeetingTime(){
+  const v=document.getElementById("performanceTime").value;
+  if(v==="13:00") document.getElementById("meetingTime").value="11:30";
+  else if(v==="11:00") document.getElementById("meetingTime").value="14:30";
+  updateLineMessage();
+}
+function updateLineMessage(){
+  const date=fmtDate(document.getElementById("performanceDate").value);
+  const troupe=document.getElementById("troupe").value.trim() || "○○組";
+  const perf=document.getElementById("performanceName").value.trim();
+  const deadline=fmtDate(document.getElementById("deadline").value);
+  const place=document.getElementById("meetingPlace").value.trim() || "店の前";
+  const time=document.getElementById("meetingTime").value.trim() || "○時○分";
+  const url=document.getElementById("formUrl").value.trim() || "【保存すると発行されるURL】";
+
+  const title = perf ? `${date} ${troupe}「${perf}」公演観劇会` : `${date} ${troupe}公演観劇会`;
+
+  document.getElementById("lineMessage").value =
+`${title}にお申し込みいただき、ありがとうございます。
+
+下記フォームより、当日のお食事メニューとドリンクをお選びください。
+
+▼ お食事申込フォーム
+${url}
+
+【登録締め切り】
+${deadline}
+
+【集合場所】
+${place}
+
+【集合時間】
+${time}
+
+当日は上記の場所・時間にお集まりください。
+どうぞよろしくお願いいたします。`;
+}
+["troupe","performanceName","meetingPlace","meetingTime","formUrl"]
+  .forEach(id=>document.getElementById(id).addEventListener("input",updateLineMessage));
+document.getElementById("performanceTime").addEventListener("change",syncMeetingTime);
+
+/* =========================================================
+   ③ 画像プレビュー
+   ========================================================= */
+function filePreview(inputId, previewId){
+  document.getElementById(inputId).addEventListener("change",e=>{
+    const f=e.target.files?.[0];
+    if(!f) return;
+    const url=URL.createObjectURL(f);
+    document.getElementById(previewId).innerHTML=`<img src="${url}" alt="">`;
+  });
+}
+filePreview("restaurantImage","restaurantPreview");
+[1,2,3,4].forEach(i=>filePreview(`menu${i}Image`,`menu${i}Preview`));
+
+document.getElementById("copyBtn").addEventListener("click",async()=>{
+  const ta=document.getElementById("lineMessage");
+  try{
+    await navigator.clipboard.writeText(ta.value);
+    document.getElementById("copyBtn").textContent="コピーしました";
+    setTimeout(()=>document.getElementById("copyBtn").textContent="LINE用メッセージをコピー",1600);
+  }catch(e){
+    ta.select();
+    document.execCommand("copy");
+  }
+});
+
+/* =========================================================
+   ④ Supabaseへの保存
+     ・画像がある場合は Storage の "meal-photos" バケットへアップロード
+     ・meal_events → meal_menus の順で保存
+     ・保存後、参加者用フォームURL（?event_id=...）を発行して表示
+   ========================================================= */
+async function uploadImage(file, pathPrefix){
+  if(!file) return null;
+  const ext = file.name.split(".").pop();
+  const path = `${pathPrefix}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from("meal-photos").upload(path, file, { upsert:true });
+  if(error){ throw error; }
+  const { data } = sb.storage.from("meal-photos").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+document.getElementById("saveBtn").addEventListener("click", async ()=>{
+  const errorBox = document.getElementById("errorBox");
+  const saved = document.getElementById("saved");
+  errorBox.classList.remove("show");
+  saved.classList.remove("show");
+
+  if(!sb){
+    errorBox.textContent = "Supabaseへの接続準備中です。数秒後にもう一度お試しください。";
+    errorBox.classList.add("show");
+    return;
+  }
+  const performanceDate = document.getElementById("performanceDate").value;
+  if(!performanceDate){
+    errorBox.textContent = "公演日を入力してください。";
+    errorBox.classList.add("show");
+    return;
+  }
+
+  const saveBtn = document.getElementById("saveBtn");
+  saveBtn.disabled = true;
+  saveBtn.textContent = "保存しています…";
+
+  try{
+    const restaurantFile = document.getElementById("restaurantImage").files[0];
+    const restaurantPhotoUrl = restaurantFile ? await uploadImage(restaurantFile, "restaurant") : null;
+
+    const eventPayload = {
+      performance_date: performanceDate,
+      troupe: document.getElementById("troupe").value.trim(),
+      performance_name: document.getElementById("performanceName").value.trim(),
+      performance_time: document.getElementById("performanceTime").value,
+      deadline: document.getElementById("deadline").value || null,
+      meeting_time: document.getElementById("meetingTime").value.trim(),
+      meeting_place: document.getElementById("meetingPlace").value.trim(),
+      restaurant_name: document.getElementById("restaurantName").value.trim(),
+      restaurant_photo_url: restaurantPhotoUrl
+    };
+
+    const { data: eventRow, error: eventError } = await sb
+      .from("meal_events")
+      .insert(eventPayload)
+      .select()
+      .single();
+    if(eventError) throw eventError;
+
+    const menuInputs = [1,2,3,4]
+      .map(i=>({
+        name: document.getElementById(`menu${i}Name`).value.trim(),
+        price: Number(document.getElementById(`menu${i}Price`).value || 0),
+        file: document.getElementById(`menu${i}Image`).files[0],
+        sort_order: i
+      }))
+      .filter(m=>m.name);
+
+    const menuRows = [];
+    for(const m of menuInputs){
+      const photoUrl = m.file ? await uploadImage(m.file, `menu-${eventRow.id}-${m.sort_order}`) : null;
+      menuRows.push({
+        event_id: eventRow.id,
+        name: m.name,
+        price: m.price,
+        photo_url: photoUrl,
+        sort_order: m.sort_order,
+        active: true
+      });
+    }
+    if(menuRows.length){
+      const { error: menuError } = await sb.from("meal_menus").insert(menuRows);
+      if(menuError) throw menuError;
+    }
+
+    const formUrl = `${PARTICIPANT_FORM_BASE}?event_id=${eventRow.id}`;
+    document.getElementById("formUrl").value = formUrl;
+    updateLineMessage();
+
+    saved.innerHTML = `保存しました。参加者用フォームURL：<br><a href="${formUrl}" target="_blank">${formUrl}</a>`;
+    saved.classList.add("show");
+  }catch(err){
+    console.error(err);
+    errorBox.textContent = "保存に失敗しました：" + (err.message || err);
+    errorBox.classList.add("show");
+  }finally{
+    saveBtn.disabled = false;
+    saveBtn.textContent = "保存してフォームを作成";
+  }
+});
+
+document.getElementById("previewBtn").addEventListener("click",()=>{
+  const url = document.getElementById("formUrl").value;
+  if(url){ window.open(url, "_blank"); }
+  else{ alert("先に「保存してフォームを作成」を押してください。保存後にプレビューできます。"); }
+});
+
+renderSchedule();
+syncMeetingTime();
+updateLineMessage();
+</script>
+</body>
+</html>
