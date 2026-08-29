@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申込者一覧(管理者用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="list-icon.png">
+<link rel="apple-touch-icon" href="list-icon.png">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
+      var(--navy-deep);
+    color:var(--cream);
+    font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; letter-spacing:.03em; }
+  .sub{ font-size:12.5px; color:var(--muted); margin-top:6px; }
+  .divider{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    max-width:160px; margin:10px auto 0; opacity:.85;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .divider .gem{
+    width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
+    border:1px solid var(--gold-soft); flex-shrink:0;
+  }
+
+  .toolbar{ max-width:1000px; margin:14px auto 0; padding:0 16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  select, input[type=text]{
+    background:var(--navy-card); border:1px solid var(--line); color:var(--cream);
+    border-radius:8px; padding:9px 12px; font-size:14px; font-family:inherit;
+  }
+  select:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 2px var(--line); }
+  .count-badge{
+    font-size:12.5px; color:var(--gold-soft); background:var(--navy-card);
+    border:1px solid var(--gold); border-radius:20px; padding:5px 14px; font-weight:700;
+  }
+  .refresh-btn{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft); color:#fffaf3;
+    border-radius:8px; padding:9px 16px; font-size:13px; cursor:pointer; font-weight:700;
+  }
+
+  .table-wrap{
+    max-width:1000px; margin:16px auto 0; padding:0 16px 16px; overflow-x:auto;
+  }
+  table{
+    border-collapse:separate; border-spacing:0; width:100%; min-width:900px; font-size:13px;
+    background:var(--navy-card); border:1px solid var(--gold); border-radius:12px; overflow:hidden;
+  }
+  th, td{ padding:11px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th{ color:var(--gold-soft); font-weight:700; background:var(--navy-card-2); position:sticky; top:0; }
+  tr:last-child td{ border-bottom:none; }
+  tr:hover td{ background:rgba(154,134,201,0.05); }
+  td.name{ font-weight:700; font-family:'Shippori Mincho', serif; }
+  .badge{ padding:3px 10px; border-radius:12px; font-size:11.5px; font-weight:700; display:inline-block; }
+  .badge.pending{ background:rgba(154,134,201,0.15); color:var(--gold-soft); }
+  .badge.accepted{ background:rgba(79,143,102,0.15); color:var(--ok); }
+  .badge.declined{ background:rgba(165,84,74,0.15); color:var(--rose); }
+  .badge.cancelled{ background:rgba(139,132,160,0.15); color:var(--muted); }
+
+  .actions{ display:flex; gap:6px; }
+  .actions button{
+    font-size:12px; padding:6px 10px; border-radius:6px; border:1px solid var(--line);
+    background:var(--navy-card-2); color:var(--cream); cursor:pointer; white-space:nowrap; font-family:inherit;
+  }
+  .actions button.accept{ border-color:var(--ok); color:var(--ok); }
+  .actions button.decline{ border-color:var(--rose); color:var(--rose); }
+  .actions button:disabled{ opacity:.4; cursor:default; }
+
+  .empty-msg, .status-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
+  .status-msg.err{ color:var(--rose); }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">管理者用</div>
+  <h1>申込者一覧</h1>
+  <div class="divider"><span class="gem"></span></div>
+  <p class="sub">開催回を選んで、申込状況を確認・更新できます</p>
+</div>
+
+<div class="toolbar">
+  <select id="eventSelect"><option>読み込み中…</option></select>
+  <span class="count-badge" id="countBadge"></span>
+  <button class="refresh-btn" id="refreshBtn">更新</button>
+</div>
+
+<div class="table-wrap">
+  <table id="dataTable" style="display:none;">
+    <thead>
+      <tr>
+        <th>氏名</th>
+        <th>回生</th>
+        <th>同伴者</th>
+        <th>枚数</th>
+        <th>座席希望</th>
+        <th>お食事</th>
+        <th>携帯</th>
+        <th>メール</th>
+        <th>申込日時</th>
+        <th>状態</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <p class="empty-msg" id="emptyMsg" style="display:none;">この開催回の申込みはまだありません。</p>
+  <p class="status-msg" id="statusMsg"></p>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+
+  function getSb(){
+    if(!window.supabase){
+      throw new Error('Supabaseライブラリの読み込みに失敗しました。画面を再読み込みしてください。');
+    }
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  window.addEventListener('error', (ev)=>{
+    const box = document.getElementById('statusMsg');
+    box.classList.add('err');
+    box.textContent = '予期しないエラー:' + (ev.message || '');
+  });
+  window.addEventListener('unhandledrejection', (ev)=>{
+    const box = document.getElementById('statusMsg');
+    box.classList.add('err');
+    box.textContent = '予期しないエラー:' + (ev.reason?.message || ev.reason || '');
+  });
+
+  const weekdayJp = ['日','月','火','水','木','金','土'];
+  function formatDateJp(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${weekdayJp[d.getDay()]})`;
+  }
+  function formatDateTimeJp(isoStr){
+    if(!isoStr) return '';
+    const d = new Date(isoStr);
+    return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  const statusLabel = { '審査中':'審査中', '参加決定':'参加決定', 'お断り':'お断り', 'キャンセル':'キャンセル' };
+  const statusClass = { '審査中':'pending', '参加決定':'accepted', 'お断り':'declined', 'キャンセル':'cancelled' };
+
+  let sb = null;
+  let events = [];
+
+  async function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('ライブラリの読み込みがタイムアウトしました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  async function loadEvents(){
+    const { data, error } = await sb
+      .from('events')
+      .select('id, title, event_number, troupe, event_date')
+      .order('event_date', { ascending: false });
+    if(error) throw error;
+    events = data || [];
+    const sel = document.getElementById('eventSelect');
+    sel.innerHTML = '';
+    if(events.length === 0){
+      sel.innerHTML = '<option>開催回が登録されていません</option>';
+      return;
+    }
+    events.forEach(ev=>{
+      const opt = document.createElement('option');
+      opt.value = ev.id;
+      opt.textContent = `第${ev.event_number ?? '?'}回 ${ev.troupe ?? ''}組(${formatDateJp(ev.event_date)})`;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function loadRegistrations(eventId){
+    const tbody = document.getElementById('tableBody');
+    const table = document.getElementById('dataTable');
+    const emptyMsg = document.getElementById('emptyMsg');
+    const statusMsg = document.getElementById('statusMsg');
+    const countBadge = document.getElementById('countBadge');
+    statusMsg.textContent = '';
+    statusMsg.classList.remove('err');
+    tbody.innerHTML = '';
+    table.style.display = 'none';
+    emptyMsg.style.display = 'none';
+
+    const { data, error } = await sb
+      .from('registrations')
+      .select('*, participants(name, email, phone)')
+      .eq('event_id', eventId)
+      .order('applied_at', { ascending: false });
+
+    if(error) throw error;
+
+    if(!data || data.length === 0){
+      emptyMsg.style.display = 'block';
+      countBadge.textContent = '0件';
+      return;
+    }
+
+    countBadge.textContent = `${data.length}件`;
+
+    data.forEach(r=>{
+      const p = r.participants || {};
+      const a = r.answers || {};
+      const tr = document.createElement('tr');
+      const status = r.status || '審査中';
+
+      tr.innerHTML = `
+        <td class="name">${escapeHtml(p.name || a.full_name || '')}</td>
+        <td>${escapeHtml(a.grade || '')}</td>
+        <td>${a.participant_count === '2' ? 'あり' : 'なし'}</td>
+        <td>${escapeHtml(a.participant_count || '1')}枚</td>
+        <td>${escapeHtml(a.seat_pref || '-')}</td>
+        <td>${a.meal === 'ご参加' ? '参加' : '不参加'}</td>
+        <td>${escapeHtml(p.phone || a.emergency_phone || '')}</td>
+        <td>${escapeHtml(p.email || a.email || '')}</td>
+        <td>${formatDateTimeJp(r.applied_at)}</td>
+        <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
+        <td class="actions">
+          <button class="accept" data-id="${r.id}" data-status="参加決定" ${status==='参加決定' ? 'disabled' : ''}>決定</button>
+          <button class="decline" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>お断り</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    table.style.display = 'table';
+
+    tbody.querySelectorAll('button[data-id]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.getAttribute('data-id');
+        const newStatus = btn.getAttribute('data-status');
+        btn.disabled = true;
+        try{
+          const { error } = await sb
+            .from('registrations')
+            .update({ status: newStatus, decided_at: new Date().toISOString() })
+            .eq('id', id);
+          if(error) throw error;
+          loadRegistrations(eventId);
+        } catch(e){
+          statusMsg.classList.add('err');
+          statusMsg.textContent = '更新に失敗しました:' + (e.message || '');
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  function escapeHtml(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function init(){
+    const statusMsg = document.getElementById('statusMsg');
+    try{
+      await waitForLib(10000);
+      sb = getSb();
+      await loadEvents();
+      const sel = document.getElementById('eventSelect');
+      if(events.length > 0){
+        await loadRegistrations(sel.value);
+      }
+      sel.addEventListener('change', ()=> loadRegistrations(sel.value));
+      document.getElementById('refreshBtn').addEventListener('click', ()=>{
+        if(sel.value) loadRegistrations(sel.value);
+      });
+    } catch(e){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = e.message || String(e);
+    }
+  }
+  init();
+</script>
+</body>
+</html>

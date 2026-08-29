@@ -407,7 +407,8 @@
       `第${currentEvent.event_number || ''}回 ${currentEvent.troupe || ''}組公演`;
     document.getElementById('eventMeta').innerHTML =
       `${formatDateJp(currentEvent.event_date)} ${currentEvent.show_time || ''}公演<br>` +
-      `${currentEvent.seat_type || 'S席'} ／ お一人様 合計${total.toLocaleString()}円`;
+      `${currentEvent.seat_type || 'S席'} ／ お一人様 合計${total.toLocaleString()}円<br>` +
+      `<span style="font-size:12px;">(代理店手数料 1枚につき200円 含む)</span>`;
     if(deadlineStr){
       document.getElementById('deadlineBox').textContent = `お申込み締切:${deadlineStr}`;
     }

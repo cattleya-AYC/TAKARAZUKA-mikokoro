@@ -10,49 +10,73 @@
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy-deep:#161b2e; --navy-card:#222a47; --gold:#c9a961;
-    --gold-soft:#e4d3a1; --cream:#f3efe4; --rose:#c17a6f; --line:rgba(201,169,97,0.25);
-    --muted:#7d84a3;
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0;
   }
   *{box-sizing:border-box;}
   body{
-    margin:0; background:var(--navy-deep); color:var(--cream);
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
+      var(--navy-deep);
+    color:var(--cream);
     font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
   }
   .hero{ text-align:center; padding:36px 20px 18px; }
-  .eyebrow{ font-size:12px; letter-spacing:.24em; color:var(--gold-soft); text-transform:uppercase; }
-  h1{ font-family:'Shippori Mincho', serif; font-size:22px; margin:8px 0 0; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:22px; margin:8px 0 0; letter-spacing:.03em; }
+  .divider{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    max-width:180px; margin:12px auto 0; opacity:.85;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .divider .gem{
+    width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
+    border:1px solid var(--gold-soft); flex-shrink:0;
+  }
 
   .prev-card{
     max-width:480px; margin:16px auto 0; padding:14px 18px;
-    background:rgba(201,169,97,0.08); border:1px solid var(--line); border-radius:12px;
-    font-size:13px; color:#cdd2e8;
+    background:var(--navy-card-2); border:1px solid var(--line); border-radius:10px;
+    font-size:13px; color:var(--cream);
   }
   .prev-card b{ color:var(--gold-soft); }
   .prev-card .empty{ color:var(--muted); }
 
   form{ max-width:480px; margin:14px auto 0; padding:0 20px; }
-  .panel{ background:var(--navy-card); border:1px solid var(--line); border-radius:16px; padding:22px; }
-  label.field{ display:block; margin-bottom:16px; }
-  .lbl{ font-size:13px; margin-bottom:7px; display:block; color:var(--gold-soft); }
-  input[type=text], input[type=number], input[type=date], select{
-    width:100%; background:var(--navy-deep); border:1px solid var(--line);
-    color:var(--cream); border-radius:10px; padding:11px 13px; font-size:15px; font-family:inherit;
+  .panel{
+    background:var(--navy-card); border:1px solid var(--gold);
+    box-shadow:inset 0 0 0 3px var(--navy-card), inset 0 0 0 4px var(--line);
+    border-radius:12px; padding:24px 22px;
   }
+  label.field{ display:block; margin-bottom:16px; }
+  .lbl{ font-size:13px; margin-bottom:7px; display:block; color:var(--gold-soft); font-weight:700; }
+  input[type=text], input[type=number], input[type=date], select{
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line);
+    color:var(--cream); border-radius:8px; padding:11px 13px; font-size:15px; font-family:inherit;
+  }
+  input:focus, select:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 2px var(--line); }
   /* プレースホルダーは「例」であって入力済みではないことが分かるよう、はっきり暗めのグレーにする */
   ::placeholder{ color:var(--muted); opacity:1; }
-  input[type=file]{ color:#b9bfd6; font-size:13px; }
+  input[type=file]{ color:var(--muted); font-size:13px; }
   .row2{ display:flex; gap:10px; }
   .row2 > label{ flex:1; }
   button{
-    width:100%; margin-top:6px; background:linear-gradient(135deg, var(--gold), #b08d4f);
-    color:#1a1f36; font-weight:700; border:none; border-radius:10px; padding:14px; font-size:15px; cursor:pointer;
+    width:100%; margin-top:6px;
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft);
+    color:#fffaf3; font-weight:700; border-radius:8px; padding:14px; font-size:15px; cursor:pointer;
+    font-family:'Shippori Mincho','Noto Sans JP',sans-serif; letter-spacing:.03em;
   }
   button:disabled{ opacity:.5; }
   .status{ text-align:center; font-size:13px; margin-top:14px; }
-  .status.ok{ color:#8fd19e; }
+  .status.ok{ color:#4f8f66; }
   .status.err{ color:var(--rose); }
-  .preview{ width:100%; border-radius:10px; margin-top:8px; display:none; }
+  .preview{ width:100%; border-radius:8px; margin-top:8px; display:none; }
   .note{ font-size:11.5px; color:var(--muted); margin-top:-8px; margin-bottom:14px; }
 
   .menu-row{
@@ -62,12 +86,12 @@
   .menu-row input.price{ flex:0 0 100px; }
   .menu-row .remove{
     flex:0 0 auto; width:34px; height:34px; border-radius:8px;
-    background:transparent; border:1px solid var(--line); color:var(--rose);
+    background:var(--navy-card-2); border:1px solid var(--line); color:var(--rose);
     display:flex; align-items:center; justify-content:center; font-size:16px; padding:0; margin:0;
   }
   .add-menu-btn{
-    background:transparent; border:1px dashed var(--line); color:var(--gold-soft);
-    font-weight:500; padding:10px; border-radius:10px; font-size:13px;
+    background:var(--navy-card-2); border:1px dashed var(--line); color:var(--gold-soft);
+    font-weight:700; padding:10px; border-radius:8px; font-size:13px;
   }
 </style>
 </head>
@@ -76,6 +100,7 @@
 <div class="hero">
   <div class="eyebrow">管理者用</div>
   <h1>新しい開催回を登録</h1>
+  <div class="divider"><span class="gem"></span></div>
 </div>
 
 <div class="prev-card" id="prevCard">前回の開催情報を確認中…</div>
