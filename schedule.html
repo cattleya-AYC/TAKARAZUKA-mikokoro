@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>観劇会開催予定｜小林タカラヅカ倶楽部</title>
+<meta name="theme-color" content="#f7efe9">
+<style>
+:root{
+  --ivory:#fffaf5;
+  --paper:#fffdf9;
+  --blush:#f6e4e6;
+  --rose:#b9747d;
+  --rose-deep:#7c3e48;
+  --gold:#c8a76b;
+  --gold-deep:#9d7c43;
+  --ink:#3e3033;
+  --muted:#8a7779;
+  --line:rgba(200,167,107,.34);
+  --shadow:0 18px 50px rgba(94,59,62,.10);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--ink);
+  font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP",serif;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(246,228,230,.85), transparent 34%),
+    radial-gradient(circle at 88% 10%, rgba(255,236,221,.75), transparent 36%),
+    linear-gradient(180deg,#fbf4ef 0%,#fffaf5 44%,#f8efe9 100%);
+  min-height:100vh;
+}
+body:before{
+  content:"";
+  position:fixed; inset:0; pointer-events:none; opacity:.22;
+  background-image:
+    linear-gradient(rgba(255,255,255,.25) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.2) 1px,transparent 1px);
+  background-size:26px 26px;
+}
+.page{position:relative;max-width:760px;margin:0 auto;padding:28px 18px 64px}
+.topline{
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  margin:2px 0 22px;
+}
+.hero{
+  position:relative;
+  padding:38px 24px 34px;
+  text-align:center;
+  background:rgba(255,253,249,.86);
+  border:1px solid rgba(200,167,107,.50);
+  border-radius:26px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.hero:before,.hero:after{
+  content:"✦";
+  position:absolute;
+  color:rgba(200,167,107,.58);
+  font-size:22px;
+}
+.hero:before{top:15px;left:22px}
+.hero:after{bottom:14px;right:22px}
+.kicker{
+  font-size:12px;
+  letter-spacing:.26em;
+  color:var(--gold-deep);
+  margin-bottom:12px;
+}
+.hero h1{
+  margin:0;
+  font-weight:600;
+  color:var(--rose-deep);
+  font-size:clamp(28px,7vw,42px);
+  letter-spacing:.07em;
+}
+.hero .ornament{
+  margin:18px auto 16px;
+  display:flex; align-items:center; justify-content:center; gap:11px;
+  color:var(--gold);
+}
+.hero .ornament:before,.hero .ornament:after{
+  content:"";height:1px;width:88px;
+  background:linear-gradient(90deg,transparent,var(--gold));
+}
+.hero .ornament:after{background:linear-gradient(90deg,var(--gold),transparent)}
+.hero p{
+  margin:0 auto;
+  max-width:560px;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  font-size:13px;
+  line-height:1.9;
+  color:var(--muted);
+}
+.section-title{
+  margin:34px 4px 14px;
+  display:flex; align-items:center; gap:12px;
+  color:var(--rose-deep);
+  font-size:17px; letter-spacing:.06em;
+}
+.section-title:before{
+  content:"";
+  width:28px;height:1px;background:var(--gold);
+}
+.card{
+  background:rgba(255,253,249,.94);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:22px 20px;
+  margin:14px 0;
+  box-shadow:0 10px 28px rgba(94,59,62,.07);
+}
+.card.featured{
+  border-color:rgba(185,116,125,.42);
+  background:
+    linear-gradient(135deg,rgba(246,228,230,.58),rgba(255,253,249,.96) 46%),
+    var(--paper);
+}
+.card-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:14px;
+  margin-bottom:14px;
+}
+.badge{
+  display:inline-flex;align-items:center;
+  padding:5px 10px;border-radius:999px;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  font-size:11px;font-weight:700;letter-spacing:.03em;
+  color:#fff;background:linear-gradient(135deg,var(--rose),var(--rose-deep));
+}
+.badge.soft{
+  color:var(--gold-deep);background:#fbf3df;border:1px solid rgba(200,167,107,.36);
+}
+.badge.open{
+  background:linear-gradient(135deg,#7f9d6f,#556e46);
+}
+.card h2{
+  margin:0;color:var(--ink);font-size:22px;font-weight:600;line-height:1.45;
+}
+.card .sub{
+  margin-top:4px;color:var(--muted);font-size:12px;
+}
+.grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;
+}
+.info{
+  border:1px solid var(--line);
+  background:rgba(255,250,245,.72);
+  border-radius:12px;padding:13px 14px;
+}
+.info .label{
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  font-size:10px;color:var(--gold-deep);font-weight:700;letter-spacing:.08em;
+}
+.info .value{margin-top:5px;font-size:14px;line-height:1.55}
+.note{
+  margin-top:14px;
+  padding:13px 14px;
+  border-left:3px solid var(--gold);
+  background:#fff9f1;
+  border-radius:8px;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  font-size:12px;line-height:1.8;color:#6f6264;
+}
+.note a{ color:var(--rose-deep); font-weight:700; }
+.timeline{
+  position:relative;margin:8px 0 0 10px;padding-left:24px;
+}
+.timeline:before{
+  content:"";position:absolute;left:4px;top:8px;bottom:8px;width:1px;background:var(--line);
+}
+.timeline-item{
+  position:relative;padding:0 0 22px 0;
+}
+.timeline-item:last-child{padding-bottom:0}
+.timeline-item:before{
+  content:"";position:absolute;left:-24px;top:7px;width:9px;height:9px;border-radius:50%;
+  background:var(--ivory);border:2px solid var(--gold);
+}
+.timeline-item h3{margin:0 0 6px;font-size:17px;color:var(--rose-deep)}
+.timeline-item p{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  color:var(--muted);font-size:12.5px;line-height:1.8;
+}
+.footer{
+  text-align:center;margin-top:36px;padding-top:24px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:11px;line-height:1.9;
+}
+.footer strong{color:var(--rose-deep);font-weight:600}
+@media(max-width:560px){
+  .page{padding:18px 14px 50px}
+  .hero{padding:30px 18px 28px;border-radius:20px}
+  .grid{grid-template-columns:1fr}
+  .card{padding:19px 16px}
+  .card-head{display:block}
+  .badge{margin-bottom:10px}
+  .card h2{font-size:20px}
+}
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="topline"></div>
+
+  <section class="hero">
+    <div class="kicker">OBAYASHI TAKARAZUKA CLUB</div>
+    <h1>観劇会開催予定</h1>
+    <div class="ornament">◆</div>
+    <p>
+      小林タカラヅカ倶楽部の観劇会開催予定をご案内いたします。<br>
+      詳細が決まり次第、こちらのページを随時更新いたします。
+    </p>
+  </section>
+
+  <div class="section-title">次回の観劇会</div>
+
+  <section class="card featured">
+    <div class="card-head">
+      <div>
+        <h2 id="nextTitle">読み込み中…</h2>
+        <div class="sub" id="nextSub">最新情報を確認しています</div>
+      </div>
+      <span class="badge" id="nextBadge">COMING SOON</span>
+    </div>
+
+    <div class="grid">
+      <div class="info">
+        <div class="label">公演日</div>
+        <div class="value" id="nextDate">決まり次第掲載</div>
+      </div>
+      <div class="info">
+        <div class="label">開演時間</div>
+        <div class="value" id="nextTime">決まり次第掲載</div>
+      </div>
+      <div class="info">
+        <div class="label">会場</div>
+        <div class="value">宝塚大劇場</div>
+      </div>
+      <div class="info">
+        <div class="label">お申込み</div>
+        <div class="value" id="nextApply">受付開始前</div>
+      </div>
+    </div>
+
+    <div class="note" id="nextNote">
+      募集開始後は、リッチメニューの「申込フォーム」よりお申込みいただけます。
+    </div>
+  </section>
+
+  <div class="section-title">今後の予定</div>
+
+  <section class="card">
+    <div class="timeline" id="timelineList">
+      <div class="timeline-item">
+        <h3>次々回 観劇会</h3>
+        <p>公演・日程ともに決まり次第ご案内いたします。</p>
+      </div>
+      <div class="timeline-item">
+        <h3>募集開始のお知らせ</h3>
+        <p>募集開始時には、公式LINEでもご案内いたします。</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-title">ご案内</div>
+
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>お申込みについて</h2>
+        <div class="sub">募集期間中のみ申込フォームが表示されます</div>
+      </div>
+      <span class="badge soft">INFORMATION</span>
+    </div>
+    <div class="note">
+      申込ページは、募集開始前・募集期間中・締切後で表示内容が自動的に切り替わります。
+      募集期間終了後は、個別のご案内をお待ちください。
+    </div>
+  </section>
+
+  <footer class="footer">
+    <strong>小林タカラヅカ倶楽部</strong><br>
+    公演予定は変更になる場合がございます。最新情報は公式LINEにてご確認ください。
+  </footer>
+</main>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  const ENTRY_FORM_URL = "entry-form.html";
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  function formatDateJp(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr + (dateStr.length <= 10 ? 'T00:00:00' : ''));
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日(${w})`;
+  }
+
+  function eventLabel(ev){
+    return `第${ev.event_number ?? '◯'}回 ${ev.troupe ?? ''}組公演`;
+  }
+
+  async function loadSchedule(){
+    try{
+      await waitForLib(10000);
+      const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const nowIso = new Date().toISOString();
+      const nowMs = Date.now();
+
+      // 締切前(募集中・募集開始前どちらも)の開催回を、開催日が近い順に取得
+      const { data, error } = await sb
+        .from('events')
+        .select('*')
+        .gte('application_deadline', nowIso)
+        .order('event_date', { ascending: true });
+
+      if(error) throw error;
+
+      const all = data || [];
+      if(all.length === 0){
+        renderNoEvent();
+        return;
+      }
+
+      const next = all[0];
+      const rest = all.slice(1);
+
+      const isOpen = !next.recruitment_start_date || new Date(next.recruitment_start_date).getTime() <= nowMs;
+      renderNext(next, isOpen);
+      renderTimeline(rest);
+
+    } catch(e){
+      console.warn('読み込みエラー', e);
+      renderNoEvent();
+    }
+  }
+
+  function renderNext(ev, isOpen){
+    document.getElementById('nextTitle').textContent = eventLabel(ev);
+    document.getElementById('nextSub').textContent = isOpen ? 'ただいまお申込みを受付中です' : '募集開始まで今しばらくお待ちください';
+
+    const badge = document.getElementById('nextBadge');
+    if(isOpen){
+      badge.textContent = '募集中';
+      badge.classList.add('open');
+    } else {
+      badge.textContent = 'COMING SOON';
+      badge.classList.remove('open');
+    }
+
+    document.getElementById('nextDate').textContent = formatDateJp(ev.event_date);
+    document.getElementById('nextTime').textContent = ev.show_time ? `${ev.show_time}公演` : '決まり次第掲載';
+
+    const applyBox = document.getElementById('nextApply');
+    const noteBox = document.getElementById('nextNote');
+    if(isOpen){
+      applyBox.innerHTML = `<a href="${ENTRY_FORM_URL}" style="color:var(--rose-deep); font-weight:700;">受付中 →</a>`;
+      noteBox.innerHTML = `ただいまお申込みを受付中です。リッチメニューの「申込フォーム」、または<a href="${ENTRY_FORM_URL}">こちら</a>よりお申込みください。<br>締切:${formatDateJp(ev.application_deadline ? ev.application_deadline.slice(0,10) : '')}`;
+    } else {
+      const startStr = ev.recruitment_start_date ? formatDateJp(ev.recruitment_start_date.slice(0,10)) : '';
+      applyBox.textContent = startStr ? `${startStr}〜受付開始` : '受付開始前';
+      noteBox.innerHTML = `募集開始後は、リッチメニューの「申込フォーム」よりお申込みいただけます。${startStr ? `(募集開始予定:${startStr})` : ''}`;
+    }
+  }
+
+  function renderTimeline(rest){
+    const box = document.getElementById('timelineList');
+    if(rest.length === 0){
+      box.innerHTML = `
+        <div class="timeline-item">
+          <h3>次々回 観劇会</h3>
+          <p>公演・日程ともに決まり次第ご案内いたします。</p>
+        </div>
+        <div class="timeline-item">
+          <h3>募集開始のお知らせ</h3>
+          <p>募集開始時には、公式LINEでもご案内いたします。</p>
+        </div>
+      `;
+      return;
+    }
+
+    const items = rest.slice(0, 3).map((ev, i)=>{
+      const title = i === 0 ? '次々回 観劇会' : `第${ev.event_number ?? '◯'}回 観劇会`;
+      return `
+        <div class="timeline-item">
+          <h3>${title}</h3>
+          <p>${eventLabel(ev)}(${formatDateJp(ev.event_date)} ${ev.show_time || ''}公演)</p>
+        </div>
+      `;
+    }).join('');
+
+    box.innerHTML = items + `
+      <div class="timeline-item">
+        <h3>募集開始のお知らせ</h3>
+        <p>募集開始時には、公式LINEでもご案内いたします。</p>
+      </div>
+    `;
+  }
+
+  function renderNoEvent(){
+    document.getElementById('nextTitle').textContent = '次回公演';
+    document.getElementById('nextSub').textContent = '詳細は決まり次第ご案内いたします';
+    document.getElementById('nextDate').textContent = '決まり次第掲載';
+    document.getElementById('nextTime').textContent = '決まり次第掲載';
+    document.getElementById('nextApply').textContent = '受付開始前';
+  }
+
+  loadSchedule();
+</script>
+</body>
+</html>
