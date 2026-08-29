@@ -209,8 +209,10 @@ body:before{
     <h1>観劇会開催予定</h1>
     <div class="ornament">◆</div>
     <p>
-      小林タカラヅカ倶楽部の観劇会開催予定をご案内いたします。<br>
-      詳細が決まり次第、こちらのページを随時更新いたします。
+      小林タカラヅカ倶楽部の観劇会<br>
+      開催予定をご案内いたします。<br>
+      詳細が決まり次第、こちらの<br>
+      ページを随時更新いたします。
     </p>
   </section>
 
@@ -256,10 +258,6 @@ body:before{
       <div class="timeline-item">
         <h3>次々回 観劇会</h3>
         <p>公演・日程ともに決まり次第ご案内いたします。</p>
-      </div>
-      <div class="timeline-item">
-        <h3>募集開始のお知らせ</h3>
-        <p>募集開始時には、公式LINEでもご案内いたします。</p>
       </div>
     </div>
   </section>
@@ -310,6 +308,14 @@ body:before{
     const w = ['日','月','火','水','木','金','土'][d.getDay()];
     return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日(${w})`;
   }
+  function formatMonthDayJp(d){
+    return `${d.getMonth()+1}月${d.getDate()}日`;
+  }
+  function addDays(base, diff){
+    const d = new Date(base.getTime());
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
 
   function eventLabel(ev){
     return `第${ev.event_number ?? '◯'}回 ${ev.troupe ?? ''}組公演`;
@@ -334,15 +340,15 @@ body:before{
       const all = data || [];
       if(all.length === 0){
         renderNoEvent();
+        await loadUpcomingFromAgency(sb, null);
         return;
       }
 
       const next = all[0];
-      const rest = all.slice(1);
 
       const isOpen = !next.recruitment_start_date || new Date(next.recruitment_start_date).getTime() <= nowMs;
       renderNext(next, isOpen);
-      renderTimeline(rest);
+      await loadUpcomingFromAgency(sb, next);
 
     } catch(e){
       console.warn('読み込みエラー', e);
@@ -378,38 +384,54 @@ body:before{
     }
   }
 
-  function renderTimeline(rest){
+  // ---- 「今後の予定」は代理店確定データ(agency_confirmations)から表示する ----
+  // 開催回としてまだ正式登録されていない、より先の公演の「うわさ」段階の情報として、
+  // 募集開始のおおよその目安日(公演日の65日前あたり)だけをご案内する。
+  async function loadUpcomingFromAgency(sb, next){
     const box = document.getElementById('timelineList');
-    if(rest.length === 0){
+    try{
+      const { data, error } = await sb
+        .from('agency_confirmations')
+        .select('troupe, event_date, show_time')
+        .order('event_date', { ascending: true });
+      if(error) throw error;
+
+      const nextDate = next ? next.event_date : null;
+      const upcoming = (data || []).filter(row => !nextDate || row.event_date > nextDate);
+
+      if(upcoming.length === 0){
+        box.innerHTML = `
+          <div class="timeline-item">
+            <h3>次々回 観劇会</h3>
+            <p>公演・日程ともに決まり次第ご案内いたします。</p>
+          </div>
+        `;
+        return;
+      }
+
+      box.innerHTML = upcoming.slice(0, 3).map((row, i)=>{
+        const eventDate = new Date(row.event_date + 'T00:00:00');
+        const recruitStart = addDays(eventDate, -65);
+        const title = i === 0 ? '次々回 観劇会' : `${row.troupe}組公演(予定)`;
+        return `
+          <div class="timeline-item">
+            <h3>${title}</h3>
+            <p>
+              ${row.troupe}組公演(${formatDateJp(row.event_date)} ${row.show_time || ''}公演予定)<br>
+              募集開始は、公演日の65日前あたりの${formatMonthDayJp(recruitStart)}頃を予定しています。
+            </p>
+          </div>
+        `;
+      }).join('');
+    } catch(e){
+      console.warn('代理店データの取得に失敗しました', e);
       box.innerHTML = `
         <div class="timeline-item">
           <h3>次々回 観劇会</h3>
           <p>公演・日程ともに決まり次第ご案内いたします。</p>
         </div>
-        <div class="timeline-item">
-          <h3>募集開始のお知らせ</h3>
-          <p>募集開始時には、公式LINEでもご案内いたします。</p>
-        </div>
       `;
-      return;
     }
-
-    const items = rest.slice(0, 3).map((ev, i)=>{
-      const title = i === 0 ? '次々回 観劇会' : `第${ev.event_number ?? '◯'}回 観劇会`;
-      return `
-        <div class="timeline-item">
-          <h3>${title}</h3>
-          <p>${eventLabel(ev)}(${formatDateJp(ev.event_date)} ${ev.show_time || ''}公演)</p>
-        </div>
-      `;
-    }).join('');
-
-    box.innerHTML = items + `
-      <div class="timeline-item">
-        <h3>募集開始のお知らせ</h3>
-        <p>募集開始時には、公式LINEでもご案内いたします。</p>
-      </div>
-    `;
   }
 
   function renderNoEvent(){
