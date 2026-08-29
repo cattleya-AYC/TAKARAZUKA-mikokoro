@@ -262,22 +262,6 @@ body:before{
     </div>
   </section>
 
-  <div class="section-title">ご案内</div>
-
-  <section class="card">
-    <div class="card-head">
-      <div>
-        <h2>お申込みについて</h2>
-        <div class="sub">募集期間中のみ申込フォームが表示されます</div>
-      </div>
-      <span class="badge soft">INFORMATION</span>
-    </div>
-    <div class="note">
-      申込ページは、募集開始前・募集期間中・締切後で表示内容が自動的に切り替わります。
-      募集期間終了後は、個別のご案内をお待ちください。
-    </div>
-  </section>
-
   <footer class="footer">
     <strong>小林タカラヅカ倶楽部</strong><br>
     公演予定は変更になる場合がございます。最新情報は公式LINEにてご確認ください。
@@ -380,7 +364,7 @@ body:before{
     } else {
       const startStr = ev.recruitment_start_date ? formatDateJp(ev.recruitment_start_date.slice(0,10)) : '';
       applyBox.textContent = startStr ? `${startStr}〜受付開始` : '受付開始前';
-      noteBox.innerHTML = `募集開始後は、リッチメニューの「申込フォーム」よりお申込みいただけます。${startStr ? `(募集開始予定:${startStr})` : ''}`;
+      noteBox.innerHTML = `募集開始後は、リッチメニューの「申込フォーム」よりお申込みいただけます。${startStr ? `募集開始予定:${startStr}` : ''}`;
     }
   }
 
