@@ -120,6 +120,21 @@
     font-size:13.5px; color:var(--cream); cursor:pointer; text-decoration:underline; text-decoration-color:var(--line);
     text-underline-offset:3px;
   }
+  .submit-count{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:18px; height:18px; padding:0 5px; margin-left:6px; border-radius:9px;
+    font-size:10.5px; font-weight:700; font-family:'Noto Sans JP', sans-serif;
+    background:var(--navy-card-2); color:var(--muted); border:1px solid var(--line); cursor:pointer;
+  }
+  .submit-count.multi{
+    background:#ffdf6b; color:#7a4a00; border-color:#e0b400;
+    box-shadow:0 0 6px 1px rgba(255,200,0,0.7);
+    animation:glow 1.6s ease-in-out infinite alternate;
+  }
+  @keyframes glow{
+    from{ box-shadow:0 0 4px 0px rgba(255,200,0,0.5); }
+    to{ box-shadow:0 0 9px 3px rgba(255,200,0,0.85); }
+  }
   .detail-row td{ padding:8px 12px; background:var(--navy-card-2); }
   .detail-box{ display:flex; gap:20px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); white-space:normal; }
   .detail-logs{ margin-top:10px; font-size:12px; color:var(--rose); white-space:normal; }
@@ -617,6 +632,7 @@
       const status = r.status || '審査中';
       const points = p.penalty_points || 0;
       const recentCount = recentCounts[p.id] ?? '-';
+      const submitCount = 1 + (changeLogsMap[p.id]?.length || 0);
       const rowId = r.id;
       if(status === '参加決定') tr.classList.add('row-accepted');
       if(status === 'お断り') tr.classList.add('row-declined');
@@ -628,7 +644,10 @@
         </td>
         <td class="print-hide narrow-col"><span class="mini-badge">${recentCount}</span></td>
         <td class="print-hide narrow-col"><span class="mini-badge ${points > 0 ? 'warn' : ''}">${points}</span></td>
-        <td class="name"><button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button></td>
+        <td class="name">
+          <button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button>
+          <button class="submit-count ${submitCount > 1 ? 'multi' : ''}" data-detail="${rowId}" title="送信回数(タップで変更履歴を表示)">${submitCount}</button>
+        </td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
         <td>${a.meal === 'ご参加'
               ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
@@ -669,7 +688,7 @@
 
     table.style.display = 'table';
 
-    tbody.querySelectorAll('.name-btn').forEach(btn=>{
+    tbody.querySelectorAll('.name-btn, .submit-count').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const row = document.getElementById(`detail-${btn.getAttribute('data-detail')}`);
         if(row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';

@@ -567,10 +567,14 @@
         .maybeSingle();
 
       if(existingReg){
-        // 2回目以降の送信 → 内容を更新し、変更として記録・ペナルティを自動加算
+        // 2回目以降の送信 → 内容を更新し、変更として記録
+        // (締切前の変更はペナルティなし、締切後の変更のみペナルティを自動加算)
         const before = existingReg.answers || {};
         const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${before.meal === 'ご参加' ? '参加' : '不参加'}`;
         const afterSummary = `枚数${data.participant_count || '1'}枚 / 食事${data.meal === 'ご参加' ? '参加' : '不参加'}`;
+        const isAfterDeadline = currentEvent.application_deadline
+          ? new Date() > new Date(currentEvent.application_deadline)
+          : false;
 
         const { error: updErr } = await sb
           .from('registrations')
@@ -585,24 +589,28 @@
           change_type: '申込者による再送信(変更)',
           before_summary: beforeSummary,
           after_summary: afterSummary,
-          note: '申込フォームからの再送信により内容が更新されました'
+          note: isAfterDeadline
+            ? '申込フォームからの再送信により内容が更新されました(締切後のためペナルティ加算)'
+            : '申込フォームからの再送信により内容が更新されました(締切前のためペナルティなし)'
         });
 
-        const { data: pRow } = await sb
-          .from('participants')
-          .select('penalty_points, penalty_notes')
-          .eq('id', participantId)
-          .maybeSingle();
-        const existingPoints = pRow?.penalty_points || 0;
-        const existingNotes = pRow?.penalty_notes || '';
-        const dateStr = new Date().toLocaleDateString('ja-JP');
-        const newNotes = existingNotes
-          ? `${existingNotes}\n[${dateStr}] (自動)申込フォームからの再送信 ${beforeSummary} → ${afterSummary}`
-          : `[${dateStr}] (自動)申込フォームからの再送信 ${beforeSummary} → ${afterSummary}`;
-        await sb.from('participants').update({
-          penalty_points: existingPoints + 1,
-          penalty_notes: newNotes
-        }).eq('id', participantId);
+        if(isAfterDeadline){
+          const { data: pRow } = await sb
+            .from('participants')
+            .select('penalty_points, penalty_notes')
+            .eq('id', participantId)
+            .maybeSingle();
+          const existingPoints = pRow?.penalty_points || 0;
+          const existingNotes = pRow?.penalty_notes || '';
+          const dateStr = new Date().toLocaleDateString('ja-JP');
+          const newNotes = existingNotes
+            ? `${existingNotes}\n[${dateStr}] (自動・締切後)申込フォームからの再送信 ${beforeSummary} → ${afterSummary}`
+            : `[${dateStr}] (自動・締切後)申込フォームからの再送信 ${beforeSummary} → ${afterSummary}`;
+          await sb.from('participants').update({
+            penalty_points: existingPoints + 1,
+            penalty_notes: newNotes
+          }).eq('id', participantId);
+        }
 
       } else {
         const { error: rErr } = await sb
