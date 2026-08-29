@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お食事申込 集計(閲覧用)</title>
+<link rel="icon" href="admin-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+    --warn-bg:#f8e3df; --warn-bg-strong:#f0c3ba; --warn-text:#a5544a; --warn-text-strong:#8a3226;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%), var(--navy-deep); color:var(--cream); font-family:'Noto Sans JP', sans-serif; padding:0 0 60px; }
+  .hero{ text-align:center; padding:32px 20px 16px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:22px; margin:8px 0 0; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 16px 40px; }
+  #loadingNote, #missingNote{ text-align:center; padding:40px 10px; color:var(--muted); }
+  #missingNote{ display:none; color:var(--rose); font-weight:700; }
+
+  .event-picker{
+    border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:16px;
+    background:var(--navy-card);
+  }
+  .event-picker label{
+    display:block; font-size:12px; color:var(--gold-soft); font-weight:700; margin-bottom:7px;
+  }
+  .event-picker select{
+    width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:8px;
+    background:var(--navy-card-2); color:var(--cream); font:inherit;
+  }
+  .event-picker .hint{ margin-top:7px; font-size:11.5px; color:var(--muted); }
+
+  .alert-banner{
+    display:none; align-items:center; gap:14px; padding:16px 18px; border-radius:12px; margin-bottom:16px;
+    border:1px solid var(--rose); background:var(--warn-bg);
+  }
+  .alert-banner.show{ display:flex; }
+  .alert-banner.overdue{ background:var(--warn-bg-strong); }
+  .alert-banner .icon{ width:40px;height:40px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;background:var(--warn-text);color:#fff;font-weight:700; }
+  .alert-banner.overdue .icon{ background:var(--warn-text-strong); }
+  .alert-banner .count{ font-size:22px; font-weight:700; color:var(--warn-text); }
+  .alert-banner.overdue .count{ color:var(--warn-text-strong); }
+  .alert-banner .sub{ font-size:12.5px; color:var(--cream); margin-top:2px; }
+  .alert-banner .spacer{ flex:1; }
+  .toggle-btn{ border:1px solid var(--rose); background:var(--navy-card); color:var(--rose); border-radius:8px; padding:9px 14px; font:inherit; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .toggle-btn.active{ background:var(--rose); color:#fff; }
+
+  .info{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+  .info-card{ border:1px solid var(--line); border-radius:10px; padding:14px; background:var(--navy-card); }
+  .info-card .label{ font-size:12px; color:var(--muted); }
+  .info-card .value{ font-size:20px; margin-top:4px; }
+  .info-card .value.rose{ color:var(--rose); }
+
+  .section{ border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; background:var(--navy-card); }
+  .section h2{ margin:0 0 12px; font-size:16px; color:var(--gold-soft); font-family:'Shippori Mincho', serif; }
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th,td{ border-bottom:1px solid var(--line); padding:10px 8px; text-align:left; }
+  th{ background:var(--navy-card-2); color:var(--gold-soft); font-weight:700; }
+  .num{ text-align:right; }
+  .badge{ display:inline-block; padding:3px 9px; border-radius:999px; background:var(--navy-card-2); color:var(--gold-soft); font-size:11.5px; }
+  .status-pill{ display:inline-block; padding:4px 10px; border-radius:999px; font-size:11.5px; font-weight:700; white-space:nowrap; }
+  .status-pill.ok{ background:#e2f0e6; color:var(--ok); }
+  .status-pill.pending{ background:var(--navy-card-2); color:var(--muted); }
+  .status-pill.warn{ background:var(--warn-bg); color:var(--warn-text); }
+  .status-pill.overdue{ background:var(--warn-bg-strong); color:var(--warn-text-strong); }
+  tr.row-warn td{ background:var(--warn-bg); }
+  tr.row-overdue td{ background:var(--warn-bg-strong); }
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-bottom:14px; }
+  button{ border:0; border-radius:8px; padding:11px 15px; cursor:pointer; font:inherit; font-weight:700; }
+  .secondary{ background:var(--navy-card-2); color:var(--gold-soft); }
+  .primary{ background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fff; }
+  .search{ width:100%; max-width:300px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; background:var(--navy-card-2); color:var(--cream); }
+  .small{ font-size:11.5px; color:var(--muted); margin-top:8px; }
+  .empty-note{ padding:20px; text-align:center; color:var(--muted); }
+  .table-wrap{ overflow-x:auto; }
+  .cancel-btn{ background:var(--navy-card-2); color:var(--rose); border:1px solid var(--rose); border-radius:6px; padding:6px 10px; font-size:11.5px; font-weight:700; cursor:pointer; }
+  @media(max-width:800px){ .info{ grid-template-columns:repeat(2,1fr); } }
+
+  /* ---- 印刷用:背景色なし・A4 1枚に収める ---- */
+  @media print{
+    @page{ size: A4 landscape; margin: 8mm; }
+    html, body{ background:#fff !important; color:#000 !important; padding:0; }
+    .hero{ padding:0 0 8px; }
+    .eyebrow{ color:#000 !important; }
+    h1{ font-size:16px; margin:0; }
+    .wrap{ max-width:none; padding:0; }
+
+    /* 操作系のUIは印刷しない */
+    .actions, .search, #filterBtn, .cancel-btn, .toggle-btn{ display:none !important; }
+    .alert-banner{ display:none !important; }
+
+    .info{ grid-template-columns:repeat(4,1fr); gap:4px; margin-bottom:8px; }
+    .info-card{ border:1px solid #999 !important; background:#fff !important; padding:6px; border-radius:0; }
+    .info-card .label{ font-size:9px; color:#333 !important; }
+    .info-card .value{ font-size:14px; }
+    .info-card .value.rose{ color:#000 !important; }
+
+    .section{ border:1px solid #999 !important; background:#fff !important; border-radius:0; padding:8px; margin-bottom:8px; break-inside:avoid; }
+    .section h2{ color:#000 !important; font-size:12px; margin:0 0 6px; }
+    .small{ font-size:8.5px; color:#333 !important; }
+
+    table{ font-size:9.5px; }
+    th,td{ padding:3px 4px; border-bottom:1px solid #ccc !important; }
+    th{ background:#fff !important; color:#000 !important; border-bottom:1px solid #000 !important; }
+
+    /* 背景色を全て外して白黒印刷にする */
+    tr.row-warn td, tr.row-overdue td{ background:#fff !important; }
+    .status-pill{ background:#fff !important; border:1px solid #000 !important; color:#000 !important; padding:1px 6px; }
+    .badge{ background:#fff !important; border:1px solid #999 !important; color:#000 !important; }
+
+    .table-wrap{ overflow:visible; }
+  }
+
+  #authGate{
+    position:fixed; inset:0; z-index:9999;
+    background:var(--navy-deep);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  #authGate .box{
+    max-width:340px; width:100%;
+    background:var(--navy-card); border:1px solid var(--gold);
+    border-radius:14px; padding:28px 24px;
+  }
+  #authGate .title{
+    text-align:center; margin-bottom:18px;
+    font-family:'Shippori Mincho',serif; font-size:13px; letter-spacing:.16em;
+    color:var(--gold-soft); font-weight:700;
+  }
+  #authGate label{ display:block; margin-bottom:14px; }
+  #authGate .lbl{ font-size:13px; color:var(--gold-soft); font-weight:700; display:block; margin-bottom:6px; }
+  #authGate input{
+    width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:8px;
+    background:var(--navy-card-2); color:var(--cream); font-size:15px; font-family:inherit;
+  }
+  #authGate button{
+    width:100%; padding:13px; border:1px solid var(--gold-soft); border-radius:8px;
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    color:#fffaf3; font-weight:700; font-size:15px; cursor:pointer;
+    font-family:'Shippori Mincho','Noto Sans JP',sans-serif;
+  }
+  #authGate .err{ text-align:center; font-size:12.5px; color:var(--rose); margin-top:12px; display:none; }
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <form class="box" id="loginForm">
+    <div class="title">管理者ログイン</div>
+    <label>
+      <span class="lbl">メールアドレス</span>
+      <input type="email" id="loginEmail" required autocomplete="username">
+    </label>
+    <label>
+      <span class="lbl">パスワード</span>
+      <input type="password" id="loginPassword" required autocomplete="current-password">
+    </label>
+    <button type="submit" id="loginBtn">ログイン</button>
+    <p class="err" id="loginError"></p>
+  </form>
+</div>
+
+<button id="logoutBtn" type="button" style="position:fixed;top:10px;right:10px;z-index:1000;padding:6px 12px;border:1px solid var(--gold-soft, #6d5aa3);border-radius:20px;background:var(--navy-card, #fffdf9);color:var(--gold-soft, #6d5aa3);font-size:11px;font-weight:700;cursor:pointer;display:none;">ログアウト</button>
+
+<div class="hero">
+  <div class="eyebrow">スタッフ閲覧用(編集不可)</div>
+  <h1>お食事申込 集計</h1>
+</div>
+
+<div class="wrap">
+  <div id="loadingNote">読み込み中です…</div>
+  <div id="missingNote">公演データを取得できませんでした。</div>
+
+  <div class="event-picker" id="eventPickerBox" style="display:none">
+    <label for="eventPicker">表示する開催回</label>
+    <select id="eventPicker"></select>
+    <div class="hint">最新の開催回を初期表示します。必要に応じて過去の開催回へ切り替えできます。</div>
+  </div>
+
+  <div id="content" style="display:none">
+    <div class="alert-banner" id="alertBanner">
+      <div class="icon" id="alertIcon">!</div>
+      <div>
+        <div class="count"><span id="alertCount">0</span>名 <span id="alertLabel">未入力</span></div>
+        <div class="sub" id="alertSub"></div>
+      </div>
+      <div class="spacer"></div>
+      <button class="toggle-btn" id="filterBtn" type="button">未入力のみ表示</button>
+    </div>
+
+    <div class="actions">
+      <input class="search" id="search" placeholder="お名前で検索">
+      <button class="secondary" id="csvBtn">CSV出力</button>
+      <button class="primary" id="printBtn">印刷</button>
+    </div>
+
+    <section class="info">
+      <div class="info-card"><div class="label">公演</div><div class="value" id="eventLabel">―</div></div>
+      <div class="info-card"><div class="label">お食事参加人数(観劇会申込ベース)</div><div class="value rose" id="registrantCount">―</div></div>
+      <div class="info-card"><div class="label">食事入力完了</div><div class="value rose" id="completeCount">―</div></div>
+      <div class="info-card"><div class="label">食事代合計</div><div class="value rose" id="grandTotal">―</div></div>
+    </section>
+
+    <section class="section">
+      <h2>申込者別 食事入力状況（観劇会申込データと自動照合）</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>代表者名</th><th>参加人数</th><th>同伴者関係</th><th>1人目 食事／飲み物</th><th>2人目 食事／飲み物</th><th>状況</th></tr></thead>
+          <tbody id="statusBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-note" id="emptyNote" style="display:none">お食事参加希望の申込者がいません。</div>
+      <div class="small">※「観劇会申込フォーム」でお食事「出席」を選んだ方だけを自動的に対象にしています。1人参加は本人分、2人参加は本人分・同伴者分の両方が登録されて初めて「入力済み」となります。</div>
+    </section>
+
+    <section class="section">
+      <h2>メニュー別 集計</h2>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px" id="summaryGrid">
+        <div class="table-wrap"><table><thead><tr><th>メニュー</th><th class="num">数量</th><th class="num">単価</th><th class="num">小計</th></tr></thead><tbody id="menuSummary"></tbody></table></div>
+        <div class="table-wrap"><table><thead><tr><th>飲み物</th><th class="num">数量</th></tr></thead><tbody id="drinkSummary"></tbody></table></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  let sb = null, eventRow = null, registrants = [], orders = [], filterUnfilledOnly = false, settingsRow = {};
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+  function yen(n){ return (n||0).toLocaleString('ja-JP') + '円'; }
+  function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
+  function fmtDate(v){ if(!v) return '―'; const d=new Date(v+'T00:00:00'); return `${d.getMonth()+1}月${d.getDate()}日`; }
+  function getEventId(){ return new URLSearchParams(window.location.search).get('event_id'); }
+
+  function eventOptionLabel(ev){
+    return `第${ev.event_number||''}回 ${fmtDate(ev.event_date)} ${ev.troupe||''}組 ${ev.show_time||''}`;
+  }
+
+  async function loadEventChoices(preferredId){
+    const { data, error } = await sb
+      .from('events')
+      .select('id,event_number,event_date,troupe,show_time')
+      .order('event_date', { ascending:false });
+    if(error) throw error;
+    const list = data || [];
+    if(!list.length) return null;
+
+    const picker = document.getElementById('eventPicker');
+    picker.innerHTML = list.map(ev =>
+      `<option value="${ev.id}">${eventOptionLabel(ev)}</option>`
+    ).join('');
+
+    const chosen = (preferredId && list.some(ev=>ev.id===preferredId))
+      ? preferredId
+      : list[0].id;
+
+    picker.value = chosen;
+    document.getElementById('eventPickerBox').style.display = 'block';
+    return chosen;
+  }
+
+  async function loadSelectedEvent(eventId){
+    document.getElementById('loadingNote').style.display = 'block';
+    document.getElementById('missingNote').style.display = 'none';
+    document.getElementById('content').style.display = 'none';
+
+    const { data: ev, error: evErr } = await sb.from('events').select('*').eq('id', eventId).single();
+    if(evErr || !ev) throw evErr || new Error('not found');
+    eventRow = ev;
+
+    const { data: settings } = await sb.from('meal_settings').select('*').eq('event_id', eventId).maybeSingle();
+    settingsRow = settings || {};
+
+    await Promise.all([loadRegistrants(eventId), loadOrders(eventId)]);
+
+    document.getElementById('loadingNote').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    document.getElementById('eventLabel').textContent = `第${ev.event_number||''}回 ${fmtDate(ev.event_date)} ${ev.troupe||''}組`;
+    render();
+  }
+
+  async function startApp(){
+    document.getElementById('loadingNote').style.display = 'block';
+    document.getElementById('missingNote').style.display = 'none';
+    document.getElementById('content').style.display = 'none';
+
+    try{
+      const chosenId = await loadEventChoices(getEventId());
+      if(!chosenId){
+        document.getElementById('loadingNote').style.display = 'none';
+        document.getElementById('missingNote').style.display = 'block';
+        return;
+      }
+      await loadSelectedEvent(chosenId);
+    }catch(err){
+      console.error(err);
+      document.getElementById('loadingNote').style.display = 'none';
+      document.getElementById('missingNote').style.display = 'block';
+    }
+  }
+
+  async function init(){
+    await waitForLib(10000);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    document.getElementById('authGate').style.display = 'none';
+    await startApp();
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errEl.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'ログインしています…';
+    try{
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      document.getElementById('authGate').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'inline-block';
+      await startApp();
+    }catch(err){
+      errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'ログイン';
+    }
+  });
+
+  // 観劇会申込データ（registrations + participants）から、お食事「出席」の人だけを自動取得
+  async function loadRegistrants(eventId){
+    const { data, error } = await sb
+      .from('registrations')
+      .select('id, answers, participant_id, participants(name)')
+      .eq('event_id', eventId);
+    if(error) throw error;
+
+    registrants = (data || [])
+      .filter(r => r.answers?.meal === 'ご参加')
+      .map(r => ({
+        name: r.answers?.full_name || r.participants?.name || '(不明)',
+        party_count: Number(r.answers?.participant_count || 1)
+      }));
+  }
+
+  async function loadOrders(eventId){
+    const { data: orderRows, error: orderErr } = await sb.from('meal_orders').select('*').eq('event_id', eventId);
+    if(orderErr) throw orderErr;
+    const ids = (orderRows||[]).map(o=>o.id);
+    const { data: itemRows, error: itemErr } = await sb
+      .from('meal_order_items').select('*')
+      .in('meal_order_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+    if(itemErr) throw itemErr;
+    orders = (orderRows||[]).map(o=>({
+      ...o,
+      items: (itemRows||[]).filter(i=>i.meal_order_id===o.id).sort((a,b)=>a.person_no-b.person_no)
+    }));
+  }
+
+  function normalizeName(name){
+    return (name || '').replace(/[\s\u3000]/g, '');
+  }
+  function orderByName(name){
+    const target = normalizeName(name);
+    return orders.find(o => normalizeName(o.representative_name) === target);
+  }
+  function personComplete(item){ return !!(item && item.menu_name && item.drink); }
+  function isComplete(r){
+    const order = orderByName(r.name);
+    if(!order) return false;
+    for(let i=0;i<r.party_count;i++){ if(!personComplete(order.items[i])) return false; }
+    return true;
+  }
+  function computeState(){
+    const today = startOfDay(new Date());
+    const diffDays = settingsRow.deadline ? Math.round((startOfDay(new Date(settingsRow.deadline+'T00:00:00')) - today)/86400000) : null;
+    return { diffDays, warningActive: diffDays !== null && diffDays <= 3, overdueActive: diffDays !== null && diffDays < 0 };
+  }
+  function rowStatus(r, state){
+    if(isComplete(r)) return 'ok';
+    if(!state.warningActive) return 'pending';
+    return state.overdueActive ? 'overdue' : 'warn';
+  }
+
+  function render(){
+    const state = computeState();
+    const q = document.getElementById('search').value.trim().toLowerCase();
+    let list = registrants.map(r=>({ r, status: rowStatus(r, state) }));
+    if(q) list = list.filter(x=>x.r.name.toLowerCase().includes(q));
+    if(filterUnfilledOnly) list = list.filter(x=>x.status==='warn'||x.status==='overdue');
+
+    const body = document.getElementById('statusBody');
+    body.innerHTML = '';
+    document.getElementById('emptyNote').style.display = list.length ? 'none' : 'block';
+    const pillMap = { ok:['status-pill ok','入力済み'], pending:['status-pill pending','受付中'], warn:['status-pill warn','未入力'], overdue:['status-pill overdue','締切超過・未入力'] };
+
+    list.forEach(({r,status})=>{
+      const order = orderByName(r.name);
+      const i1 = order?.items?.[0], i2 = order?.items?.[1];
+      const tr = document.createElement('tr');
+      if(status==='warn') tr.className='row-warn';
+      if(status==='overdue') tr.className='row-overdue';
+      const [pc, pl] = pillMap[status];
+      tr.innerHTML = `
+        <td>${r.name}</td>
+        <td>${r.party_count}名</td>
+        <td>${order?.relation ? `<span class="badge">${order.relation}</span>` : '―'}</td>
+        <td>${i1 ? `${i1.menu_name||'―'} / ${i1.drink||'―'}` : '未入力'}</td>
+        <td>${r.party_count>=2 ? (i2 ? `${i2.menu_name||'―'} / ${i2.drink||'―'}` : '未入力') : '―'}</td>
+        <td><span class="${pc}">${pl}</span></td>`;
+      body.appendChild(tr);
+    });
+
+    const statuses = registrants.map(r=>rowStatus(r,state));
+    const unfilled = statuses.filter(s=>s==='warn'||s==='overdue');
+    const overdueCount = statuses.filter(s=>s==='overdue').length;
+    const banner = document.getElementById('alertBanner');
+    if(state.warningActive && unfilled.length>0){
+      banner.classList.add('show');
+      banner.classList.toggle('overdue', overdueCount>0);
+      document.getElementById('alertIcon').textContent = overdueCount>0 ? '×' : '!';
+      document.getElementById('alertCount').textContent = unfilled.length;
+      document.getElementById('alertLabel').textContent = overdueCount>0 ? '締切超過・未入力あり' : '未入力';
+      document.getElementById('alertSub').textContent = overdueCount>0
+        ? '締め切りを過ぎても未入力の方がいます。至急ご連絡ください。'
+        : '締め切りが近づいています。未入力の方にご確認ください。';
+    }else{
+      banner.classList.remove('show');
+    }
+
+    const totalPeople = registrants.reduce((sum, r) => sum + (r.party_count || 1), 0);
+    document.getElementById('registrantCount').textContent = totalPeople + '名';
+    document.getElementById('completeCount').textContent =
+      registrants.filter(isComplete).length + '名 / ' + registrants.length + '名(記入者数)';
+
+    const allItems = orders.flatMap(o=>o.items);
+    document.getElementById('grandTotal').textContent = yen(allItems.reduce((s,i)=>s+(i.price||0),0));
+
+    const menuMap = {};
+    allItems.forEach(i=>{ if(!i.menu_name) return; if(!menuMap[i.menu_name]) menuMap[i.menu_name]={qty:0,price:i.price}; menuMap[i.menu_name].qty++; });
+    document.getElementById('menuSummary').innerHTML = Object.entries(menuMap).map(([n,v])=>
+      `<tr><td>${n}</td><td class="num">${v.qty}</td><td class="num">${yen(v.price)}</td><td class="num">${yen(v.qty*v.price)}</td></tr>`).join('');
+
+    const drinkMap = {};
+    allItems.forEach(i=>{ if(i.drink) drinkMap[i.drink]=(drinkMap[i.drink]||0)+1; });
+    document.getElementById('drinkSummary').innerHTML = Object.entries(drinkMap).map(([n,q])=>
+      `<tr><td>${n}</td><td class="num">${q}</td></tr>`).join('');
+  }
+
+  document.getElementById('eventPicker').addEventListener('change', async (e)=>{
+    try{
+      await loadSelectedEvent(e.target.value);
+    }catch(err){
+      console.error(err);
+      document.getElementById('missingNote').style.display = 'block';
+      document.getElementById('missingNote').textContent = '選択した公演データの読み込みに失敗しました。';
+    }
+  });
+
+  document.getElementById('search').addEventListener('input', render);
+  document.getElementById('filterBtn').addEventListener('click', ()=>{
+    filterUnfilledOnly = !filterUnfilledOnly;
+    document.getElementById('filterBtn').classList.toggle('active', filterUnfilledOnly);
+    document.getElementById('filterBtn').textContent = filterUnfilledOnly ? 'すべて表示' : '未入力のみ表示';
+    render();
+  });
+  document.getElementById('printBtn').onclick = ()=> window.print();
+  document.getElementById('csvBtn').onclick = ()=>{
+    const state = computeState();
+    const rows = [['代表者名','人数','同伴者関係','1人目食事','1人目飲み物','2人目食事','2人目飲み物','状況']];
+    registrants.forEach(r=>{
+      const order = orderByName(r.name);
+      const i1 = order?.items?.[0]||{}, i2 = order?.items?.[1]||{};
+      const label = { ok:'入力済み', pending:'受付中', warn:'未入力', overdue:'締切超過・未入力' }[rowStatus(r,state)];
+      rows.push([r.name, r.party_count, order?.relation||'', i1.menu_name||'', i1.drink||'', i2.menu_name||'', i2.drink||'', label]);
+    });
+    const csv = rows.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = '食事入力状況.csv'; a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  init();
+  window.addEventListener('pageshow', (e)=>{ if(e.persisted) init(); });
+
+  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+    await sb.auth.signOut();
+    location.reload();
+  });
+</script>
+</body>
+</html>
