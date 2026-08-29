@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>開催回 詳細確認(管理者用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
+      var(--navy-deep);
+    color:var(--cream);
+    font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; letter-spacing:.03em; }
+  .divider{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    max-width:160px; margin:12px auto 0; opacity:.85;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .divider .gem{
+    width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
+    border:1px solid var(--gold-soft); flex-shrink:0;
+  }
+
+  .toolbar{ max-width:640px; margin:14px auto 0; padding:0 16px; display:flex; gap:10px; }
+  select#eventSelect{
+    flex:1; background:var(--navy-card); border:1px solid var(--gold); color:var(--cream);
+    border-radius:8px; padding:11px 13px; font-size:14px; font-family:inherit;
+  }
+  .print-btn{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft); color:#fffaf3;
+    border-radius:8px; padding:11px 16px; font-size:13px; cursor:pointer; font-weight:700; font-family:inherit;
+    white-space:nowrap;
+  }
+
+  .content{ max-width:640px; margin:18px auto 0; padding:0 16px; }
+  .panel{
+    background:var(--navy-card); border:1px solid var(--gold); border-radius:12px;
+    padding:20px 20px; margin-bottom:16px;
+  }
+  .panel-title{
+    font-family:'Shippori Mincho', serif; font-size:15px; color:var(--gold-soft); font-weight:700;
+    margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid var(--line);
+  }
+  .info-row{
+    display:flex; justify-content:space-between; gap:10px; padding:7px 0; font-size:13px;
+    border-bottom:1px dashed var(--line);
+  }
+  .info-row:last-child{ border-bottom:none; }
+  .info-row span{ color:var(--muted); }
+  .info-row b{ color:var(--cream); font-weight:700; text-align:right; }
+
+  .schedule-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:9px 4px; border-bottom:1px dashed var(--line); font-size:13px;
+  }
+  .schedule-row:last-child{ border-bottom:none; }
+  .schedule-row b{ color:var(--gold-soft); font-weight:700; white-space:nowrap; }
+  .schedule-row.highlight{ background:rgba(165,84,74,0.08); border-radius:6px; padding:9px 8px; }
+  .schedule-row.highlight b{ color:var(--rose); }
+
+  .summary-grid{ display:flex; gap:10px; flex-wrap:wrap; }
+  .summary-item{
+    flex:1; min-width:100px; text-align:center; background:var(--navy-card-2);
+    border:1px solid var(--line); border-radius:8px; padding:12px 8px;
+  }
+  .summary-num{ display:block; font-family:'Shippori Mincho', serif; font-size:22px; color:var(--gold-soft); font-weight:700; }
+  .summary-label{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .status-breakdown{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .status-pill{
+    font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:12px;
+    background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream);
+  }
+
+  .empty-msg{ text-align:center; color:var(--muted); padding:50px 20px; font-size:13.5px; }
+
+  @media print{
+    body{ background:#fff !important; color:#000 !important; }
+    .toolbar{ display:none !important; }
+    .panel{ border-color:#999; break-inside:avoid; }
+    .panel-title{ color:#000 !important; border-color:#ccc; }
+    .info-row span, .info-row b, .schedule-row, .schedule-row b{ color:#000 !important; }
+    .schedule-row.highlight{ background:#f2f2f2 !important; }
+    .summary-num, .summary-label{ color:#000 !important; }
+    .summary-item{ border-color:#999; }
+    .status-pill{ border-color:#999; color:#000 !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">管理者用</div>
+  <h1>開催回 詳細確認</h1>
+  <div class="divider"><span class="gem"></span></div>
+</div>
+
+<div class="toolbar">
+  <select id="eventSelect"><option>読み込み中…</option></select>
+  <button class="print-btn" id="printBtn">🖨 PDF印刷</button>
+</div>
+
+<div class="content" id="content" style="display:none;">
+
+  <div class="panel">
+    <div class="panel-title">基本情報</div>
+    <div class="info-row"><span>公演名</span><b id="infoName"></b></div>
+    <div class="info-row"><span>開催日</span><b id="infoDate"></b></div>
+    <div class="info-row"><span>公演時間</span><b id="infoTime"></b></div>
+    <div class="info-row"><span>会場</span><b>宝塚大劇場</b></div>
+    <div class="info-row"><span>席種</span><b id="infoSeat"></b></div>
+    <div class="info-row"><span>料金(お一人様)</span><b id="infoPrice"></b></div>
+    <div class="info-row"><span>定員</span><b id="infoCapacity"></b></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">運営スケジュール</div>
+    <div class="schedule-row"><span>募集開始</span><b id="schStart"></b></div>
+    <div class="schedule-row"><span>観劇会申込締切(参加者決定)</span><b id="schDeadline"></b></div>
+    <div class="schedule-row"><span>食事フォーム入力開始</span><b id="schMealStart"></b></div>
+    <div class="schedule-row"><span>食事メニュー申込締切</span><b id="schMealDeadline"></b></div>
+    <div class="schedule-row"><span>振込案内開始</span><b id="schPayStart"></b></div>
+    <div class="schedule-row"><span>入金締切</span><b id="schPayDeadline"></b></div>
+    <div class="schedule-row highlight"><span>開催日</span><b id="schEventDate"></b></div>
+    <div class="schedule-row"><span>席札作成</span><b id="schNamecard"></b></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">申込状況</div>
+    <div class="summary-grid">
+      <div class="summary-item"><span class="summary-num" id="sumApplicants">0</span><span class="summary-label">申込者数</span></div>
+      <div class="summary-item"><span class="summary-num" id="sumTickets">0</span><span class="summary-label">チケット枚数</span></div>
+      <div class="summary-item"><span class="summary-num" id="sumMeals">0</span><span class="summary-label">食事参加者数</span></div>
+    </div>
+    <div class="status-breakdown" id="statusBreakdown"></div>
+  </div>
+
+</div>
+
+<p class="empty-msg" id="emptyMsg" style="display:none;">開催回が登録されていません。</p>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  let sb = null;
+  let events = [];
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました。再読み込みしてください。'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  function formatDateJp(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr.length <= 10 ? dateStr + 'T00:00:00' : dateStr);
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${w})`;
+  }
+
+  function addDays(base, diff){
+    const d = new Date(base.getTime());
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+
+  async function loadEvents(){
+    const { data, error } = await sb
+      .from('events')
+      .select('*')
+      .order('event_date', { ascending: false });
+    if(error) throw error;
+    events = data || [];
+
+    const sel = document.getElementById('eventSelect');
+    sel.innerHTML = '';
+    if(events.length === 0){
+      document.getElementById('emptyMsg').style.display = 'block';
+      return;
+    }
+    events.forEach(ev=>{
+      const opt = document.createElement('option');
+      opt.value = ev.id;
+      opt.textContent = `第${ev.event_number ?? '?'}回 ${ev.troupe ?? ''}組(${formatDateJp(ev.event_date)})`;
+      sel.appendChild(opt);
+    });
+  }
+
+  function renderInfo(ev){
+    document.getElementById('infoName').textContent = `第${ev.event_number ?? '◯'}回 ${ev.troupe ?? ''}組観劇会`;
+    document.getElementById('infoDate').textContent = formatDateJp(ev.event_date);
+    document.getElementById('infoTime').textContent = ev.show_time ? `${ev.show_time}公演` : '未定';
+    document.getElementById('infoSeat').textContent = ev.seat_type || '-';
+    document.getElementById('infoPrice').textContent = ev.base_price ? `${Number(ev.base_price).toLocaleString()}円` : '-';
+    document.getElementById('infoCapacity').textContent = ev.capacity ? `${ev.capacity}人` : '-';
+  }
+
+  function renderSchedule(ev){
+    const eventDate = new Date(ev.event_date + 'T00:00:00');
+    const start = ev.recruitment_start_date ? new Date(ev.recruitment_start_date) : addDays(eventDate, -59);
+    const deadline = ev.application_deadline ? new Date(ev.application_deadline) : addDays(eventDate, -51);
+    const mealStart = addDays(eventDate, -49);
+    const mealDeadline = addDays(eventDate, -42);
+    const payStart = addDays(eventDate, -40);
+    const payDeadline = addDays(eventDate, -30);
+    const namecard = addDays(eventDate, -3);
+
+    document.getElementById('schStart').textContent = formatDateJp(start.toISOString().slice(0,10));
+    document.getElementById('schDeadline').textContent = formatDateJp(deadline.toISOString().slice(0,10));
+    document.getElementById('schMealStart').textContent = formatDateJp(mealStart.toISOString().slice(0,10));
+    document.getElementById('schMealDeadline').textContent = formatDateJp(mealDeadline.toISOString().slice(0,10));
+    document.getElementById('schPayStart').textContent = formatDateJp(payStart.toISOString().slice(0,10));
+    document.getElementById('schPayDeadline').textContent = formatDateJp(payDeadline.toISOString().slice(0,10));
+    document.getElementById('schEventDate').textContent = formatDateJp(ev.event_date);
+    document.getElementById('schNamecard').textContent = formatDateJp(namecard.toISOString().slice(0,10));
+  }
+
+  async function renderApplicationSummary(eventId){
+    const { data, error } = await sb
+      .from('registrations')
+      .select('status, answers, wants_meal')
+      .eq('event_id', eventId);
+
+    if(error || !data){
+      document.getElementById('sumApplicants').textContent = '-';
+      document.getElementById('sumTickets').textContent = '-';
+      document.getElementById('sumMeals').textContent = '-';
+      document.getElementById('statusBreakdown').innerHTML = '';
+      return;
+    }
+
+    const applicants = data.length;
+    const tickets = data.reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
+    const meals = data.filter(r => r.wants_meal).length;
+
+    document.getElementById('sumApplicants').textContent = applicants;
+    document.getElementById('sumTickets').textContent = tickets;
+    document.getElementById('sumMeals').textContent = meals;
+
+    const counts = { '審査中':0, '参加決定':0, 'お断り':0, 'キャンセル':0 };
+    data.forEach(r => { const s = r.status || '審査中'; counts[s] = (counts[s]||0) + 1; });
+    document.getElementById('statusBreakdown').innerHTML = `
+      <span class="status-pill">審査中 ${counts['審査中']}</span>
+      <span class="status-pill">参加決定 ${counts['参加決定']}</span>
+      <span class="status-pill">お断り ${counts['お断り']}</span>
+      <span class="status-pill">キャンセル ${counts['キャンセル']}</span>
+    `;
+  }
+
+  async function loadDetail(eventId){
+    const ev = events.find(e => e.id === eventId);
+    if(!ev) return;
+    document.getElementById('content').style.display = 'block';
+    renderInfo(ev);
+    renderSchedule(ev);
+    await renderApplicationSummary(eventId);
+  }
+
+  async function init(){
+    try{
+      await waitForLib(10000);
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      await loadEvents();
+      const sel = document.getElementById('eventSelect');
+      if(events.length > 0){
+        await loadDetail(sel.value);
+      }
+      sel.addEventListener('change', ()=> loadDetail(sel.value));
+      document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+    } catch(e){
+      document.getElementById('emptyMsg').style.display = 'block';
+      document.getElementById('emptyMsg').textContent = e.message || String(e);
+    }
+  }
+  init();
+</script>
+</body>
+</html>
