@@ -301,8 +301,10 @@
       banner.classList.remove('show');
     }
 
-    document.getElementById('registrantCount').textContent = registrants.length + '名';
-    document.getElementById('completeCount').textContent = registrants.filter(isComplete).length + '名 / ' + registrants.length + '名';
+    const totalPeople = registrants.reduce((sum, r) => sum + (r.party_count || 1), 0);
+    document.getElementById('registrantCount').textContent = totalPeople + '名';
+    document.getElementById('completeCount').textContent =
+      registrants.filter(isComplete).length + '名 / ' + registrants.length + '名(記入者数)';
 
     const allItems = orders.flatMap(o=>o.items);
     document.getElementById('grandTotal').textContent = yen(allItems.reduce((s,i)=>s+(i.price||0),0));
