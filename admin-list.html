@@ -314,6 +314,8 @@
   <p class="sub">開催回を選んで、申込状況を確認・更新できます</p>
 </div>
 
+<div class="summary-bar" id="agencyBar" style="display:none;"></div>
+
 <div class="summary-bar" id="summaryBar">
   <div class="summary-item"><span class="summary-num" id="sumApplicants">0</span><span class="summary-label">申込者数</span></div>
   <div class="summary-item"><span class="summary-num" id="sumTickets">0</span><span class="summary-label">チケット枚数</span></div>
@@ -415,7 +417,7 @@
   async function loadEvents(){
     const { data, error } = await sb
       .from('events')
-      .select('id, title, event_number, troupe, event_date')
+      .select('id, title, event_number, troupe, event_date, show_time')
       .order('event_date', { ascending: false });
     if(error) throw error;
     events = data || [];
@@ -431,6 +433,32 @@
       opt.textContent = `第${ev.event_number ?? '?'}回 ${ev.troupe ?? ''}組(${formatDateJp(ev.event_date)})`;
       sel.appendChild(opt);
     });
+  }
+
+  async function loadAgencyInfo(eventId){
+    const bar = document.getElementById('agencyBar');
+    const ev = events.find(e => e.id === eventId);
+    if(!ev){ bar.style.display = 'none'; return; }
+
+    const { data, error } = await sb
+      .from('agency_confirmations')
+      .select('seat_type, confirmed_count')
+      .eq('troupe', ev.troupe)
+      .eq('event_date', ev.event_date)
+      .eq('show_time', ev.show_time);
+
+    if(error || !data || data.length === 0){
+      bar.style.display = 'none';
+      return;
+    }
+
+    bar.innerHTML = data.map(row => `
+      <div class="summary-item" style="border-color:var(--rose);">
+        <span class="summary-num" style="color:var(--rose);">${row.confirmed_count}</span>
+        <span class="summary-label">代理店確定(${row.seat_type})</span>
+      </div>
+    `).join('');
+    bar.style.display = 'flex';
   }
 
   let currentRows = [];
@@ -763,14 +791,19 @@
       if(events.length > 0){
         currentEventId = sel.value;
         await loadRegistrations(currentEventId);
+        await loadAgencyInfo(currentEventId);
       }
       sel.addEventListener('change', ()=>{
         currentEventId = sel.value;
         updatePrintTitle();
         loadRegistrations(currentEventId);
+        loadAgencyInfo(currentEventId);
       });
       document.getElementById('refreshBtn').addEventListener('click', ()=>{
-        if(currentEventId) loadRegistrations(currentEventId);
+        if(currentEventId){
+          loadRegistrations(currentEventId);
+          loadAgencyInfo(currentEventId);
+        }
       });
       document.getElementById('statusFilter').addEventListener('change', ()=>{
         renderTable(currentRows);

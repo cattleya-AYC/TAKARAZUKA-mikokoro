@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>旅行代理店 確定枚数入力(管理者用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
+      var(--navy-deep);
+    color:var(--cream);
+    font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:36px 20px 18px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; letter-spacing:.03em; }
+  .divider{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    max-width:160px; margin:12px auto 0; opacity:.85;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .divider .gem{
+    width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
+    border:1px solid var(--gold-soft); flex-shrink:0;
+  }
+
+  form{ max-width:480px; margin:14px auto 0; padding:0 20px; }
+  .panel{
+    background:var(--navy-card); border:1px solid var(--gold);
+    box-shadow:inset 0 0 0 3px var(--navy-card), inset 0 0 0 4px var(--line);
+    border-radius:12px; padding:24px 22px;
+  }
+  label.field{ display:block; margin-bottom:18px; }
+  .lbl{ font-size:13px; margin-bottom:8px; display:block; color:var(--gold-soft); font-weight:700; }
+  select, input[type=date], input[type=number]{
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line);
+    color:var(--cream); border-radius:8px; padding:11px 13px; font-size:15px; font-family:inherit;
+  }
+  select:focus, input:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 2px var(--line); }
+
+  .toggle-group{ display:flex; gap:8px; }
+  .toggle-opt{
+    flex:1; text-align:center; padding:13px 8px; border-radius:8px;
+    background:var(--navy-card-2); border:1px solid var(--line);
+    font-size:14px; font-weight:500; cursor:pointer; position:relative; color:var(--cream);
+  }
+  .toggle-opt input{ position:absolute; opacity:0; pointer-events:none; }
+  .toggle-opt.checked{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border-color:var(--gold-soft); color:#fffaf3; font-weight:700;
+  }
+
+  button{
+    width:100%; margin-top:6px;
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft);
+    color:#fffaf3; font-weight:700; border-radius:8px; padding:14px; font-size:15px; cursor:pointer;
+    font-family:'Shippori Mincho','Noto Sans JP',sans-serif; letter-spacing:.03em;
+  }
+  button:disabled{ opacity:.5; }
+  .status{ text-align:center; font-size:13px; margin-top:14px; }
+  .status.ok{ color:var(--ok); }
+  .status.err{ color:var(--rose); }
+
+  .history{ max-width:480px; margin:20px auto 0; padding:0 20px; }
+  .history h3{ font-family:'Shippori Mincho', serif; font-size:15px; color:var(--gold-soft); margin:0 0 10px; }
+  .history-item{
+    background:var(--navy-card); border:1px solid var(--line); border-radius:8px;
+    padding:10px 14px; font-size:13px; margin-bottom:8px; display:flex; justify-content:space-between;
+  }
+  .history-item b{ color:var(--gold-soft); }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">管理者用</div>
+  <h1>旅行代理店 確定枚数入力</h1>
+  <div class="divider"><span class="gem"></span></div>
+</div>
+
+<form id="agencyForm">
+  <div class="panel">
+
+    <label class="field">
+      <span class="lbl">組</span>
+      <select name="troupe" required>
+        <option value="">選択</option>
+        <option>花</option><option>月</option><option>雪</option><option>星</option><option>宙</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="lbl">開催日</span>
+      <input type="date" name="event_date" required>
+    </label>
+
+    <label class="field">
+      <span class="lbl">公演時間</span>
+      <div class="toggle-group" id="timeGroup">
+        <label class="toggle-opt"><input type="radio" name="show_time" value="11:00" required>11時公演</label>
+        <label class="toggle-opt"><input type="radio" name="show_time" value="13:00">13時公演</label>
+      </div>
+    </label>
+
+    <label class="field">
+      <span class="lbl">席種</span>
+      <div class="toggle-group" id="seatGroup">
+        <label class="toggle-opt"><input type="radio" name="seat_type" value="S席" required>S席</label>
+        <label class="toggle-opt"><input type="radio" name="seat_type" value="S+席">S+席</label>
+      </div>
+    </label>
+
+    <label class="field">
+      <span class="lbl">代理店からの確定枚数</span>
+      <input type="number" name="confirmed_count" min="0" required placeholder="例:40">
+    </label>
+
+    <button type="submit" id="submitBtn">この内容で登録する</button>
+    <p class="status" id="statusMsg"></p>
+  </div>
+</form>
+
+<div class="history">
+  <h3>直近の登録履歴</h3>
+  <div id="historyList"></div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  let sb = null;
+
+  window.addEventListener('error', (ev)=>{
+    const box = document.getElementById('statusMsg');
+    box.classList.add('err');
+    box.textContent = '予期しないエラー:' + (ev.message || '');
+  });
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('ライブラリの読み込みに失敗しました。再読み込みしてください。'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  const form = document.getElementById('agencyForm');
+  form.addEventListener('change', (e)=>{
+    if(e.target.type === 'radio'){
+      const group = form.querySelectorAll(`input[name="${e.target.name}"]`);
+      group.forEach(g => g.closest('.toggle-opt')?.classList.remove('checked'));
+      e.target.closest('.toggle-opt')?.classList.add('checked');
+    }
+  });
+
+  async function loadHistory(){
+    const list = document.getElementById('historyList');
+    const { data, error } = await sb
+      .from('agency_confirmations')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if(error || !data || data.length === 0){
+      list.innerHTML = '<p style="color:var(--muted); font-size:13px;">まだ登録がありません。</p>';
+      return;
+    }
+    list.innerHTML = data.map(row => `
+      <div class="history-item">
+        <span><b>${row.troupe}組</b> ${row.event_date} ${row.show_time} / ${row.seat_type}</span>
+        <span><b>${row.confirmed_count}枚</b></span>
+      </div>
+    `).join('');
+  }
+
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const statusMsg = document.getElementById('statusMsg');
+    const submitBtn = document.getElementById('submitBtn');
+    statusMsg.className = 'status';
+    statusMsg.textContent = '';
+    submitBtn.disabled = true;
+    submitBtn.textContent = '登録中…';
+
+    try{
+      const fd = new FormData(form);
+      const { error } = await sb.from('agency_confirmations').insert({
+        troupe: fd.get('troupe'),
+        event_date: fd.get('event_date'),
+        show_time: fd.get('show_time'),
+        seat_type: fd.get('seat_type'),
+        confirmed_count: Number(fd.get('confirmed_count'))
+      });
+      if(error) throw error;
+
+      statusMsg.classList.add('ok');
+      statusMsg.textContent = '登録が完了しました。';
+      form.reset();
+      document.querySelectorAll('.toggle-opt.checked').forEach(el => el.classList.remove('checked'));
+      loadHistory();
+    } catch(err){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '登録に失敗しました:' + (err.message || '');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'この内容で登録する';
+    }
+  });
+
+  async function init(){
+    try{
+      await waitForLib(10000);
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      loadHistory();
+    } catch(e){
+      const statusMsg = document.getElementById('statusMsg');
+      statusMsg.classList.add('err');
+      statusMsg.textContent = e.message;
+    }
+  }
+  init();
+</script>
+</body>
+</html>
