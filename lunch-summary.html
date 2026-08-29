@@ -68,6 +68,41 @@
   .table-wrap{ overflow-x:auto; }
   .cancel-btn{ background:var(--navy-card-2); color:var(--rose); border:1px solid var(--rose); border-radius:6px; padding:6px 10px; font-size:11.5px; font-weight:700; cursor:pointer; }
   @media(max-width:800px){ .info{ grid-template-columns:repeat(2,1fr); } }
+
+  /* ---- 印刷用:背景色なし・A4 1枚に収める ---- */
+  @media print{
+    @page{ size: A4 landscape; margin: 8mm; }
+    html, body{ background:#fff !important; color:#000 !important; padding:0; }
+    .hero{ padding:0 0 8px; }
+    .eyebrow{ color:#000 !important; }
+    h1{ font-size:16px; margin:0; }
+    .wrap{ max-width:none; padding:0; }
+
+    /* 操作系のUIは印刷しない */
+    .actions, .search, #filterBtn, .cancel-btn, .toggle-btn{ display:none !important; }
+    .alert-banner{ display:none !important; }
+
+    .info{ grid-template-columns:repeat(4,1fr); gap:4px; margin-bottom:8px; }
+    .info-card{ border:1px solid #999 !important; background:#fff !important; padding:6px; border-radius:0; }
+    .info-card .label{ font-size:9px; color:#333 !important; }
+    .info-card .value{ font-size:14px; }
+    .info-card .value.rose{ color:#000 !important; }
+
+    .section{ border:1px solid #999 !important; background:#fff !important; border-radius:0; padding:8px; margin-bottom:8px; break-inside:avoid; }
+    .section h2{ color:#000 !important; font-size:12px; margin:0 0 6px; }
+    .small{ font-size:8.5px; color:#333 !important; }
+
+    table{ font-size:9.5px; }
+    th,td{ padding:3px 4px; border-bottom:1px solid #ccc !important; }
+    th{ background:#fff !important; color:#000 !important; border-bottom:1px solid #000 !important; }
+
+    /* 背景色を全て外して白黒印刷にする */
+    tr.row-warn td, tr.row-overdue td{ background:#fff !important; }
+    .status-pill{ background:#fff !important; border:1px solid #000 !important; color:#000 !important; padding:1px 6px; }
+    .badge{ background:#fff !important; border:1px solid #999 !important; color:#000 !important; }
+
+    .table-wrap{ overflow:visible; }
+  }
 </style>
 </head>
 <body>
@@ -150,6 +185,10 @@
   function getEventId(){ return new URLSearchParams(window.location.search).get('event_id'); }
 
   async function init(){
+    document.getElementById('loadingNote').style.display = 'block';
+    document.getElementById('missingNote').style.display = 'none';
+    document.getElementById('content').style.display = 'none';
+
     const eventId = getEventId();
     if(!eventId){
       document.getElementById('loadingNote').style.display = 'none';
@@ -345,6 +384,7 @@
   };
 
   init();
+  window.addEventListener('pageshow', (e)=>{ if(e.persisted) init(); });
 </script>
 </body>
 </html>

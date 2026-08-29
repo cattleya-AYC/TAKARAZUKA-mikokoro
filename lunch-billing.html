@@ -163,6 +163,11 @@
   function normalizeName(name){ return (name || '').replace(/[\s\u3000]/g, ''); }
 
   async function init(){
+    // 表示状態を必ずリセットしてから判定する（戻る操作などで古い表示が残らないように）
+    document.getElementById('loadingNote').style.display = 'block';
+    document.getElementById('missingNote').style.display = 'none';
+    document.getElementById('content').style.display = 'none';
+
     const eventId = getEventId();
     if(!eventId){
       document.getElementById('loadingNote').style.display = 'none';
@@ -385,6 +390,7 @@
   document.getElementById('printBtn').addEventListener('click', ()=> window.print());
 
   init();
+  window.addEventListener('pageshow', (e)=>{ if(e.persisted) init(); });
 </script>
 </body>
 </html>

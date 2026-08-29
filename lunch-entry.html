@@ -274,6 +274,10 @@
   async function init(){
     const eventId = getEventId();
     document.getElementById('loadingCard').style.display = 'block';
+    document.getElementById('missingCard').style.display = 'none';
+    document.getElementById('closedCard').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('doneCard').style.display = 'none';
     if(!eventId){
       document.getElementById('loadingCard').style.display = 'none';
       document.getElementById('missingCard').style.display = 'block';
@@ -474,8 +478,22 @@
       const { error: itemErr } = await sb.from('meal_order_items').insert(items);
       if(itemErr) throw itemErr;
 
+      document.getElementById('doneEventMeta').textContent =
+        `第${eventRow.event_number || ''}回 ${eventRow.troupe || ''}組公演 ${fmtDateJp(eventRow.event_date)} ${eventRow.show_time || ''}公演`;
+      document.getElementById('doneNameLine').textContent = `${name} 様`;
       document.getElementById('doneMeetingPlace').textContent = settingsRow.meeting_place || '―';
       document.getElementById('doneMeetingTime').textContent = settingsRow.meeting_time || '―';
+
+      document.getElementById('doneOrder1').textContent = `${m1.name} / ${drink1}`;
+      const row2 = document.getElementById('doneOrder2Row');
+      if(count === 2){
+        document.getElementById('doneOrder2Label').textContent = relation ? `2人目(${relation})` : '2人目';
+        document.getElementById('doneOrder2').textContent = `${m2.name} / ${drink2}`;
+        row2.style.display = 'flex';
+      } else {
+        row2.style.display = 'none';
+      }
+
       document.getElementById('mainContent').style.display = 'none';
       document.getElementById('doneCard').style.display = 'block';
       window.scrollTo({top:0, behavior:'smooth'});
@@ -489,6 +507,7 @@
   });
 
   init();
+  window.addEventListener('pageshow', (e)=>{ if(e.persisted) init(); });
 </script>
 </body>
 </html>
