@@ -251,7 +251,8 @@
 
       <label class="field">
         <span class="lbl">メールアドレス <span class="req">必須</span></span>
-        <input type="email" name="email" required placeholder="example@mail.com">
+        <input type="email" name="email" required placeholder="example@mail.com" list="emailList" autocomplete="email">
+        <datalist id="emailList"></datalist>
       </label>
 
       <div class="notice-box">
@@ -340,6 +341,7 @@
     } catch(e){ console.warn('Supabase未設定です', e); }
     document.getElementById('globalErrorBox').style.display = 'none';
     loadCurrentEvent();
+    loadKnownEmails();
   }).catch((e)=>{
     const box = document.getElementById('globalErrorBox');
     box.style.display = 'block';
@@ -372,6 +374,21 @@
     root.setProperty('--cream', t.text);
     root.setProperty('--muted-text', t.muted);
     root.setProperty('--line', t.line);
+  }
+
+  async function loadKnownEmails(){
+    try {
+      const { data, error } = await sb
+        .from('participants')
+        .select('email')
+        .not('email', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if(error || !data) return;
+      const unique = [...new Set(data.map(r => r.email).filter(Boolean))];
+      const datalist = document.getElementById('emailList');
+      datalist.innerHTML = unique.map(e => `<option value="${e}">`).join('');
+    } catch(e){ console.warn('候補の取得に失敗しました', e); }
   }
 
   async function loadCurrentEvent(){
