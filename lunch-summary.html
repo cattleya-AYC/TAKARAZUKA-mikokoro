@@ -66,6 +66,7 @@
   .small{ font-size:11.5px; color:var(--muted); margin-top:8px; }
   .empty-note{ padding:20px; text-align:center; color:var(--muted); }
   .table-wrap{ overflow-x:auto; }
+  .cancel-btn{ background:var(--navy-card-2); color:var(--rose); border:1px solid var(--rose); border-radius:6px; padding:6px 10px; font-size:11.5px; font-weight:700; cursor:pointer; }
   @media(max-width:800px){ .info{ grid-template-columns:repeat(2,1fr); } }
 </style>
 </head>
@@ -108,7 +109,7 @@
       <h2>申込者別 食事入力状況（観劇会申込データと自動照合）</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>代表者名</th><th>参加人数</th><th>同伴者関係</th><th>1人目 食事／飲み物</th><th>2人目 食事／飲み物</th><th>状況</th></tr></thead>
+          <thead><tr><th>代表者名</th><th>参加人数</th><th>同伴者関係</th><th>1人目 食事／飲み物</th><th>2人目 食事／飲み物</th><th>状況</th><th></th></tr></thead>
           <tbody id="statusBody"></tbody>
         </table>
       </div>
@@ -209,7 +210,13 @@
     }));
   }
 
-  function orderByName(name){ return orders.find(o=>o.representative_name===name); }
+  function normalizeName(name){
+    return (name || '').replace(/[\s\u3000]/g, '');
+  }
+  function orderByName(name){
+    const target = normalizeName(name);
+    return orders.find(o => normalizeName(o.representative_name) === target);
+  }
   function personComplete(item){ return !!(item && item.menu_name && item.drink); }
   function isComplete(r){
     const order = orderByName(r.name);
@@ -253,8 +260,28 @@
         <td>${order?.relation ? `<span class="badge">${order.relation}</span>` : '―'}</td>
         <td>${i1 ? `${i1.menu_name||'―'} / ${i1.drink||'―'}` : '未入力'}</td>
         <td>${r.party_count>=2 ? (i2 ? `${i2.menu_name||'―'} / ${i2.drink||'―'}` : '未入力') : '―'}</td>
-        <td><span class="${pc}">${pl}</span></td>`;
+        <td><span class="${pc}">${pl}</span></td>
+        <td>${order ? `<button type="button" class="cancel-btn" data-name="${r.name}">取消</button>` : ''}</td>`;
       body.appendChild(tr);
+    });
+
+    body.querySelectorAll('.cancel-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const name = btn.dataset.name;
+        if(!confirm(`「${name}」様のお食事申込を取り消します。よろしいですか？`)) return;
+        try{
+          const order = orderByName(name);
+          if(order){
+            await sb.from('meal_order_items').delete().eq('meal_order_id', order.id);
+            await sb.from('meal_orders').delete().eq('id', order.id);
+          }
+          await loadOrders(eventRow.id);
+          render();
+        }catch(err){
+          console.error(err);
+          alert('取り消しに失敗しました。もう一度お試しください。');
+        }
+      });
     });
 
     const statuses = registrants.map(r=>rowStatus(r,state));
