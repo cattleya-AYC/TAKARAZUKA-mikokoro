@@ -81,10 +81,11 @@
   .badge.declined{ background:rgba(165,84,74,0.15); color:var(--rose); }
   .badge.cancelled{ background:rgba(139,132,160,0.15); color:var(--muted); }
 
-  .actions{ display:flex; gap:6px; }
+  .actions{ display:flex; gap:4px; }
   .actions button{
-    font-size:12px; padding:6px 10px; border-radius:6px; border:1px solid var(--line);
-    background:var(--navy-card-2); color:var(--cream); cursor:pointer; white-space:nowrap; font-family:inherit;
+    font-size:13px; font-weight:700; width:26px; height:26px; padding:0; border-radius:50%;
+    border:1px solid var(--line); background:var(--navy-card-2); color:var(--cream);
+    cursor:pointer; white-space:nowrap; font-family:inherit; line-height:1;
   }
   .actions button.accept{ border-color:var(--ok); color:var(--ok); }
   .actions button.decline{ border-color:var(--rose); color:var(--rose); }
@@ -101,6 +102,12 @@
   .mark-circle.seat-lottery{ color:var(--muted); border-style:dashed; }
   .mark-circle.meal-yes{ color:#fff; background:var(--rose); border-color:var(--rose); }
   .mark-circle.meal-no{ color:var(--muted); border-color:var(--line); }
+  .mark-circle.header-circle{
+    width:22px; height:22px; font-size:11px; color:var(--gold-soft); border-color:var(--gold-soft);
+  }
+  .mark-circle.header-circle.warn{ color:var(--rose); border-color:var(--rose); }
+
+  th.narrow-col, td.narrow-col{ padding-left:6px; padding-right:6px; white-space:nowrap; }
 
   .mini-badge{
     display:inline-block; min-width:22px; text-align:center; font-size:12px; font-weight:700;
@@ -332,9 +339,9 @@
   <table id="dataTable" style="display:none;">
     <thead>
       <tr>
-        <th>操作</th>
-        <th class="print-hide sortable" data-sort="recent">参加回数 <span class="sort-arrow" data-arrow="recent"></span></th>
-        <th class="print-hide">ペナルティ回数</th>
+        <th class="narrow-col">操作</th>
+        <th class="print-hide sortable narrow-col" data-sort="recent"><span class="mark-circle header-circle" title="申込回数">申</span> <span class="sort-arrow" data-arrow="recent"></span></th>
+        <th class="print-hide narrow-col"><span class="mark-circle header-circle warn" title="ペナルティ回数">ペ</span></th>
         <th>氏名</th>
         <th class="sortable" data-sort="count">枚数 <span class="sort-arrow" data-arrow="count"></span></th>
         <th>お食事</th>
@@ -572,12 +579,12 @@
       if(status === 'お断り') tr.classList.add('row-declined');
 
       tr.innerHTML = `
-        <td class="actions">
-          <button class="accept" data-id="${r.id}" data-status="参加決定" ${status==='参加決定' ? 'disabled' : ''}>決定</button>
-          <button class="decline" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>お断り</button>
+        <td class="actions narrow-col">
+          <button class="accept" title="参加決定にする" data-id="${r.id}" data-status="参加決定" ${status==='参加決定' ? 'disabled' : ''}>✓</button>
+          <button class="decline" title="お断りにする" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>✕</button>
         </td>
-        <td class="print-hide"><span class="mini-badge">${recentCount}</span></td>
-        <td class="print-hide"><span class="mini-badge ${points > 0 ? 'warn' : ''}">⚠ ${points}</span></td>
+        <td class="print-hide narrow-col"><span class="mini-badge">${recentCount}</span></td>
+        <td class="print-hide narrow-col"><span class="mini-badge ${points > 0 ? 'warn' : ''}">${points}</span></td>
         <td class="name"><button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button></td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
         <td>${a.meal === 'ご参加'
