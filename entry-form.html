@@ -566,6 +566,17 @@
       document.getElementById('eyebrowText').textContent = '接続未設定';
       return;
     }
+
+    // ---- 確認用プレビューモード ----
+    // URLに ?preview=thankyou / coming / closed を付けると、
+    // 本番データを変更せずに各状態の画面を確認できます。
+    // 例: entry-form.html?preview=thankyou
+    const previewMode = new URLSearchParams(location.search).get('preview');
+    if(previewMode){
+      const handled = await runPreviewMode(previewMode);
+      if(handled) return;
+    }
+
     const nowIso = new Date().toISOString();
     const nowMs = Date.now();
 
