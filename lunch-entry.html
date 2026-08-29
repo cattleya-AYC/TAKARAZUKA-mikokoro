@@ -223,12 +223,26 @@
 
   <div class="ty-card" id="doneCard">
     <div class="ty-headline">ご登録ありがとうございました</div>
-    <p class="ty-sub">お食事メニューとお飲み物のご登録を受け付けました。</p>
+    <p class="ty-sub" id="doneEventMeta">―</p>
+    <p class="ty-sub" style="font-size:16px;font-weight:700;color:var(--gold-soft);margin-top:10px" id="doneNameLine">― 様</p>
+
     <div class="ty-info-box">
       <div class="ty-info-row"><span class="ty-info-label">集合場所</span><span class="ty-info-value" id="doneMeetingPlace">―</span></div>
       <div class="ty-info-row"><span class="ty-info-label">集合時間</span><span class="ty-info-value" id="doneMeetingTime">―</span></div>
     </div>
+
+    <div class="ty-info-box" id="doneOrderBox">
+      <div class="ty-info-row"><span class="ty-info-label">1人目</span><span class="ty-info-value" id="doneOrder1">―</span></div>
+      <div class="ty-info-row" id="doneOrder2Row" style="display:none"><span class="ty-info-label" id="doneOrder2Label">2人目</span><span class="ty-info-value" id="doneOrder2">―</span></div>
+    </div>
+
     <p class="ty-note">当日はお気をつけてお越しください。<br>皆さまにお会いできるのを楽しみにしております。</p>
+
+    <div style="margin-top:18px;padding:14px 16px;border:1px dashed var(--gold); border-radius:10px; background:var(--navy-card-2);">
+      <p style="margin:0;font-size:12.5px;color:var(--cream);line-height:1.9;">
+        📷 この画面のスクリーンショットを撮って、当日まで保存しておいてください。
+      </p>
+    </div>
   </div>
 </div>
 
@@ -423,7 +437,7 @@
     statusMsg.style.display = 'none';
     if(isPastDeadline() || !validate()) return;
 
-    const name = document.getElementById('nameInput').value.trim();
+    const name = document.getElementById('nameInput').value.trim().replace(/[\s\u3000]/g, '');
     const count = getPartyCount();
     const m1 = menuById(document.getElementById('meal1').value);
     const drink1 = document.querySelector('input[name="drink1"]:checked').value;
