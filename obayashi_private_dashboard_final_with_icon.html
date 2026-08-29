@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>私用ダッシュボード｜小林タカラヅカ倶楽部</title>
+<meta name="theme-color" content="#f8e9e6">
+<link rel="icon" type="image/png" href="dashboard-icon.png">
+<link rel="apple-touch-icon" href="dashboard-icon.png">
+
+<style>
+:root{
+  --rose:#c77b86;
+  --rose2:#a95d69;
+  --gold:#c9a566;
+  --gold2:#9f7b3f;
+  --ink:#4a3438;
+  --muted:#8d777b;
+  --line:rgba(201,165,102,.34);
+  --shadow:0 14px 34px rgba(111,75,80,.10);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(246,216,220,.80), transparent 35%),
+    radial-gradient(circle at 90% 4%, rgba(255,239,224,.75), transparent 32%),
+    linear-gradient(180deg,#fff9f5 0%,#f9ece9 100%);
+}
+.page{max-width:920px;margin:0 auto;padding:22px 14px 40px}
+.hero{
+  position:relative;
+  text-align:center;
+  padding:30px 18px 26px;
+  margin-bottom:16px;
+  background:rgba(255,253,249,.92);
+  border:1px solid var(--line);
+  border-radius:24px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.hero:before,.hero:after{
+  content:"✦";
+  position:absolute;
+  color:var(--gold);
+  opacity:.6;
+  font-size:20px;
+}
+.hero:before{left:22px;top:18px}
+.hero:after{right:22px;bottom:18px}
+.hero h1{
+  margin:0;
+  font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
+  color:var(--rose2);
+  font-size:clamp(30px,7vw,48px);
+  font-weight:600;
+  letter-spacing:.06em;
+}
+.hero .club{
+  margin-top:10px;
+  color:var(--gold2);
+  font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
+  letter-spacing:.12em;
+  font-size:14px;
+}
+.deco{
+  width:160px;height:1px;margin:14px auto 0;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+.section{
+  background:rgba(255,253,249,.94);
+  border:1px solid var(--line);
+  border-radius:22px;
+  box-shadow:var(--shadow);
+  padding:18px;
+  margin:14px 0;
+}
+.section h2{
+  margin:0 0 14px;
+  font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
+  font-weight:600;
+  color:var(--rose2);
+  font-size:22px;
+  text-align:center;
+  letter-spacing:.06em;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+.grid.three{grid-template-columns:repeat(3,1fr)}
+.grid.two{grid-template-columns:repeat(2,1fr)}
+.tile{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  min-height:128px;
+  padding:14px 10px;
+  text-decoration:none;
+  color:var(--ink);
+  background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(255,248,244,.92));
+  border:1px solid rgba(201,165,102,.38);
+  border-radius:18px;
+  box-shadow:0 8px 20px rgba(111,75,80,.06);
+  transition:.16s transform,.16s box-shadow,.16s border-color;
+}
+.tile:active{transform:scale(.98)}
+.tile:hover{border-color:var(--rose);box-shadow:0 10px 24px rgba(111,75,80,.10)}
+.icon{
+  width:62px;height:62px;border-radius:18px;
+  display:grid;place-items:center;
+  font-size:31px;
+  background:linear-gradient(145deg,#fff8f3,#f8e0df);
+  border:1px solid rgba(201,165,102,.34);
+}
+.label{
+  text-align:center;
+  font-size:14px;
+  line-height:1.45;
+  font-weight:700;
+}
+.tile.disabled{
+  opacity:.48;
+  pointer-events:none;
+  filter:grayscale(.2);
+}
+.tile.disabled .label:after{
+  content:"\Aリンク未設定";
+  white-space:pre;
+  display:block;
+  margin-top:4px;
+  font-size:10px;
+  font-weight:500;
+  color:var(--muted);
+}
+.note{
+  text-align:center;
+  color:var(--muted);
+  font-size:11px;
+  margin-top:18px;
+  line-height:1.8;
+}
+@media(max-width:720px){
+  .grid,.grid.three{grid-template-columns:repeat(2,1fr)}
+  .grid.two{grid-template-columns:repeat(2,1fr)}
+  .tile{min-height:118px}
+}
+@media(max-width:420px){
+  .page{padding:14px 10px 30px}
+  .section{padding:14px 10px}
+  .grid,.grid.three,.grid.two{gap:9px}
+  .tile{min-height:110px;padding:12px 8px}
+  .icon{width:56px;height:56px;font-size:28px}
+  .label{font-size:13px}
+}
+</style>
+</head>
+<body>
+<main class="page">
+  <section class="hero">
+    <h1>私用ダッシュボード</h1>
+    <div class="club">小林タカラヅカ倶楽部</div>
+    <div class="deco"></div>
+  </section>
+
+  <section class="section">
+    <h2>申込管理</h2>
+    <div class="grid">
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/entry-form.html">
+        <div class="icon">📝</div><div class="label">申込フォーム</div>
+      </a>
+
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/admin-new-event.html">
+        <div class="icon">🛠️</div><div class="label">申込フォーム<br>作成ツール</div>
+      </a>
+
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/entry-form.html?preview=thankyou">
+        <div class="icon">📩</div><div class="label">締切後画面<br>プレビュー</div>
+      </a>
+
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/admin-list.html">
+        <div class="icon">👥</div><div class="label">申込者一覧</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>開催管理</h2>
+    <div class="grid three">
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/schedule.html">
+        <div class="icon">📅</div><div class="label">観劇会開催予定</div>
+      </a>
+
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/admin-new-event.html">
+        <div class="icon">📣</div><div class="label">募集開始LINE<br>案内作成</div>
+      </a>
+
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/admin-new-event.html">
+        <div class="icon">➕</div><div class="label">開催回新規登録</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>食事管理</h2>
+    <div class="grid two">
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/lunch-admin.html">
+        <div class="icon">🍽️</div><div class="label">食事フォーム<br>作成ツール</div>
+      </a>
+
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/lunch-summary.html">
+        <div class="icon">📊</div><div class="label">お食事申込集計</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>その他</h2>
+    <div class="grid two">
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/admin-agency.html">
+        <div class="icon">💼</div><div class="label">旅行代理店</div>
+      </a>
+      <a class="tile" href="https://takarazuka-mikokoro.vercel.app/lunch-billing.html">
+        <div class="icon">💴</div><div class="label">LINE請求書<br>作成ツール</div>
+      </a>
+    </div>
+  </section>
+
+  <div class="note">
+    このページは私用管理画面です。<br>
+    各管理ページへ直接アクセスできます。
+  </div>
+</main>
+</body>
+</html>
