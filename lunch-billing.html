@@ -112,7 +112,12 @@
         <div class="field"><label>口座種別</label><input type="text" id="accountType" placeholder="例:普通"></div>
         <div class="field"><label>口座番号</label><input type="text" id="accountNumber" placeholder="例:1234567"></div>
         <div class="field"><label>口座名義</label><input type="text" id="accountHolder" placeholder="例:ヒョウジ タロウ"></div>
+        <div class="field">
+          <label>振込締切</label>
+          <input type="date" id="paymentDeadline">
+        </div>
       </div>
+      <p class="section-sub" style="margin-top:-6px">未入力の場合は開催日の30日前を自動で使用します。遅れそうな時だけここで日付を上書きしてください。</p>
       <div class="field"><label>注意事項・振込期限など(任意)</label><textarea id="bankNote" placeholder="例:○月○日までにお振込みください"></textarea></div>
       <button class="primary" id="saveBankBtn" type="button">振込先を保存</button>
       <p class="status" id="bankStatus"></p>
@@ -139,7 +144,7 @@
 <script>
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
-  let sb = null, eventRow = null, bankInfo = null, registrations = [], orders = [];
+  let sb = null, eventRow = null, bankInfo = null, savedForThisEvent = false, registrations = [], orders = [];
 
   function waitForLib(timeoutMs){
     return new Promise((resolve, reject)=>{
@@ -175,9 +180,11 @@
       const { data: bank } = await sb.from('event_bank_info').select('*').eq('event_id', eventId).maybeSingle();
       if(bank){
         bankInfo = bank;
+        savedForThisEvent = true;
       } else {
         const { data: lastBank } = await sb.from('event_bank_info').select('*').order('updated_at', { ascending:false }).limit(1).maybeSingle();
         bankInfo = lastBank || null; // 初期値としてのみ使用。まだこの公演用には保存されていない
+        savedForThisEvent = false;
       }
       fillBankForm(bankInfo);
 
@@ -226,6 +233,9 @@
     document.getElementById('accountNumber').value = b?.account_number || '';
     document.getElementById('accountHolder').value = b?.account_holder || '';
     document.getElementById('bankNote').value = b?.note || '';
+    const defaultDeadline = addDays(new Date(eventRow.event_date + 'T00:00:00'), -30);
+    document.getElementById('paymentDeadline').value =
+      (savedForThisEvent && b?.payment_deadline) ? b.payment_deadline : defaultDeadline.toISOString().slice(0,10);
   }
 
   document.getElementById('saveBankBtn').addEventListener('click', async ()=>{
@@ -239,12 +249,14 @@
       account_number: document.getElementById('accountNumber').value.trim(),
       account_holder: document.getElementById('accountHolder').value.trim(),
       note: document.getElementById('bankNote').value.trim(),
+      payment_deadline: document.getElementById('paymentDeadline').value || null,
       updated_at: new Date().toISOString()
     };
     try{
       const { error } = await sb.from('event_bank_info').upsert(payload, { onConflict:'event_id' });
       if(error) throw error;
       bankInfo = payload;
+      savedForThisEvent = true;
       statusEl.classList.add('ok');
       statusEl.textContent = 'この公演の振込先を保存しました。';
     }catch(err){
@@ -254,40 +266,81 @@
     }
   });
 
-  function bankInfoText(){
-    if(!bankInfo || !(bankInfo.bank_name || bankInfo.account_number)) return '';
-    const lines = ['', '【お振込み先】'];
-    if(bankInfo.bank_name || bankInfo.branch_name) lines.push(`${bankInfo.bank_name || ''} ${bankInfo.branch_name || ''}`.trim());
-    if(bankInfo.account_type || bankInfo.account_number) lines.push(`${bankInfo.account_type || ''} ${bankInfo.account_number || ''}`.trim());
-    if(bankInfo.account_holder) lines.push(`名義：${bankInfo.account_holder}`);
-    if(bankInfo.note) lines.push(bankInfo.note);
-    return lines.join('\n');
+  const TROUPE_MARK = { '花':'🌸', '月':'🌙', '雪':'❄️', '星':'⭐', '宙':'🌌' };
+  function troupeMark(troupe){ return TROUPE_MARK[troupe] || '🎭'; }
+  const AGENCY_FEE = 200; // 旅行代理店手数料(1枚あたり)
+
+  function addDays(base, diff){ const d = new Date(base.getTime()); d.setDate(d.getDate()+diff); return d; }
+  function fmtDateJpPlain(v){
+    const d = new Date(v + 'T00:00:00');
+    return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+  }
+  function fmtDateJpWithWeekday(d){
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${w}）`;
   }
 
-  function billingRows(){
-    const unit = eventRow.base_price || 0;
-    return registrations.map(r=>{
-      const order = orderByName(r.name);
-      const ticketPrice = unit * r.count;
-      const mealPrice = order ? order.items.reduce((s,i)=>s+(i.price||0),0) : 0;
-      return { name:r.name, count:r.count, ticketPrice, mealPrice, total:ticketPrice+mealPrice, order };
+  function aggregateMealLines(order){
+    const groups = {};
+    order.items.forEach(it=>{
+      const key = it.menu_name || '';
+      if(!groups[key]) groups[key] = { qty:0 };
+      groups[key].qty += 1;
     });
+    return Object.entries(groups).map(([name, g]) => `${name} × ${g.qty}`);
+  }
+
+  function bankInfoLines(){
+    if(!bankInfo) return [];
+    const lines = [];
+    if(bankInfo.bank_name) lines.push(bankInfo.bank_name);
+    if(bankInfo.branch_name) lines.push(bankInfo.branch_name);
+    if(bankInfo.account_type || bankInfo.account_number) lines.push(`${bankInfo.account_type || ''}　${bankInfo.account_number || ''}`.trim());
+    if(bankInfo.account_holder) lines.push(`口座名義　${bankInfo.account_holder}`);
+    return lines;
   }
 
   function lineText(row){
+    const mark = troupeMark(eventRow.troupe);
+    const seatType = eventRow.seat_type || 'S席';
+    const seatUnit = Math.max((eventRow.base_price || 0) - AGENCY_FEE, 0);
+    const seatTotal = seatUnit * row.count;
+    const feeTotal = AGENCY_FEE * row.count;
+    const eventDatePlain = fmtDateJpPlain(eventRow.event_date);
+    const paymentDeadline = fmtDateJpWithWeekday(
+      bankInfo?.payment_deadline
+        ? new Date(bankInfo.payment_deadline + 'T00:00:00')
+        : addDays(new Date(eventRow.event_date + 'T00:00:00'), -30)
+    );
+
     const lines = [];
-    lines.push(`・${row.name}様 / ご参加人数：${row.count}名`);
-    const unit = eventRow.base_price || 0;
-    lines.push(`・【チケット代】${yen(unit)} × ${row.count}名 ＝ ${yen(row.ticketPrice)}`);
+    lines.push(`${mark}${row.name}様${mark}`);
+    lines.push('');
+    lines.push(`このたびは、${eventDatePlain}開催の${eventRow.troupe || ''}組観劇会へのお申込みありがとうございます${mark}`);
+    lines.push('');
+    lines.push('ご請求内容をご確認の上、期日までにお振込をお願いいたします。');
+    lines.push('');
+    lines.push('🎟 チケット料金');
+    lines.push(`${seatType}（${row.count}枚）　　${yen(seatTotal)}`);
+    lines.push(`旅行代理店手数料 ${yen(AGENCY_FEE)}×${row.count}枚　${yen(feeTotal)}`);
+    lines.push('');
     if(row.order && row.order.items.length){
-      row.order.items.forEach((item, idx)=>{
-        const label = idx === 0 ? '本人' : '同伴者';
-        lines.push(`・【お食事・${label}】${item.menu_name || ''} ${yen(item.price)} / ${item.drink || ''}`);
-      });
-      lines.push(`・食事代合計：${yen(row.mealPrice)}`);
+      lines.push('🍱 お食事代');
+      aggregateMealLines(row.order).forEach(l => lines.push(l));
+      lines.push(`▶ 小計：${yen(row.mealPrice)}`);
+      lines.push('');
     }
-    lines.push(`・ご請求合計：${yen(row.total)}`);
-    lines.push(bankInfoText());
+    lines.push(`✨合計：${yen(row.total)}✨`);
+    lines.push('');
+    lines.push('');
+    lines.push('🏦 お振込み先');
+    lines.push('');
+    bankInfoLines().forEach(l => lines.push(l));
+    lines.push('');
+    lines.push(`🕊 振込締切：${paymentDeadline}`);
+    lines.push('');
+    lines.push('お振込み後は');
+    lines.push(`必ずLINEにてご一報くださいませ${mark}`);
     return lines.join('\n');
   }
 
