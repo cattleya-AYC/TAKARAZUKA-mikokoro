@@ -91,9 +91,23 @@
 
   .empty-msg{ text-align:center; color:var(--muted); padding:50px 20px; font-size:13.5px; }
 
+  #lineText{
+    width:100%; min-height:260px; background:var(--navy-card-2); border:1px solid var(--line);
+    color:var(--cream); border-radius:8px; padding:14px; font-size:13px; line-height:1.9;
+    font-family:'Noto Sans JP', sans-serif; resize:vertical;
+  }
+  .copy-btn{
+    width:100%; margin-top:10px; padding:12px; border-radius:8px; font-size:14px; font-weight:700;
+    cursor:pointer; font-family:inherit;
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft); color:#fffaf3;
+  }
+  .copy-status{ text-align:center; font-size:12px; color:var(--ok); margin:8px 0 0; min-height:16px; }
+
   @media print{
     body{ background:#fff !important; color:#000 !important; }
     .toolbar{ display:none !important; }
+    .print-hide{ display:none !important; }
     .panel{ border-color:#999; break-inside:avoid; }
     .panel-title{ color:#000 !important; border-color:#ccc; }
     .info-row span, .info-row b, .schedule-row, .schedule-row b{ color:#000 !important; }
@@ -150,6 +164,13 @@
       <div class="summary-item"><span class="summary-num" id="sumMeals">0</span><span class="summary-label">食事参加者数</span></div>
     </div>
     <div class="status-breakdown" id="statusBreakdown"></div>
+  </div>
+
+  <div class="panel print-hide">
+    <div class="panel-title">LINE案内文(自動生成)</div>
+    <textarea id="lineText" readonly></textarea>
+    <button class="copy-btn" id="copyBtn">📋 コピーする</button>
+    <p class="copy-status" id="copyStatus"></p>
   </div>
 
 </div>
@@ -239,6 +260,55 @@
     document.getElementById('schNamecard').textContent = formatDateJp(namecard.toISOString().slice(0,10));
   }
 
+  const troupeMark = { '花':'🌸', '月':'🌙', '雪':'❄️', '星':'⭐', '宙':'🌌' };
+
+  function formatDateJpLong(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr.length <= 10 ? dateStr + 'T00:00:00' : dateStr);
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${w}）`;
+  }
+
+  function renderLineText(ev){
+    const eventDate = new Date(ev.event_date + 'T00:00:00');
+    const start = ev.recruitment_start_date ? new Date(ev.recruitment_start_date) : addDays(eventDate, -59);
+    const deadline = ev.application_deadline ? new Date(ev.application_deadline) : addDays(eventDate, -51);
+    const mark = troupeMark[ev.troupe] || '✨';
+
+    const text =
+`${mark}小林みこころ宝塚クラブ通信${mark}
+
+第${ev.event_number ?? '◯'}回　${ev.troupe ?? '◯'}組観劇会のお知らせ
+
+${formatDateJpLong(ev.event_date)}${ev.show_time || '◯時'}公演
+${ev.troupe ?? '◯'}組公演　観劇会の募集を
+${start.getMonth()+1}月${start.getDate()}日21時から開始いたします✨
+
+締め切りは${deadline.getMonth()+1}月${deadline.getDate()}日
+
+ご参加を希望される方は、画面下のメニューの申込フォームから入力してください
+
+
+華やかな舞台を、
+皆さまとご一緒に楽しめますことを心より楽しみにしております⭐✨
+
+たくさんのお申し込みをお待ちしております。`;
+
+    document.getElementById('lineText').value = text;
+  }
+
+  document.getElementById('copyBtn').addEventListener('click', async ()=>{
+    const status = document.getElementById('copyStatus');
+    try{
+      await navigator.clipboard.writeText(document.getElementById('lineText').value);
+      status.textContent = 'コピーしました!LINEに貼り付けてください。';
+    } catch(e){
+      document.getElementById('lineText').select();
+      status.textContent = 'テキストを選択しました。手動でコピーしてください。';
+    }
+    setTimeout(()=>{ status.textContent = ''; }, 4000);
+  });
+
   async function renderApplicationSummary(eventId){
     const { data, error } = await sb
       .from('registrations')
@@ -277,6 +347,7 @@
     document.getElementById('content').style.display = 'block';
     renderInfo(ev);
     renderSchedule(ev);
+    renderLineText(ev);
     await renderApplicationSummary(eventId);
   }
 
