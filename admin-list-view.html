@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>申込者一覧(閲覧用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="list-icon.png">
+<link rel="apple-touch-icon" href="list-icon.png">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
+      var(--navy-deep);
+    color:var(--cream);
+    font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; letter-spacing:.03em; }
+  .sub{ font-size:12.5px; color:var(--muted); margin-top:6px; }
+  .divider{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    max-width:160px; margin:10px auto 0; opacity:.85;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .divider .gem{
+    width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
+    border:1px solid var(--gold-soft); flex-shrink:0;
+  }
+
+  .toolbar{ max-width:1000px; margin:14px auto 0; padding:0 16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  select, input[type=text]{
+    background:var(--navy-card); border:1px solid var(--line); color:var(--cream);
+    border-radius:8px; padding:9px 12px; font-size:14px; font-family:inherit;
+  }
+  select:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 2px var(--line); }
+  .count-badge{
+    font-size:12.5px; color:var(--gold-soft); background:var(--navy-card);
+    border:1px solid var(--gold); border-radius:20px; padding:5px 14px; font-weight:700;
+  }
+  .refresh-btn{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft); color:#fffaf3;
+    border-radius:8px; padding:9px 16px; font-size:13px; cursor:pointer; font-weight:700;
+  }
+
+  .table-wrap{
+    max-width:1000px; margin:16px auto 0; padding:0 16px 16px; overflow-x:auto;
+  }
+  table{
+    border-collapse:separate; border-spacing:0; width:100%; min-width:900px; font-size:13px;
+    background:var(--navy-card); border:1px solid var(--gold); border-radius:12px; overflow:hidden;
+  }
+  th, td{ padding:11px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th{ color:var(--gold-soft); font-weight:700; background:var(--navy-card-2); position:sticky; top:0; }
+  th.sortable{ cursor:pointer; user-select:none; }
+  th.sortable:hover{ color:var(--gold); }
+  .sort-arrow{ font-size:10px; opacity:.6; }
+  tr:last-child td{ border-bottom:none; }
+  tr:hover td{ background:rgba(154,134,201,0.05); }
+  tr.row-accepted td{ background:rgba(79,143,102,0.08); }
+  tr.row-declined td{ background:rgba(165,84,74,0.08); }
+  tr.row-accepted:hover td{ background:rgba(79,143,102,0.14); }
+  tr.row-declined:hover td{ background:rgba(165,84,74,0.14); }
+  td.name{ font-weight:700; font-family:'Shippori Mincho', serif; }
+  .badge{ padding:3px 10px; border-radius:12px; font-size:11.5px; font-weight:700; display:inline-block; }
+  .badge.pending{ background:rgba(154,134,201,0.15); color:var(--gold-soft); }
+  .badge.accepted{ background:rgba(79,143,102,0.15); color:var(--ok); }
+  .badge.declined{ background:rgba(165,84,74,0.15); color:var(--rose); }
+  .badge.cancelled{ background:rgba(139,132,160,0.15); color:var(--muted); }
+
+  .actions{ display:flex; gap:4px; }
+  .actions button{
+    font-size:13px; font-weight:700; width:26px; height:26px; padding:0; border-radius:50%;
+    border:1px solid var(--line); background:var(--navy-card-2); color:var(--cream);
+    cursor:pointer; white-space:nowrap; font-family:inherit; line-height:1;
+  }
+  .actions button.accept{ border-color:var(--ok); color:var(--ok); }
+  .actions button.decline{ border-color:var(--rose); color:var(--rose); }
+  .actions button:disabled{ opacity:.4; cursor:default; }
+  .actions button.accept:disabled{ background:var(--ok); color:#fff; opacity:1; border-color:var(--ok); }
+  .actions button.decline:disabled{ background:var(--rose); color:#fff; opacity:1; border-color:var(--rose); }
+
+  .mark-circle{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:26px; height:26px; border-radius:50%; font-size:12px; font-weight:700;
+    border:2px solid currentColor;
+  }
+  .mark-circle.seat-together{ color:var(--gold-soft); }
+  .mark-circle.seat-lottery{ color:var(--muted); border-style:dashed; }
+  .mark-circle.meal-yes{ color:#fff; background:var(--rose); border-color:var(--rose); }
+  .mark-circle.meal-no{ color:var(--muted); border-color:var(--line); }
+  .mark-circle.header-circle{
+    width:22px; height:22px; font-size:11px; color:var(--gold-soft); border-color:var(--gold-soft);
+  }
+  .mark-circle.header-circle.warn{ color:var(--rose); border-color:var(--rose); }
+
+  th.narrow-col, td.narrow-col{ padding-left:6px; padding-right:6px; white-space:nowrap; }
+
+  .mini-badge{
+    display:inline-block; min-width:22px; text-align:center; font-size:12px; font-weight:700;
+    padding:3px 8px; border-radius:10px; background:var(--navy-card-2); color:var(--gold-soft);
+    border:1px solid var(--line);
+  }
+  .mini-badge.warn{ background:rgba(165,84,74,0.14); color:var(--rose); border-color:var(--rose); }
+  .name-btn{
+    background:none; border:none; padding:0; font-family:'Shippori Mincho', serif; font-weight:700;
+    font-size:13.5px; color:var(--cream); cursor:pointer; text-decoration:underline; text-decoration-color:var(--line);
+    text-underline-offset:3px;
+  }
+  .submit-count{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:18px; height:18px; padding:0 5px; margin-left:6px; border-radius:9px;
+    font-size:10.5px; font-weight:700; font-family:'Noto Sans JP', sans-serif;
+    background:var(--navy-card-2); color:var(--muted); border:1px solid var(--line); cursor:pointer;
+  }
+  .submit-count.multi{
+    background:#ffdf6b; color:#7a4a00; border-color:#e0b400;
+    box-shadow:0 0 6px 1px rgba(255,200,0,0.7);
+    animation:glow 1.6s ease-in-out infinite alternate;
+  }
+  @keyframes glow{
+    from{ box-shadow:0 0 4px 0px rgba(255,200,0,0.5); }
+    to{ box-shadow:0 0 9px 3px rgba(255,200,0,0.85); }
+  }
+  .detail-row td{ padding:8px 12px; background:var(--navy-card-2); }
+  .detail-box{ display:flex; gap:20px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); white-space:normal; }
+  .detail-logs{ margin-top:10px; font-size:12px; color:var(--rose); white-space:normal; }
+  .detail-logs b{ color:var(--gold-soft); display:block; margin-bottom:4px; }
+  .log-item{ margin-bottom:4px; line-height:1.6; }
+  .detail-box b{ color:var(--gold-soft); }
+
+  .empty-msg, .status-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
+  .status-msg.err{ color:var(--rose); }
+
+  .penalty-badge{
+    display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700;
+    padding:5px 11px; border-radius:12px; background:rgba(165,84,74,0.14); color:var(--rose);
+    cursor:pointer; border:1px solid var(--rose);
+  }
+  .penalty-badge.zero{ background:var(--navy-card-2); color:var(--muted); border-color:var(--line); }
+  .penalty-badge::after{ content:" ・記録する"; font-weight:500; font-size:11px; opacity:.85; }
+
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(20,15,30,0.55);
+    z-index:100; align-items:flex-end; justify-content:center;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background:var(--navy-card); border:1px solid var(--gold); border-radius:16px 16px 0 0;
+    max-width:480px; width:100%; max-height:85vh; overflow-y:auto;
+    padding:22px 20px 26px; box-shadow:0 -4px 24px rgba(0,0,0,0.2);
+  }
+  @media (min-width: 560px){
+    .modal-overlay{ align-items:center; }
+    .modal-box{ border-radius:16px; }
+  }
+  .modal-box h3{
+    font-family:'Shippori Mincho', serif; font-size:17px; margin:0 0 4px; color:var(--gold-soft);
+  }
+  .modal-box .modal-points{ font-size:13px; color:var(--muted); margin-bottom:14px; }
+  .modal-box .notes-history{
+    background:var(--navy-card-2); border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; font-size:12.5px; line-height:1.8; white-space:pre-wrap;
+    max-height:160px; overflow-y:auto; margin-bottom:16px; color:var(--cream);
+  }
+  .modal-box .notes-history.empty{ color:var(--muted); }
+  .modal-box label{ font-size:13px; color:var(--gold-soft); font-weight:700; display:block; margin-bottom:6px; }
+  .modal-box textarea{
+    width:100%; min-height:90px; background:var(--navy-card-2); border:1px solid var(--line);
+    color:var(--cream); border-radius:8px; padding:11px 13px; font-size:14px; font-family:inherit; resize:vertical;
+  }
+  .modal-box textarea:focus{ outline:none; border-color:var(--gold); }
+  .modal-checkbox{ display:flex; align-items:center; gap:8px; margin:12px 0 18px; font-size:13px; }
+  .modal-checkbox input{ width:16px; height:16px; accent-color:var(--gold); }
+  .modal-btn-row{ display:flex; gap:10px; }
+  .modal-btn-row button{
+    flex:1; padding:12px; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; font-weight:700;
+  }
+  .modal-btn-row .cancel{ background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream); }
+  .modal-btn-row .save{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft); color:#fffaf3;
+  }
+  .modal-btn-row .save:disabled{ opacity:.5; }
+
+  .modal-box select{
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream);
+    border-radius:8px; padding:11px 13px; font-size:14px; font-family:inherit; margin-bottom:4px;
+  }
+  .toggle-group{ display:flex; gap:8px; margin-bottom:4px; }
+  .toggle-opt{
+    flex:1; text-align:center; padding:11px 8px; border-radius:8px;
+    background:var(--navy-card-2); border:1px solid var(--line);
+    font-size:13.5px; font-weight:500; cursor:pointer; position:relative; color:var(--cream);
+  }
+  .toggle-opt input{ position:absolute; opacity:0; pointer-events:none; }
+  .toggle-opt.checked{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border-color:var(--gold-soft); color:#fffaf3; font-weight:700;
+  }
+
+  .summary-bar{
+    max-width:1000px; margin:16px auto 0; padding:0 16px;
+    display:flex; gap:12px; flex-wrap:wrap;
+  }
+  .summary-item{
+    flex:1; min-width:110px; background:var(--navy-card); border:1px solid var(--gold);
+    border-radius:10px; padding:14px 10px; text-align:center;
+  }
+  .summary-num{
+    display:block; font-family:'Shippori Mincho', serif; font-size:24px; color:var(--gold-soft); font-weight:700;
+  }
+  .summary-label{ display:block; font-size:11.5px; color:var(--muted); margin-top:2px; }
+
+  .nav-links{
+    max-width:1000px; margin:24px auto 0; padding:0 16px;
+    display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
+  }
+  .nav-links a{
+    display:inline-block; text-decoration:none; font-size:13px; font-weight:700;
+    color:var(--gold-soft); background:var(--navy-card); border:1px solid var(--gold);
+    border-radius:20px; padding:10px 18px; font-family:'Shippori Mincho', serif;
+  }
+
+  @media print{
+    @page{ size: landscape; margin: 8mm; }
+    body{ background:#fff !important; color:#000 !important; padding:0; }
+    .toolbar, .refresh-btn, .actions, .penalty-btn, .modal-overlay, #printBtn, .detail-row, .nav-links{ display:none !important; }
+    .hero:not(#printTitle){ display:none !important; }
+    #printTitle{ display:block !important; padding:2px 0; }
+    #printTitle h1{ color:#000; font-size:15px; margin:0; }
+    .summary-bar{ margin:0 auto 6px; gap:8px; }
+    .summary-item{ border-color:#999; background:#fff; padding:6px 8px; }
+    .summary-num{ font-size:16px; }
+    .summary-label{ font-size:9px; }
+    .summary-num, .summary-label{ color:#000 !important; }
+    table{ border-color:#999 !important; width:100%; min-width:0 !important; table-layout:fixed; }
+    th{ background:#eee !important; color:#000 !important; font-size:9.5px; padding:4px 5px; }
+    td{ color:#000 !important; border-color:#ccc !important; font-size:9.5px; padding:4px 5px; white-space:normal; word-break:break-word; }
+    .badge{ border:1px solid #999; padding:1px 6px; font-size:9px; }
+    .table-wrap{ overflow:visible; padding:0; }
+    .print-hide{ display:none !important; }
+    .name-btn{ text-decoration:none; font-size:9.5px; }
+    .mark-circle{ width:16px; height:16px; font-size:9px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="penaltyModal">
+  <div class="modal-box">
+    <h3 id="modalName"></h3>
+    <p class="modal-points" id="modalPoints"></p>
+
+    <label>これまでの記録</label>
+    <div class="notes-history" id="modalHistory"></div>
+
+    <label>新しく記録する内容</label>
+    <textarea id="modalTextarea" placeholder="例:当日11時にドタキャン連絡あり。理由は体調不良とのこと。過去にも直前キャンセルが1回あり。"></textarea>
+
+    <label class="modal-checkbox">
+      <input type="checkbox" id="modalIncrement" checked>
+      <span>ペナルティポイントを +1 する</span>
+    </label>
+
+    <div class="modal-btn-row">
+      <button class="cancel" id="modalCancel">閉じる</button>
+      <button class="save" id="modalSave">記録する</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="changeModal">
+  <div class="modal-box">
+    <h3>変更・キャンセルを記録</h3>
+    <p class="modal-points">電話やLINEで来た急な変更を、ここから記録できます。</p>
+
+    <label>どなたの申込みですか?</label>
+    <select id="changePersonSelect"><option value="">選んでください</option></select>
+
+    <div id="changeCurrentInfo" class="notes-history empty" style="margin-top:12px;">名前を選ぶと現在の内容が表示されます。</div>
+
+    <div id="changeFields" style="display:none; margin-top:16px;">
+      <label>ご参加人数(枚数)</label>
+      <div class="toggle-group">
+        <label class="toggle-opt"><input type="radio" name="changeCount" value="1">同伴者なし(1枚)</label>
+        <label class="toggle-opt"><input type="radio" name="changeCount" value="2">同伴者あり(2枚)</label>
+      </div>
+
+      <label style="margin-top:14px;">お食事</label>
+      <div class="toggle-group">
+        <label class="toggle-opt"><input type="radio" name="changeMeal" value="ご参加">出席</label>
+        <label class="toggle-opt"><input type="radio" name="changeMeal" value="食事は欠席">欠席</label>
+      </div>
+
+      <label class="modal-checkbox" style="margin-top:14px;">
+        <input type="checkbox" id="changeCancel">
+        <span>この申込み自体をキャンセルする</span>
+      </label>
+
+      <label style="margin-top:6px;">変更内容・理由(必須)</label>
+      <textarea id="changeNote" placeholder="例:8/30 21:00 LINEにて連絡。同伴者が来られなくなったため1枚に変更希望。"></textarea>
+
+      <label class="modal-checkbox">
+        <input type="checkbox" id="changePenalty" checked>
+        <span>ペナルティポイントを +1 する</span>
+      </label>
+    </div>
+
+    <div class="modal-btn-row" style="margin-top:16px;">
+      <button class="cancel" id="changeModalCancel">閉じる</button>
+      <button class="save" id="changeModalSave" disabled>この内容で記録する</button>
+    </div>
+  </div>
+</div>
+
+<div class="hero" id="printTitle" style="display:none;">
+  <h1 id="printEventName"></h1>
+</div>
+
+<div class="hero">
+  <div class="eyebrow">スタッフ閲覧用(編集不可)</div>
+  <h1>申込者一覧</h1>
+  <div class="divider"><span class="gem"></span></div>
+  <p class="sub">開催回を選んで、申込状況を確認・更新できます</p>
+</div>
+
+<div class="summary-bar" id="agencyBar" style="display:none;"></div>
+
+<div class="summary-bar" id="summaryBar">
+  <div class="summary-item"><span class="summary-num" id="sumApplicants">0</span><span class="summary-label">申込者数</span></div>
+  <div class="summary-item"><span class="summary-num" id="sumTickets">0</span><span class="summary-label">チケット枚数</span></div>
+  <div class="summary-item"><span class="summary-num" id="sumMeals">0</span><span class="summary-label">食事参加者数</span></div>
+</div>
+
+<div class="toolbar">
+  <select id="eventSelect"><option>読み込み中…</option></select>
+  <select id="statusFilter">
+    <option value="all">すべて表示</option>
+    <option value="審査中">審査中のみ</option>
+    <option value="参加決定">参加決定のみ</option>
+    <option value="お断り">お断りのみ</option>
+  </select>
+  <span class="count-badge" id="countBadge"></span>
+  <span class="count-badge" id="statusBreakdown"></span>
+  <button class="refresh-btn" id="refreshBtn">更新</button>
+  <button class="refresh-btn" id="printBtn">🖨 PDF印刷</button>
+</div>
+
+<div class="table-wrap">
+  <table id="dataTable" style="display:none;">
+    <thead>
+      <tr>
+        <th class="narrow-col">操作</th>
+        <th class="print-hide sortable narrow-col" data-sort="recent"><span class="mark-circle header-circle" title="申込回数">申</span> <span class="sort-arrow" data-arrow="recent"></span></th>
+        <th class="print-hide narrow-col"><span class="mark-circle header-circle warn" title="ペナルティ回数">ペ</span></th>
+        <th>氏名</th>
+        <th class="sortable" data-sort="count">枚数 <span class="sort-arrow" data-arrow="count"></span></th>
+        <th>お食事</th>
+        <th class="print-hide">ペナルティ入力</th>
+        <th class="sortable" data-sort="grade">回生 <span class="sort-arrow" data-arrow="grade"></span></th>
+        <th>同伴者</th>
+        <th>座席希望</th>
+        <th class="sortable" data-sort="applied">申込日時 <span class="sort-arrow" data-arrow="applied"></span></th>
+        <th>状態</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <p class="empty-msg" id="emptyMsg" style="display:none;">この開催回の申込みはまだありません。</p>
+  <p class="status-msg" id="statusMsg"></p>
+</div>
+
+<div class="nav-links">
+  <a href="admin-summary-all.html">📋 これまでの申込者一覧</a>
+  <a href="admin-summary-recent7.html">📋 直近7回 申込者一覧</a>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+
+  function getSb(){
+    if(!window.supabase){
+      throw new Error('Supabaseライブラリの読み込みに失敗しました。画面を再読み込みしてください。');
+    }
+    return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  window.addEventListener('error', (ev)=>{
+    const box = document.getElementById('statusMsg');
+    box.classList.add('err');
+    box.textContent = '予期しないエラー:' + (ev.message || '');
+  });
+  window.addEventListener('unhandledrejection', (ev)=>{
+    const box = document.getElementById('statusMsg');
+    box.classList.add('err');
+    box.textContent = '予期しないエラー:' + (ev.reason?.message || ev.reason || '');
+  });
+
+  const weekdayJp = ['日','月','火','水','木','金','土'];
+  function formatDateJp(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${weekdayJp[d.getDay()]})`;
+  }
+  function formatDateTimeJp(isoStr){
+    if(!isoStr) return '';
+    const d = new Date(isoStr);
+    return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  const statusLabel = { '審査中':'審査中', '参加決定':'参加決定', 'お断り':'お断り', 'キャンセル':'キャンセル' };
+  const statusClass = { '審査中':'pending', '参加決定':'accepted', 'お断り':'declined', 'キャンセル':'cancelled' };
+
+  let sb = null;
+  let events = [];
+
+  async function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('ライブラリの読み込みがタイムアウトしました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  async function loadEvents(){
+    const { data, error } = await sb
+      .from('events')
+      .select('id, title, event_number, troupe, event_date, show_time')
+      .order('event_date', { ascending: false });
+    if(error) throw error;
+    events = data || [];
+    const sel = document.getElementById('eventSelect');
+    sel.innerHTML = '';
+    if(events.length === 0){
+      sel.innerHTML = '<option>開催回が登録されていません</option>';
+      return;
+    }
+    events.forEach(ev=>{
+      const opt = document.createElement('option');
+      opt.value = ev.id;
+      opt.textContent = `第${ev.event_number ?? '?'}回 ${ev.troupe ?? ''}組(${formatDateJp(ev.event_date)})`;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function loadAgencyInfo(eventId){
+    const bar = document.getElementById('agencyBar');
+    const ev = events.find(e => e.id === eventId);
+    if(!ev){ bar.style.display = 'none'; return; }
+
+    const { data, error } = await sb
+      .from('agency_confirmations')
+      .select('seat_type, confirmed_count')
+      .eq('troupe', ev.troupe)
+      .eq('event_date', ev.event_date)
+      .eq('show_time', ev.show_time);
+
+    if(error || !data || data.length === 0){
+      bar.style.display = 'none';
+      return;
+    }
+
+    bar.innerHTML = data.map(row => `
+      <div class="summary-item" style="border-color:var(--rose);">
+        <span class="summary-num" style="color:var(--rose);">${row.confirmed_count}</span>
+        <span class="summary-label">代理店確定(${row.seat_type})</span>
+      </div>
+    `).join('');
+    bar.style.display = 'flex';
+  }
+
+  let currentRows = [];
+  let recentCounts = {};
+  let changeLogsMap = {};
+
+  async function loadRegistrations(eventId){
+    const tbody = document.getElementById('tableBody');
+    const table = document.getElementById('dataTable');
+    const emptyMsg = document.getElementById('emptyMsg');
+    const statusMsg = document.getElementById('statusMsg');
+    const countBadge = document.getElementById('countBadge');
+    statusMsg.textContent = '';
+    statusMsg.classList.remove('err');
+    tbody.innerHTML = '';
+    table.style.display = 'none';
+    emptyMsg.style.display = 'none';
+
+    const { data, error } = await sb
+      .from('registrations')
+      .select('*, participants(id, name, email, phone, penalty_points, penalty_notes)')
+      .eq('event_id', eventId)
+      .order('applied_at', { ascending: false });
+
+    if(error) throw error;
+
+    currentRows = data || [];
+
+    if(currentRows.length === 0){
+      emptyMsg.style.display = 'block';
+      countBadge.textContent = '0件';
+      document.getElementById('statusBreakdown').textContent = '';
+      recentCounts = {};
+      return;
+    }
+
+    // 直近7回の参加回数を取得
+    recentCounts = {};
+    const pids = [...new Set(currentRows.map(r => r.participants?.id).filter(Boolean))];
+    if(pids.length > 0){
+      const { data: recentData, error: recentErr } = await sb
+        .from('v_recent_participation')
+        .select('participant_id, recent_count')
+        .in('participant_id', pids);
+      if(!recentErr && recentData){
+        recentData.forEach(row => { recentCounts[row.participant_id] = row.recent_count; });
+      }
+    }
+
+    // 変更・キャンセル履歴を取得
+    changeLogsMap = {};
+    if(pids.length > 0){
+      const { data: logData, error: logErr } = await sb
+        .from('change_logs')
+        .select('participant_id, change_type, before_summary, after_summary, note, created_at')
+        .in('participant_id', pids)
+        .order('created_at', { ascending: false });
+      if(!logErr && logData){
+        logData.forEach(row=>{
+          if(!changeLogsMap[row.participant_id]) changeLogsMap[row.participant_id] = [];
+          changeLogsMap[row.participant_id].push(row);
+        });
+      }
+    }
+
+    renderBreakdown(currentRows);
+    renderTable(currentRows);
+  }
+
+  function renderBreakdown(rows){
+    const counts = { '審査中':0, '参加決定':0, 'お断り':0, 'キャンセル':0 };
+    rows.forEach(r => { const s = r.status || '審査中'; counts[s] = (counts[s]||0) + 1; });
+    document.getElementById('statusBreakdown').textContent =
+      `審査中${counts['審査中']} / 決定${counts['参加決定']} / お断り${counts['お断り']}`;
+  }
+
+  function renderSummary(rows){
+    const activeRows = currentRows.filter(r => {
+      const s = r.status || '審査中';
+      return s !== 'お断り' && s !== 'キャンセル';
+    });
+    const applicants = activeRows.length;
+    const tickets = activeRows.reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
+    const meals = activeRows
+      .filter(r => r.answers?.meal === 'ご参加')
+      .reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
+    document.getElementById('sumApplicants').textContent = applicants;
+    document.getElementById('sumTickets').textContent = tickets;
+    document.getElementById('sumMeals').textContent = meals;
+  }
+
+  let sortState = { key: null, dir: 1 };
+
+  function gradeSortValue(grade){
+    if(!grade) return 0;
+    const m = String(grade).match(/\d+/);
+    return m ? Number(m[0]) : 0;
+  }
+
+  function applySorting(rows){
+    if(!sortState.key) return rows;
+    const sorted = [...rows];
+    sorted.sort((a, b)=>{
+      let va, vb;
+      switch(sortState.key){
+        case 'grade':
+          va = gradeSortValue(a.answers?.grade); vb = gradeSortValue(b.answers?.grade); break;
+        case 'count':
+          va = Number(a.answers?.participant_count) || 1; vb = Number(b.answers?.participant_count) || 1; break;
+        case 'applied':
+          va = new Date(a.applied_at).getTime(); vb = new Date(b.applied_at).getTime(); break;
+        case 'recent':
+          va = recentCounts[a.participants?.id] ?? -1; vb = recentCounts[b.participants?.id] ?? -1; break;
+        default:
+          return 0;
+      }
+      return (va - vb) * sortState.dir;
+    });
+    return sorted;
+  }
+
+  function updateSortArrows(){
+    document.querySelectorAll('.sort-arrow').forEach(el=>{
+      const key = el.getAttribute('data-arrow');
+      el.textContent = sortState.key === key ? (sortState.dir === 1 ? '▲' : '▼') : '';
+    });
+  }
+
+  function renderTable(rows){
+    const tbody = document.getElementById('tableBody');
+    const table = document.getElementById('dataTable');
+    const countBadge = document.getElementById('countBadge');
+    const filter = document.getElementById('statusFilter').value;
+
+    let filtered = filter === 'all' ? rows : rows.filter(r => (r.status || '審査中') === filter);
+    filtered = applySorting(filtered);
+    updateSortArrows();
+
+    tbody.innerHTML = '';
+    countBadge.textContent = `${filtered.length}件`;
+    renderSummary(filtered);
+
+    filtered.forEach(r=>{
+      const p = r.participants || {};
+      const a = r.answers || {};
+      const tr = document.createElement('tr');
+      const status = r.status || '審査中';
+      const points = p.penalty_points || 0;
+      const recentCount = recentCounts[p.id] ?? '-';
+      const submitCount = 1 + (changeLogsMap[p.id]?.length || 0);
+      const rowId = r.id;
+      if(status === '参加決定') tr.classList.add('row-accepted');
+      if(status === 'お断り') tr.classList.add('row-declined');
+
+      tr.innerHTML = `
+        <td class="actions narrow-col">
+          <span class="mini-badge ${status==='参加決定'?'':(status==='お断り'?'warn':'')}">${escapeHtml(status)}</span>
+        </td>
+        <td class="print-hide narrow-col"><span class="mini-badge">${recentCount}</span></td>
+        <td class="print-hide narrow-col"><span class="mini-badge ${points > 0 ? 'warn' : ''}">${points}</span></td>
+        <td class="name">
+          <button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button>
+          <button class="submit-count ${submitCount > 1 ? 'multi' : ''}" data-detail="${rowId}" title="送信回数(タップで変更履歴を表示)">${submitCount}</button>
+        </td>
+        <td>${escapeHtml(a.participant_count || '1')}枚</td>
+        <td>${a.meal === 'ご参加'
+              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
+              : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
+        <td class="print-hide"></td>
+        <td>${escapeHtml(a.grade || '')}</td>
+        <td>${a.participant_count === '2' ? 'あり' : 'なし'}</td>
+        <td>${a.seat_pref === '連席希望'
+              ? '<span class="mark-circle seat-together" title="連席希望">連</span>'
+              : a.seat_pref === '抽選'
+                ? '<span class="mark-circle seat-lottery" title="抽選">抽</span>'
+                : '-'}</td>
+        <td>${formatDateTimeJp(r.applied_at)}</td>
+        <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
+      `;
+      tbody.appendChild(tr);
+
+      const logs = changeLogsMap[p.id] || [];
+      const logsHtml = logs.length > 0
+        ? logs.map(l => `<div class="log-item">[${new Date(l.created_at).toLocaleDateString('ja-JP')}] <b>${escapeHtml(l.change_type)}</b>:${escapeHtml(l.before_summary)} → ${escapeHtml(l.after_summary)}${l.note ? '(' + escapeHtml(l.note) + ')' : ''}</div>`).join('')
+        : '';
+
+      const detailTr = document.createElement('tr');
+      detailTr.className = 'detail-row';
+      detailTr.id = `detail-${rowId}`;
+      detailTr.style.display = 'none';
+      detailTr.innerHTML = `
+        <td colspan="12">
+          <div class="detail-box">
+            <span><b>メール:</b> ${escapeHtml(p.email || a.email || '')}</span>
+            <span><b>携帯:</b> ${escapeHtml(p.phone || a.emergency_phone || '')}</span>
+          </div>
+          ${logsHtml ? `<div class="detail-logs"><b>変更・キャンセル履歴</b>${logsHtml}</div>` : ''}
+        </td>
+      `;
+      tbody.appendChild(detailTr);
+    });
+
+    table.style.display = 'table';
+
+    tbody.querySelectorAll('.name-btn, .submit-count').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const row = document.getElementById(`detail-${btn.getAttribute('data-detail')}`);
+        if(row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+      });
+    });
+  }
+
+  let modalCurrentPid = null;
+
+  function openPenaltyModal(pid, pname){
+    const target = currentRows.find(r => r.participants && r.participants.id === pid);
+    const points = target?.participants?.penalty_points || 0;
+    const notes = target?.participants?.penalty_notes || '';
+
+    modalCurrentPid = pid;
+    document.getElementById('modalName').textContent = `${pname} さん`;
+    document.getElementById('modalPoints').textContent = `現在のペナルティポイント:${points}`;
+
+    const historyBox = document.getElementById('modalHistory');
+    if(notes.trim()){
+      historyBox.textContent = notes;
+      historyBox.classList.remove('empty');
+    } else {
+      historyBox.textContent = 'まだ記録はありません。';
+      historyBox.classList.add('empty');
+    }
+
+    document.getElementById('modalTextarea').value = '';
+    document.getElementById('modalIncrement').checked = true;
+    document.getElementById('penaltyModal').classList.add('show');
+  }
+
+  function closePenaltyModal(){
+    document.getElementById('penaltyModal').classList.remove('show');
+    modalCurrentPid = null;
+  }
+
+  document.getElementById('modalCancel').addEventListener('click', closePenaltyModal);
+  document.getElementById('penaltyModal').addEventListener('click', (e)=>{
+    if(e.target.id === 'penaltyModal') closePenaltyModal();
+  });
+
+  document.getElementById('modalSave').addEventListener('click', async ()=>{
+    const statusMsg = document.getElementById('statusMsg');
+    const saveBtn = document.getElementById('modalSave');
+    const text = document.getElementById('modalTextarea').value.trim();
+    const doIncrement = document.getElementById('modalIncrement').checked;
+
+    if(!text){
+      alert('記録する内容を入力してください。');
+      return;
+    }
+    if(!modalCurrentPid){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '参加者情報が見つかりませんでした。';
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中…';
+    try{
+      const target = currentRows.find(r => r.participants && r.participants.id === modalCurrentPid);
+      const existingPoints = target?.participants?.penalty_points || 0;
+      const existingNotes = target?.participants?.penalty_notes || '';
+      const dateStr = new Date().toLocaleDateString('ja-JP');
+      const newNotes = existingNotes ? `${existingNotes}\n[${dateStr}] ${text}` : `[${dateStr}] ${text}`;
+      const newPoints = doIncrement ? existingPoints + 1 : existingPoints;
+
+      const { error } = await sb
+        .from('participants')
+        .update({ penalty_points: newPoints, penalty_notes: newNotes })
+        .eq('id', modalCurrentPid);
+      if(error) throw error;
+
+      closePenaltyModal();
+      loadRegistrations(currentEventId);
+    } catch(e){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '記録に失敗しました:' + (e.message || '');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '記録する';
+    }
+  });
+
+  function escapeHtml(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  let currentEventId = null;
+
+  async function startApp(){
+    const statusMsg = document.getElementById('statusMsg');
+    try{
+      await loadEvents();
+      const sel = document.getElementById('eventSelect');
+      if(events.length > 0){
+        currentEventId = sel.value;
+        await loadRegistrations(currentEventId);
+        await loadAgencyInfo(currentEventId);
+      }
+      sel.addEventListener('change', ()=>{
+        currentEventId = sel.value;
+        updatePrintTitle();
+        loadRegistrations(currentEventId);
+        loadAgencyInfo(currentEventId);
+      });
+      document.getElementById('refreshBtn').addEventListener('click', ()=>{
+        if(currentEventId){
+          loadRegistrations(currentEventId);
+          loadAgencyInfo(currentEventId);
+        }
+      });
+      document.getElementById('statusFilter').addEventListener('change', ()=>{
+        renderTable(currentRows);
+      });
+      document.getElementById('printBtn').addEventListener('click', ()=>{
+        updatePrintTitle();
+        window.print();
+      });
+      document.querySelectorAll('th.sortable').forEach(th=>{
+        th.addEventListener('click', ()=>{
+          const key = th.getAttribute('data-sort');
+          if(sortState.key === key){
+            sortState.dir *= -1;
+          } else {
+            sortState.key = key;
+            sortState.dir = 1;
+          }
+          renderTable(currentRows);
+        });
+      });
+      updatePrintTitle();
+    } catch(e){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = e.message || String(e);
+    }
+  }
+
+  async function init(){
+    const statusMsg = document.getElementById('statusMsg');
+    try{
+      await waitForLib(10000);
+      sb = getSb();
+      await startApp();
+    } catch(e){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = e.message || String(e);
+    }
+  }
+
+  function updatePrintTitle(){
+    const sel = document.getElementById('eventSelect');
+    const opt = sel.options[sel.selectedIndex];
+    document.getElementById('printEventName').textContent = opt ? `申込者一覧:${opt.textContent}` : '申込者一覧';
+  }
+
+  // ---- 変更・キャンセル受付モーダル ----
+  function openChangeModal(){
+    const sel = document.getElementById('changePersonSelect');
+    sel.innerHTML = '<option value="">選んでください</option>';
+    currentRows.forEach(r=>{
+      const p = r.participants || {};
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = `${p.name || r.answers?.full_name || '(名前不明)'}`;
+      sel.appendChild(opt);
+    });
+    document.getElementById('changeFields').style.display = 'none';
+    document.getElementById('changeCurrentInfo').textContent = '名前を選ぶと現在の内容が表示されます。';
+    document.getElementById('changeCurrentInfo').classList.add('empty');
+    document.getElementById('changeNote').value = '';
+    document.getElementById('changeCancel').checked = false;
+    document.getElementById('changePenalty').checked = true;
+    document.getElementById('changeModalSave').disabled = true;
+    document.getElementById('changeModal').classList.add('show');
+  }
+
+  function closeChangeModal(){
+    document.getElementById('changeModal').classList.remove('show');
+  }
+  document.getElementById('changeModalCancel').addEventListener('click', closeChangeModal);
+  document.getElementById('changeModal').addEventListener('click', (e)=>{
+    if(e.target.id === 'changeModal') closeChangeModal();
+  });
+
+  document.getElementById('changePersonSelect').addEventListener('change', (e)=>{
+    const regId = e.target.value;
+    const box = document.getElementById('changeCurrentInfo');
+    const fields = document.getElementById('changeFields');
+    const saveBtn = document.getElementById('changeModalSave');
+
+    if(!regId){
+      box.textContent = '名前を選ぶと現在の内容が表示されます。';
+      box.classList.add('empty');
+      fields.style.display = 'none';
+      saveBtn.disabled = true;
+      return;
+    }
+    const target = currentRows.find(r => r.id === regId);
+    const a = target.answers || {};
+    box.classList.remove('empty');
+    box.textContent =
+      `現在の内容:枚数${a.participant_count || '1'}枚 ／ お食事:${a.meal === 'ご参加' ? '参加' : '不参加'} ／ 状態:${statusLabel[target.status || '審査中']}`;
+
+    fields.style.display = 'block';
+    // 現在の値をトグルに反映
+    const countRadio = document.querySelector(`input[name=changeCount][value="${a.participant_count || '1'}"]`);
+    if(countRadio) countRadio.checked = true;
+    const mealRadio = document.querySelector(`input[name=changeMeal][value="${a.meal || 'ご参加'}"]`);
+    if(mealRadio) mealRadio.checked = true;
+    document.querySelectorAll('#changeFields .toggle-opt').forEach(opt=>{
+      const input = opt.querySelector('input');
+      opt.classList.toggle('checked', input.checked);
+    });
+    checkChangeSaveEnabled();
+  });
+
+  document.getElementById('changeFields').addEventListener('change', (e)=>{
+    if(e.target.type === 'radio'){
+      const group = document.querySelectorAll(`input[name="${e.target.name}"]`);
+      group.forEach(g => g.closest('.toggle-opt')?.classList.remove('checked'));
+      e.target.closest('.toggle-opt')?.classList.add('checked');
+    }
+    checkChangeSaveEnabled();
+  });
+  document.getElementById('changeNote').addEventListener('input', checkChangeSaveEnabled);
+
+  function checkChangeSaveEnabled(){
+    const regId = document.getElementById('changePersonSelect').value;
+    const note = document.getElementById('changeNote').value.trim();
+    document.getElementById('changeModalSave').disabled = !(regId && note);
+  }
+
+  document.getElementById('changeModalSave').addEventListener('click', async ()=>{
+    const statusMsg = document.getElementById('statusMsg');
+    const saveBtn = document.getElementById('changeModalSave');
+    const regId = document.getElementById('changePersonSelect').value;
+    const target = currentRows.find(r => r.id === regId);
+    if(!target) return;
+
+    const before = target.answers || {};
+    const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${before.meal === 'ご参加' ? '参加' : '不参加'} / 状態${statusLabel[target.status || '審査中']}`;
+
+    const isCancel = document.getElementById('changeCancel').checked;
+    const newCount = document.querySelector('input[name=changeCount]:checked')?.value || before.participant_count || '1';
+    const newMeal = document.querySelector('input[name=changeMeal]:checked')?.value || before.meal;
+    const note = document.getElementById('changeNote').value.trim();
+    const addPenalty = document.getElementById('changePenalty').checked;
+
+    const afterSummary = isCancel
+      ? 'キャンセル'
+      : `枚数${newCount}枚 / 食事${newMeal === 'ご参加' ? '参加' : '不参加'}`;
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中…';
+    try{
+      const newAnswers = { ...before, participant_count: newCount, meal: newMeal };
+      const updatePayload = { answers: newAnswers, wants_meal: newMeal === 'ご参加' };
+      if(isCancel) updatePayload.status = 'キャンセル';
+
+      const { error: updErr } = await sb
+        .from('registrations')
+        .update(updatePayload)
+        .eq('id', regId);
+      if(updErr) throw updErr;
+
+      const { error: logErr } = await sb
+        .from('change_logs')
+        .insert({
+          registration_id: regId,
+          participant_id: target.participants?.id || null,
+          event_id: currentEventId,
+          change_type: isCancel ? 'キャンセル' : '内容変更',
+          before_summary: beforeSummary,
+          after_summary: afterSummary,
+          note: note
+        });
+      if(logErr) throw logErr;
+
+      if(addPenalty && target.participants?.id){
+        const existingPoints = target.participants.penalty_points || 0;
+        const existingNotes = target.participants.penalty_notes || '';
+        const dateStr = new Date().toLocaleDateString('ja-JP');
+        const newNotes = existingNotes
+          ? `${existingNotes}\n[${dateStr}] (変更記録) ${note}`
+          : `[${dateStr}] (変更記録) ${note}`;
+        await sb
+          .from('participants')
+          .update({ penalty_points: existingPoints + 1, penalty_notes: newNotes })
+          .eq('id', target.participants.id);
+      }
+
+      closeChangeModal();
+      loadRegistrations(currentEventId);
+    } catch(e){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '記録に失敗しました:' + (e.message || '');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'この内容で記録する';
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>
