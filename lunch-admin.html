@@ -269,6 +269,10 @@
     <p class="lbl" style="margin-bottom:10px">LINEコピペ用メッセージ</p>
     <textarea id="lineMessage" readonly></textarea>
     <button type="button" class="copy" id="copyBtn">LINE用メッセージをコピー</button>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <input type="email" id="testEmailInput" placeholder="テスト送信先のメールアドレス" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
+      <button type="button" class="secondary" id="testMailBtn" style="margin-top:0;white-space:nowrap;">テスト送信</button>
+    </div>
     <button type="button" class="secondary" id="mailBtn" style="margin-top:10px">✉ メールを一斉送信する(自動)</button>
     <p class="status" id="mailStatus"></p>
   </div>
@@ -620,6 +624,56 @@ ${time}
       btn.textContent = 'コピーしました';
       setTimeout(()=> btn.textContent = 'LINE用メッセージをコピー', 1600);
     }catch(e){ ta.select(); document.execCommand('copy'); }
+  });
+
+  // ---- テスト送信(実際の参加者には送らず、指定した1件だけに送る) ----
+  document.getElementById('testMailBtn').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('mailStatus');
+    statusEl.className = 'status'; statusEl.textContent = '';
+
+    const testEmail = document.getElementById('testEmailInput').value.trim();
+    if(!testEmail){
+      statusEl.classList.add('err');
+      statusEl.textContent = 'テスト送信先のメールアドレスを入力してください。';
+      return;
+    }
+    const url = document.getElementById('lineMessage')._formUrl || 'https://例:まだ保存前のためダミーURL';
+    const date = fmtDateJp(document.getElementById('eventDateInput').value) || '○月○日';
+    const troupe = document.getElementById('troupeInput').value || '○○組';
+    const deadline = fmtDateJp(document.getElementById('deadlineInput').value) || '○月○日';
+    const subject = `【テスト】【小林タカラヅカ倶楽部】${date} ${troupe}公演 お食事メニューのご案内`;
+    const message =
+`テスト太郎様(テスト送信です)
+
+お食事会からのご参加ありがとうございます。
+
+下記フォームより、お食事メニューとお飲み物をお選びのうえ、
+締め切りまでにご入力をお願いいたします。
+
+▼ お食事申込フォーム
+${url}
+
+【登録締め切り】
+${deadline}
+
+どうぞよろしくお願いいたします。
+小林タカラヅカ倶楽部`;
+
+    const btn = document.getElementById('testMailBtn');
+    btn.disabled = true; btn.textContent = '送信中…';
+    try{
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+        email: testEmail, subject: subject, message: message
+      });
+      statusEl.classList.add('ok');
+      statusEl.textContent = `${testEmail} にテストメールを送信しました。届いているか確認してください。`;
+    }catch(err){
+      console.error(err);
+      statusEl.classList.add('err');
+      statusEl.textContent = 'テスト送信に失敗しました:' + (err.message || err);
+    }finally{
+      btn.disabled = false; btn.textContent = 'テスト送信';
+    }
   });
 
   // ---- メールを一斉送信(EmailJS経由で1人ずつ自動送信) ----
