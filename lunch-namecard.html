@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名刺(席札)印刷(管理者用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%), var(--navy-deep);
+    color:var(--cream); font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; }
+  .divider{ display:flex; align-items:center; justify-content:center; gap:10px; max-width:160px; margin:12px auto 0; opacity:.85; }
+  .divider::before, .divider::after{ content:""; flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); }
+  .divider .gem{ width:6px; height:6px; background:var(--gold); transform:rotate(45deg); border:1px solid var(--gold-soft); flex-shrink:0; }
+
+  .wrap{ max-width:900px; margin:0 auto; padding:0 16px; }
+  .section{ border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; background:var(--navy-card); }
+  .section h2{ margin:0 0 12px; font-size:16px; color:var(--gold-soft); font-family:'Shippori Mincho', serif; }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:12.5px; color:var(--gold-soft); font-weight:700; margin-bottom:6px; }
+  select, input[type=file]{
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream);
+    border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit;
+  }
+  .preview-bg{
+    width:100%; max-width:280px; aspect-ratio:91/55; border:1px dashed var(--line); border-radius:8px;
+    margin-top:8px; overflow:hidden; display:grid; place-items:center; color:var(--muted); font-size:12px; background:var(--navy-card-2);
+  }
+  .preview-bg img{ width:100%; height:100%; object-fit:cover; }
+  button{ border:0; border-radius:8px; padding:11px 15px; cursor:pointer; font:inherit; font-weight:700; }
+  .secondary{ background:var(--navy-card-2); color:var(--gold-soft); }
+  .primary{ background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fff; }
+  .status{ font-size:12.5px; margin-top:10px; }
+  .status.ok{ color:var(--ok); } .status.err{ color:var(--rose); }
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+
+  .card-count{ font-size:13px; color:var(--muted); margin-bottom:10px; }
+
+  .preview-grid{ display:flex; flex-wrap:wrap; gap:10px; }
+  .namecard{
+    width:280px; height: calc(280px * 55 / 91);
+    border:1px solid var(--line); border-radius:6px; position:relative; overflow:hidden;
+    background-size:cover; background-position:center; background-color:#fff;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    padding:6% 5%;
+  }
+  .namecard .nc-header{ font-size:11px; color:#555; font-weight:700; }
+  .namecard .nc-name{ font-size:26px; font-weight:700; color:#222; margin:6px 0 4px; line-height:1.25; outline:none; }
+  .namecard .nc-menu{ font-size:15px; color:#333; outline:none; }
+  .namecard .nc-drink{ font-size:15px; color:#333; margin-top:2px; outline:none; }
+  .nc-editable{ cursor:text; border-bottom:1px dashed transparent; }
+  .nc-editable:hover{ border-bottom:1px dashed var(--gold-soft); }
+
+  #authGate{ position:fixed; inset:0; z-index:9999; background:var(--navy-deep); display:flex; align-items:center; justify-content:center; padding:20px; }
+  #authGate .box{ max-width:340px; width:100%; background:var(--navy-card); border:1px solid var(--gold); border-radius:14px; padding:28px 24px; }
+  #authGate .title{ text-align:center; margin-bottom:18px; font-family:'Shippori Mincho',serif; font-size:13px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  #authGate label{ display:block; margin-bottom:14px; }
+  #authGate .lbl{ font-size:13px; color:var(--gold-soft); font-weight:700; display:block; margin-bottom:6px; }
+  #authGate input{ width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:8px; background:var(--navy-card-2); color:var(--cream); font-size:15px; font-family:inherit; }
+  #authGate button{ width:100%; padding:13px; border:1px solid var(--gold-soft); border-radius:8px; background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fffaf3; font-weight:700; font-size:15px; cursor:pointer; font-family:'Shippori Mincho','Noto Sans JP',sans-serif; }
+  #authGate .err{ text-align:center; font-size:12.5px; color:var(--rose); margin-top:12px; display:none; }
+  #logoutBtn{ position:fixed; top:10px; right:10px; z-index:1000; padding:6px 12px; border:1px solid var(--gold-soft); border-radius:20px; background:var(--navy-card); color:var(--gold-soft); font-size:11px; font-weight:700; cursor:pointer; display:none; }
+
+  @media print{
+    @page{ size: A4 portrait; margin: 11mm 14mm; }
+    body{ background:#fff !important; }
+    .hero, .section, .actions, #logoutBtn{ display:none !important; }
+    #printArea{ display:block !important; }
+    .namecard-grid{
+      display:grid; grid-template-columns:91mm 91mm; grid-auto-rows:55mm;
+      width:182mm; border:1px dashed #999;
+    }
+    .pnamecard{
+      width:91mm; height:55mm; box-sizing:border-box; overflow:hidden;
+      background-size:cover; background-position:center; background-color:#fff;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+      padding:4mm 5mm; break-inside:avoid;
+    }
+    .pnamecard .nc-header{ font-size:8pt; color:#555; font-weight:700; }
+    .pnamecard .nc-name{ font-size:20pt; font-weight:700; color:#111; margin:2mm 0 1.5mm; line-height:1.25; }
+    .pnamecard .nc-menu{ font-size:11pt; color:#222; }
+    .pnamecard .nc-drink{ font-size:11pt; color:#222; margin-top:1mm; }
+  }
+  #printArea{ display:none; }
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <form class="box" id="loginForm">
+    <div class="title">管理者ログイン</div>
+    <label><span class="lbl">メールアドレス</span><input type="email" id="loginEmail" required autocomplete="username"></label>
+    <label><span class="lbl">パスワード</span><input type="password" id="loginPassword" required autocomplete="current-password"></label>
+    <button type="submit" id="loginBtn">ログイン</button>
+    <p class="err" id="loginError"></p>
+  </form>
+</div>
+<button id="logoutBtn" type="button">ログアウト</button>
+
+<div class="hero">
+  <div class="eyebrow">管理者用</div>
+  <h1>名刺(席札)印刷</h1>
+  <div class="divider"><span class="gem"></span></div>
+</div>
+
+<div class="wrap">
+
+  <div class="section">
+    <h2>① 対象公演を選ぶ</h2>
+    <div class="field">
+      <label>公演</label>
+      <select id="eventSelect"><option value="">選択してください</option></select>
+    </div>
+    <button type="button" class="secondary" id="loadBtn">食事申込者を読み込む</button>
+    <p class="status" id="loadStatus"></p>
+  </div>
+
+  <div class="section">
+    <h2>② 背景画像(任意・公演ごとに保存されます)</h2>
+    <input type="file" accept="image/*" id="bgInput">
+    <div class="preview-bg" id="bgPreview">背景画像プレビュー</div>
+    <div class="actions">
+      <button type="button" class="primary" id="saveBgBtn">この背景を保存</button>
+    </div>
+    <p class="status" id="bgStatus"></p>
+  </div>
+
+  <div class="section" id="cardsSection" style="display:none">
+    <h2>③ プレビュー(文字は直接タップして編集できます)</h2>
+    <div class="card-count" id="cardCount"></div>
+    <div class="preview-grid" id="previewGrid"></div>
+    <div class="actions">
+      <button type="button" class="primary" id="printBtn">A4で印刷する</button>
+    </div>
+    <p class="status" style="color:var(--muted)">
+      ※お名前は「代表者名」をそのまま使っています。同伴者カードの表記(様・続柄)が実際と違う場合は、カード内をタップして直接書き換えてください。
+    </p>
+  </div>
+
+</div>
+
+<div id="printArea">
+  <div class="namecard-grid" id="printGrid"></div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  let sb = null;
+  let selectedEvent = null;
+  let bgUrl = null;
+  let cards = [];
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  async function loadEventOptions(){
+    const sel = document.getElementById('eventSelect');
+    const todayStr = new Date().toISOString().slice(0,10);
+    const { data, error } = await sb
+      .from('events').select('id, event_number, troupe, event_date, show_time')
+      .gte('event_date', todayStr)
+      .order('event_date', { ascending:true });
+    if(error || !data){ return; }
+    sel.innerHTML = '<option value="">選択してください</option>' +
+      data.map(ev => `<option value="${ev.id}">第${ev.event_number??'?'}回 ${ev.troupe||''}組 ${ev.event_date}</option>`).join('');
+    sel.dataset.map = JSON.stringify(data);
+  }
+
+  document.getElementById('eventSelect').addEventListener('change', async (e)=>{
+    const id = e.target.value;
+    if(!id){ selectedEvent = null; return; }
+    const list = JSON.parse(e.target.dataset.map || '[]');
+    selectedEvent = list.find(ev => ev.id === id) || { id };
+
+    const { data: settings } = await sb.from('meal_settings').select('namecard_background_url').eq('event_id', id).maybeSingle();
+    bgUrl = settings?.namecard_background_url || null;
+    const preview = document.getElementById('bgPreview');
+    preview.innerHTML = bgUrl ? `<img src="${bgUrl}" alt="">` : '背景画像プレビュー';
+  });
+
+  document.getElementById('bgInput').addEventListener('change', (e)=>{
+    const f = e.target.files[0];
+    if(f){ document.getElementById('bgPreview').innerHTML = `<img src="${URL.createObjectURL(f)}" alt="">`; }
+  });
+
+  document.getElementById('saveBgBtn').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('bgStatus');
+    statusEl.className = 'status'; statusEl.textContent = '';
+    if(!selectedEvent){ statusEl.classList.add('err'); statusEl.textContent = '先に公演を選んでください。'; return; }
+    const file = document.getElementById('bgInput').files[0];
+    try{
+      if(file){
+        const ext = file.name.split('.').pop();
+        const path = `namecard-bg-${selectedEvent.id}-${Date.now()}.${ext}`;
+        const { error: upErr } = await sb.storage.from('public photo').upload(path, file, { upsert:true });
+        if(upErr) throw upErr;
+        const { data } = sb.storage.from('public photo').getPublicUrl(path);
+        bgUrl = data.publicUrl;
+      }
+      await sb.from('meal_settings').update({ namecard_background_url: bgUrl }).eq('event_id', selectedEvent.id);
+      statusEl.classList.add('ok');
+      statusEl.textContent = '背景を保存しました。';
+      renderPreview();
+    }catch(err){
+      console.error(err);
+      statusEl.classList.add('err');
+      statusEl.textContent = '保存に失敗しました:' + (err.message || err);
+    }
+  });
+
+  document.getElementById('loadBtn').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('loadStatus');
+    statusEl.className = 'status'; statusEl.textContent = '';
+    if(!selectedEvent){ statusEl.classList.add('err'); statusEl.textContent = '先に公演を選んでください。'; return; }
+
+    try{
+      const { data: orderRows, error } = await sb.from('meal_orders').select('*').eq('event_id', selectedEvent.id);
+      if(error) throw error;
+      const ids = (orderRows||[]).map(o=>o.id);
+      const { data: itemRows, error: itemErr } = await sb
+        .from('meal_order_items').select('*')
+        .in('meal_order_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+      if(itemErr) throw itemErr;
+
+      const header = `第${selectedEvent.event_number??'?'}回 ${selectedEvent.troupe||''}組観劇会`;
+
+      cards = [];
+      (orderRows||[]).forEach(o=>{
+        const items = (itemRows||[]).filter(i=>i.meal_order_id===o.id).sort((a,b)=>a.person_no-b.person_no);
+        const i1 = items.find(i=>i.person_no===1);
+        const i2 = items.find(i=>i.person_no===2);
+        if(i1 && i1.menu_name){
+          cards.push({
+            header,
+            name: `${o.representative_name}様`,
+            menu: i1.menu_name,
+            drink: i1.drink || '',
+            isCompanion:false
+          });
+        }
+        if(o.party_count >= 2 && i2 && i2.menu_name){
+          cards.push({
+            header,
+            name: `${o.representative_name}様`,
+            relationLine: o.relation ? `${o.relation}様` : 'ご同伴者様',
+            menu: i2.menu_name,
+            drink: i2.drink || '',
+            isCompanion:true
+          });
+        }
+      });
+
+      renderPreview();
+      document.getElementById('cardsSection').style.display = cards.length ? 'block' : 'none';
+      statusEl.classList.add('ok');
+      statusEl.textContent = `${cards.length}枚のカードを作成しました。`;
+    }catch(err){
+      console.error(err);
+      statusEl.classList.add('err');
+      statusEl.textContent = '読み込みに失敗しました:' + (err.message || err);
+    }
+  });
+
+  function cardHtml(c, cls){
+    return `
+      <div class="${cls}" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}">
+        <div class="nc-header">${c.header}</div>
+        <div class="nc-name nc-editable" contenteditable="true">${c.name}</div>
+        ${c.isCompanion ? `<div class="nc-name nc-editable" contenteditable="true" style="font-size:inherit;margin-top:-2px;">${c.relationLine}</div>` : ''}
+        <div class="nc-menu nc-editable" contenteditable="true">${c.menu}</div>
+        <div class="nc-drink nc-editable" contenteditable="true">${c.drink}</div>
+      </div>
+    `;
+  }
+
+  function renderPreview(){
+    document.getElementById('cardCount').textContent = `合計 ${cards.length}枚（A4 1枚あたり10枚印刷されます・${Math.ceil(cards.length/10)}ページ分）`;
+    document.getElementById('previewGrid').innerHTML = cards.map(c => cardHtml(c, 'namecard')).join('');
+  }
+
+  document.getElementById('printBtn').addEventListener('click', ()=>{
+    const previewCards = document.querySelectorAll('#previewGrid .namecard');
+    document.getElementById('printGrid').innerHTML = Array.from(previewCards).map(el=>{
+      return `<div class="pnamecard" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}">${el.innerHTML}</div>`;
+    }).join('');
+    setTimeout(()=> window.print(), 50);
+  });
+
+  async function init(){
+    await waitForLib(10000);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      document.getElementById('authGate').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'inline-block';
+      await loadEventOptions();
+    } else {
+      document.getElementById('authGate').style.display = 'flex';
+    }
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errEl.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'ログインしています…';
+    try{
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      document.getElementById('authGate').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'inline-block';
+      await loadEventOptions();
+    }catch(err){
+      errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'ログイン';
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+    await sb.auth.signOut();
+    location.reload();
+  });
+
+  init();
+</script>
+</body>
+</html>
