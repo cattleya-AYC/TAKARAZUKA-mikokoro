@@ -167,6 +167,35 @@
     `;
   }
 
+  // 代理店確定データのみ（まだ正式な観劇会登録はされていない、先の予定）
+  function agencyPreviewHtml(row, label){
+    const eventDate = new Date(row.event_date + 'T00:00:00');
+    const start = addDays(eventDate, -59);
+    const deadline = addDays(eventDate, -51);
+
+    return `
+      <div class="event-block">
+        <div class="event-block-title">${label}<span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:8px;">(代理店確定・仮)</span></div>
+        <div class="panel">
+          <div class="panel-title">基本情報(代理店確定データ)</div>
+          <div class="info-row"><span>組</span><b>${row.troupe || '◯'}組</b></div>
+          <div class="info-row"><span>開催日</span><b>${formatDateJp(row.event_date)}</b></div>
+          <div class="info-row"><span>公演時間</span><b>${row.show_time || '―'}公演</b></div>
+          <div class="info-row"><span>会場</span><b>宝塚大劇場</b></div>
+          <div class="info-row"><span>席種</span><b>${row.seat_type || '―'}</b></div>
+          <div class="info-row"><span>代理店確定枚数</span><b>${row.confirmed_count ?? '―'}枚</b></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">おおまかな予定(目安)</div>
+          <div class="schedule-row"><span>募集開始(目安)</span><b>${formatDateJp(start.toISOString().slice(0,10))}</b></div>
+          <div class="schedule-row"><span>観劇会申込締切(目安)</span><b>${formatDateJp(deadline.toISOString().slice(0,10))}</b></div>
+          <div class="schedule-row highlight"><span>開催日</span><b>${formatDateJp(row.event_date)}</b></div>
+        </div>
+        <div class="schedule-note">※まだ観劇会として正式登録されていません。代理店の確定データのみをもとにした仮の予定です。詳細は決まり次第あらためてご案内します。</div>
+      </div>
+    `;
+  }
+
   async function init(){
     const content = document.getElementById('content');
     try{
@@ -182,15 +211,33 @@
       if(error) throw error;
 
       const events = data || [];
-      if(events.length === 0){
+
+      const { data: agencyData } = await sb
+        .from('agency_confirmations')
+        .select('*')
+        .gte('event_date', todayStr)
+        .order('event_date', { ascending: true });
+
+      const eventDates = new Set(events.map(ev => ev.event_date));
+      const agencyOnly = (agencyData || []).filter(row => !eventDates.has(row.event_date));
+
+      if(events.length === 0 && agencyOnly.length === 0){
         content.innerHTML = '<div class="empty-msg">今後開催予定の観劇会はまだ登録されていません。</div>';
         return;
       }
 
-      content.innerHTML = events.map((ev, i)=>{
+      let html = events.map((ev, i)=>{
         const label = i === 0 ? '直近の観劇会' : (i === 1 ? '次の観劇会' : `${i+1}番目の観劇会`);
         return eventBlockHtml(ev, label);
       }).join('');
+
+      html += agencyOnly.map((row, i)=>{
+        const overallIndex = events.length + i;
+        const label = overallIndex === 0 ? '直近の観劇会' : (overallIndex === 1 ? '次の観劇会' : `${overallIndex+1}番目の観劇会`);
+        return agencyPreviewHtml(row, label);
+      }).join('');
+
+      content.innerHTML = html;
     }catch(e){
       console.error(e);
       content.innerHTML = '<div class="empty-msg">データを取得できませんでした。</div>';

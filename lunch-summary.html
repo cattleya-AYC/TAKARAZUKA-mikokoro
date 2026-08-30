@@ -116,56 +116,9 @@
 
     .table-wrap{ overflow:visible; }
   }
-
-  #authGate{
-    position:fixed; inset:0; z-index:9999;
-    background:var(--navy-deep);
-    display:flex; align-items:center; justify-content:center; padding:20px;
-  }
-  #authGate .box{
-    max-width:340px; width:100%;
-    background:var(--navy-card); border:1px solid var(--gold);
-    border-radius:14px; padding:28px 24px;
-  }
-  #authGate .title{
-    text-align:center; margin-bottom:18px;
-    font-family:'Shippori Mincho',serif; font-size:13px; letter-spacing:.16em;
-    color:var(--gold-soft); font-weight:700;
-  }
-  #authGate label{ display:block; margin-bottom:14px; }
-  #authGate .lbl{ font-size:13px; color:var(--gold-soft); font-weight:700; display:block; margin-bottom:6px; }
-  #authGate input{
-    width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:8px;
-    background:var(--navy-card-2); color:var(--cream); font-size:15px; font-family:inherit;
-  }
-  #authGate button{
-    width:100%; padding:13px; border:1px solid var(--gold-soft); border-radius:8px;
-    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
-    color:#fffaf3; font-weight:700; font-size:15px; cursor:pointer;
-    font-family:'Shippori Mincho','Noto Sans JP',sans-serif;
-  }
-  #authGate .err{ text-align:center; font-size:12.5px; color:var(--rose); margin-top:12px; display:none; }
 </style>
 </head>
 <body>
-
-<div id="authGate">
-  <form class="box" id="loginForm">
-    <div class="title">管理者ログイン</div>
-    <label>
-      <span class="lbl">メールアドレス</span>
-      <input type="email" id="loginEmail" required autocomplete="username">
-    </label>
-    <label>
-      <span class="lbl">パスワード</span>
-      <input type="password" id="loginPassword" required autocomplete="current-password">
-    </label>
-    <button type="submit" id="loginBtn">ログイン</button>
-    <p class="err" id="loginError"></p>
-  </form>
-</div>
-
-<button id="logoutBtn" type="button" style="position:fixed;top:10px;right:10px;z-index:1000;padding:6px 12px;border:1px solid var(--gold-soft, #6d5aa3);border-radius:20px;background:var(--navy-card, #fffdf9);color:var(--gold-soft, #6d5aa3);font-size:11px;font-weight:700;cursor:pointer;display:none;">ログアウト</button>
 
 <div class="hero">
   <div class="eyebrow">管理者用</div>
@@ -216,6 +169,17 @@
       </div>
       <div class="empty-note" id="emptyNote" style="display:none">お食事参加希望の申込者がいません。</div>
       <div class="small">※「観劇会申込フォーム」でお食事「出席」を選んだ方だけを自動的に対象にしています。1人参加は本人分、2人参加は本人分・同伴者分の両方が登録されて初めて「入力済み」となります。</div>
+    </section>
+
+    <section class="section" id="invalidSection" style="display:none;border-color:#df9c9c;background:var(--warn-bg);">
+      <h2 style="color:var(--warn-text)">⚠ 観劇会申込のない無効な食事申込</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>お名前</th><th>1人目 食事／飲み物</th><th>2人目 食事／飲み物</th></tr></thead>
+          <tbody id="invalidBody"></tbody>
+        </table>
+      </div>
+      <div class="small">※観劇会申込データに見つからない名前です。観劇会に申込がない(または名前の表記が違う)可能性があるので、ご本人に確認のうえ「無効」とご連絡ください。</div>
     </section>
 
     <section class="section">
@@ -320,38 +284,8 @@
   async function init(){
     await waitForLib(10000);
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    const { data: { session } } = await sb.auth.getSession();
-    if(session){
-      document.getElementById('authGate').style.display = 'none';
-      document.getElementById('logoutBtn').style.display = 'inline-block';
-      await startApp();
-    } else {
-      document.getElementById('authGate').style.display = 'flex';
-    }
+    await startApp();
   }
-
-  document.getElementById('loginForm').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const errEl = document.getElementById('loginError');
-    const btn = document.getElementById('loginBtn');
-    errEl.style.display = 'none';
-    btn.disabled = true; btn.textContent = 'ログインしています…';
-    try{
-      const email = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if(error) throw error;
-      document.getElementById('authGate').style.display = 'none';
-      document.getElementById('logoutBtn').style.display = 'inline-block';
-      await startApp();
-    }catch(err){
-      errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
-      errEl.style.display = 'block';
-    }finally{
-      btn.disabled = false; btn.textContent = 'ログイン';
-    }
-  });
 
   // 観劇会申込データ（registrations + participants）から、お食事「出席」の人だけを自動取得
   async function loadRegistrants(eventId){
@@ -460,6 +394,28 @@
     const statuses = registrants.map(r=>rowStatus(r,state));
     const unfilled = statuses.filter(s=>s==='warn'||s==='overdue');
     const overdueCount = statuses.filter(s=>s==='overdue').length;
+
+    // 観劇会申込データに存在しない(無効な)食事申込を検出
+    const invalidOrders = orders.filter(o =>
+      !registrants.some(r => normalizeName(r.name) === normalizeName(o.representative_name))
+    );
+    const invalidSection = document.getElementById('invalidSection');
+    const invalidBody = document.getElementById('invalidBody');
+    if(invalidOrders.length){
+      invalidSection.style.display = 'block';
+      invalidBody.innerHTML = invalidOrders.map(o=>{
+        const i1 = o.items?.[0], i2 = o.items?.[1];
+        return `<tr>
+          <td>${o.representative_name}</td>
+          <td>${i1 ? `${i1.menu_name||'―'} / ${i1.drink||'―'}` : '―'}</td>
+          <td>${i2 ? `${i2.menu_name||'―'} / ${i2.drink||'―'}` : '―'}</td>
+        </tr>`;
+      }).join('');
+    } else {
+      invalidSection.style.display = 'none';
+      invalidBody.innerHTML = '';
+    }
+
     const banner = document.getElementById('alertBanner');
     if(state.warningActive && unfilled.length>0){
       banner.classList.add('show');
@@ -529,11 +485,6 @@
 
   init();
   window.addEventListener('pageshow', (e)=>{ if(e.persisted) init(); });
-
-  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-    await sb.auth.signOut();
-    location.reload();
-  });
 </script>
 </body>
 </html>
