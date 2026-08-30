@@ -60,7 +60,20 @@
   .section{ border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; background:var(--navy-card); }
   .section h2{ margin:0 0 12px; font-size:16px; color:var(--gold-soft); font-family:'Shippori Mincho', serif; }
   table{ width:100%; border-collapse:collapse; font-size:13.5px; }
-  th,td{ border-bottom:1px solid var(--line); padding:10px 8px; text-align:left; }
+  th,td{ border-bottom:1px solid var(--line); padding:10px 8px; text-align:left; white-space:nowrap; }
+  #statusSection table{ min-width:760px; }
+
+  .status-card{
+    background:var(--navy-card); border:1px solid var(--line); border-radius:10px;
+    padding:14px 16px; margin-bottom:10px;
+  }
+  .status-card.warn{ border-color:var(--warn-text); background:var(--warn-bg); }
+  .status-card.overdue{ border-color:var(--warn-text-strong); background:var(--warn-bg-strong); }
+  .status-card-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+  .status-card-name{ font-size:20px; font-weight:700; line-height:1.3; }
+  .status-card-meta{ font-size:12px; color:var(--muted); margin-top:3px; }
+  .status-card-items{ font-size:13.5px; margin-top:9px; line-height:1.8; }
+  .status-card-items .lab{ color:var(--muted); font-size:11.5px; margin-right:6px; }
   th{ background:var(--navy-card-2); color:var(--gold-soft); font-weight:700; }
   .num{ text-align:right; }
   .badge{ display:inline-block; padding:3px 9px; border-radius:999px; background:var(--navy-card-2); color:var(--gold-soft); font-size:11.5px; }
@@ -87,23 +100,25 @@
     @page{ size: A4 landscape; margin: 8mm; }
     html, body{ background:#fff !important; color:#000 !important; padding:0; }
     .hero{ padding:0 0 8px; }
-    .eyebrow{ color:#000 !important; }
+    .eyebrow{ display:none !important; }
     h1{ font-size:16px; margin:0; }
     .wrap{ max-width:none; padding:0; }
 
     /* 操作系のUI・不要なセクションは印刷しない */
     .actions, .search, #filterBtn, .cancel-btn, .toggle-btn{ display:none !important; }
     .alert-banner{ display:none !important; }
+    .event-picker{ display:none !important; }
     #invalidSection{ display:none !important; }
     .info{ display:none !important; }
     #statusSection{ display:none !important; }
 
-    /* 印刷専用の1行サマリー・一覧を表示 */
+    /* 印刷専用の見出し・一覧を表示 */
     #printOnly{ display:block !important; margin-bottom:10px; }
-    #printSummaryLine{ font-size:12px; margin-bottom:8px; }
-    #printSummaryLine span{ margin-right:22px; }
+    #printTitleLine{ font-size:22px; font-weight:700; margin-bottom:6px; }
+    #printTotalLine{ font-size:17px; font-weight:700; margin-bottom:10px; }
     #printTable{ width:100%; border-collapse:collapse; margin-bottom:10px; }
-    #printTable th, #printTable td{ border-bottom:1px solid #ccc; padding:4px 6px; font-size:10px; text-align:left; }
+    #printTable th, #printTable td{ border-bottom:1px solid #ccc; padding:5px 10px; font-size:10.5px; text-align:left; }
+    #printTable td.print-food{ padding-right:26px; }
     #printTable th{ background:#fff !important; color:#000 !important; border-bottom:1px solid #000; }
     .print-companion{ padding-left:18px !important; color:#333 !important; font-size:9.5px !important; }
 
@@ -196,21 +211,17 @@
     </section>
 
     <div id="printOnly" style="display:none;">
-      <div id="printSummaryLine"></div>
+      <div id="printTitleLine"></div>
+      <div id="printTotalLine"></div>
       <table id="printTable">
-        <thead><tr><th>お名前</th><th>お食事／お飲み物</th></tr></thead>
+        <thead><tr><th>お名前</th><th>お食事</th><th>お飲み物</th></tr></thead>
         <tbody id="printTableBody"></tbody>
       </table>
     </div>
 
     <section class="section" id="statusSection">
       <h2>申込者別 食事入力状況（観劇会申込データと自動照合）</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>代表者名</th><th>参加人数</th><th>同伴者関係</th><th>1人目 食事／飲み物</th><th>2人目 食事／飲み物</th><th>状況</th><th></th></tr></thead>
-          <tbody id="statusBody"></tbody>
-        </table>
-      </div>
+      <div id="statusCards"></div>
       <div class="empty-note" id="emptyNote" style="display:none">お食事参加希望の申込者がいません。</div>
       <div class="small">※「観劇会申込フォーム」でお食事「出席」を選んだ方だけを自動的に対象にしています。1人参加は本人分、2人参加は本人分・同伴者分の両方が登録されて初めて「入力済み」となります。</div>
     </section>
@@ -382,7 +393,7 @@
     if(q) list = list.filter(x=>x.r.name.toLowerCase().includes(q));
     if(filterUnfilledOnly) list = list.filter(x=>x.status==='warn'||x.status==='overdue');
 
-    const body = document.getElementById('statusBody');
+    const body = document.getElementById('statusCards');
     body.innerHTML = '';
     document.getElementById('emptyNote').style.display = list.length ? 'none' : 'block';
     const pillMap = { ok:['status-pill ok','入力済み'], pending:['status-pill pending','受付中'], warn:['status-pill warn','未入力'], overdue:['status-pill overdue','締切超過・未入力'] };
@@ -390,19 +401,22 @@
     list.forEach(({r,status})=>{
       const order = orderByName(r.name);
       const i1 = order?.items?.[0], i2 = order?.items?.[1];
-      const tr = document.createElement('tr');
-      if(status==='warn') tr.className='row-warn';
-      if(status==='overdue') tr.className='row-overdue';
       const [pc, pl] = pillMap[status];
-      tr.innerHTML = `
-        <td>${r.name}</td>
-        <td>${r.party_count}名</td>
-        <td>${order?.relation ? `<span class="badge">${order.relation}</span>` : '―'}</td>
-        <td>${i1 ? `${i1.menu_name||'―'} / ${i1.drink||'―'}` : '未入力'}</td>
-        <td>${r.party_count>=2 ? (i2 ? `${i2.menu_name||'―'} / ${i2.drink||'―'}` : '未入力') : '―'}</td>
-        <td><span class="${pc}">${pl}</span></td>
-        <td>${order ? `<button type="button" class="cancel-btn" data-name="${r.name}">取消</button>` : ''}</td>`;
-      body.appendChild(tr);
+      const card = document.createElement('div');
+      card.className = `status-card ${status==='warn' ? 'warn' : ''} ${status==='overdue' ? 'overdue' : ''}`;
+      card.innerHTML = `
+        <div class="status-card-top">
+          <span class="${pc}">${pl}</span>
+          ${order ? `<button type="button" class="cancel-btn" data-name="${r.name}">取消</button>` : ''}
+        </div>
+        <div class="status-card-name">${r.name}</div>
+        <div class="status-card-meta">${r.party_count}名${order?.relation ? `　<span class="badge">${order.relation}</span>` : ''}</div>
+        <div class="status-card-items">
+          <span class="lab">1人目</span>${i1 ? `${i1.menu_name||'―'} / ${i1.drink||'―'}` : '未入力'}
+          ${r.party_count>=2 ? `<br><span class="lab">2人目</span>${i2 ? `${i2.menu_name||'―'} / ${i2.drink||'―'}` : '未入力'}` : ''}
+        </div>
+      `;
+      body.appendChild(card);
     });
 
     body.querySelectorAll('.cancel-btn').forEach(btn=>{
@@ -505,19 +519,19 @@
     document.getElementById('drinkSummary').innerHTML = Object.entries(drinkMap).map(([n,q])=>
       `<tr><td>${n}</td><td class="num">${q}</td></tr>`).join('');
 
-    // 印刷専用：1行サマリー＋同伴者を代表者の下に記載する一覧
-    document.getElementById('printSummaryLine').innerHTML =
-      `<span>公演:${eventRow ? `第${eventRow.event_number||''}回 ${fmtDate(eventRow.event_date)} ${eventRow.troupe||''}組` : '―'}</span>` +
-      `<span>人数:${totalPeople}名</span>` +
-      `<span>食事代合計:${yen(allItems.reduce((s,i)=>s+(i.price||0),0))}</span>`;
+    // 印刷専用：見出し(第◯回＋日付／合計金額)と、お食事・お飲み物を列で分けた一覧
+    document.getElementById('printTitleLine').textContent =
+      eventRow ? `第${eventRow.event_number||''}回 ${eventRow.troupe||''}組 ${fmtDate(eventRow.event_date)}` : '―';
+    document.getElementById('printTotalLine').textContent =
+      `合計金額：${yen(allItems.reduce((s,i)=>s+(i.price||0),0))}`;
 
     document.getElementById('printTableBody').innerHTML = registrants.map(r=>{
       const order = orderByName(r.name);
       const i1 = order?.items?.[0], i2 = order?.items?.[1];
-      let rows = `<tr><td>${r.name}</td><td>${i1 ? `${i1.menu_name||'―'} / ${i1.drink||'―'}` : '未入力'}</td></tr>`;
+      let rows = `<tr><td>${r.name}</td><td class="print-food">${i1 ? (i1.menu_name||'―') : '未入力'}</td><td>${i1 ? (i1.drink||'―') : ''}</td></tr>`;
       if(r.party_count >= 2){
         const relLabel = order?.relation ? `(${order.relation})` : '';
-        rows += `<tr><td class="print-companion">└ 同伴者${relLabel}</td><td>${i2 ? `${i2.menu_name||'―'} / ${i2.drink||'―'}` : '未入力'}</td></tr>`;
+        rows += `<tr><td class="print-companion">└ 同伴者${relLabel}</td><td class="print-food">${i2 ? (i2.menu_name||'―') : '未入力'}</td><td>${i2 ? (i2.drink||'―') : ''}</td></tr>`;
       }
       return rows;
     }).join('');
