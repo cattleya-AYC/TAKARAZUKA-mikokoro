@@ -269,15 +269,19 @@
     <p class="lbl" style="margin-bottom:10px">LINEコピペ用メッセージ</p>
     <textarea id="lineMessage" readonly></textarea>
     <button type="button" class="copy" id="copyBtn">LINE用メッセージをコピー</button>
-    <button type="button" class="secondary" id="mailBtn" style="margin-top:10px">✉ メールで送信(メールアプリを開く)</button>
+    <button type="button" class="secondary" id="mailBtn" style="margin-top:10px">✉ メールを一斉送信する(自動)</button>
     <p class="status" id="mailStatus"></p>
   </div>
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
 <script>
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
+  const EMAILJS_SERVICE_ID = "service_qpuxvaj";
+  const EMAILJS_MEAL_TEMPLATE_ID = "template_khkmzni";
   const PARTICIPANT_FORM_BASE = "https://takarazuka-mikokoro.vercel.app/lunch-entry.html";
   let sb = null;
 
@@ -291,7 +295,7 @@
     return new Promise((resolve, reject)=>{
       const start = Date.now();
       const check = ()=>{
-        if(window.supabase) resolve();
+        if(window.supabase && window.emailjs) resolve();
         else if(Date.now() - start > timeoutMs) reject(new Error('ライブラリの読み込みに失敗しました。再読み込みしてください。'));
         else setTimeout(check, 150);
       };
@@ -618,7 +622,7 @@ ${time}
     }catch(e){ ta.select(); document.execCommand('copy'); }
   });
 
-  // ---- メールで送信(メールアプリを開く。宛先はBCCで全員に一斉送信) ----
+  // ---- メールを一斉送信(EmailJS経由で1人ずつ自動送信) ----
   document.getElementById('mailBtn').addEventListener('click', async ()=>{
     const statusEl = document.getElementById('mailStatus');
     statusEl.className = 'status'; statusEl.textContent = '';
@@ -635,6 +639,8 @@ ${time}
       return;
     }
 
+    const mailBtn = document.getElementById('mailBtn');
+
     try{
       const { data: regRows, error } = await sb
         .from('registrations')
@@ -642,50 +648,66 @@ ${time}
         .eq('event_id', selectedEvent.id);
       if(error) throw error;
 
-      const emails = [...new Set(
-        (regRows || [])
-          .filter(r => r.answers?.meal === 'ご参加' && r.answers?.email)
-          .map(r => r.answers.email.trim())
-      )];
+      const recipients = [];
+      const seen = new Set();
+      (regRows || []).forEach(r=>{
+        const email = r.answers?.email?.trim();
+        if(r.answers?.meal === 'ご参加' && email && !seen.has(email)){
+          seen.add(email);
+          recipients.push({ email, name: r.answers?.full_name || 'ご参加者' });
+        }
+      });
 
-      if(emails.length === 0){
+      if(recipients.length === 0){
         statusEl.classList.add('err');
         statusEl.textContent = 'お食事「出席」で、メールアドレスが登録されている方が見つかりませんでした。';
         return;
       }
 
+      if(!confirm(`${recipients.length}名に、お食事案内メールを送信します。よろしいですか？`)) return;
+
       const date = fmtDateJp(document.getElementById('eventDateInput').value);
       const troupe = document.getElementById('troupeInput').value || '○○組';
       const deadline = fmtDateJp(document.getElementById('deadlineInput').value);
 
-      const subject = `【小林タカラヅカ倶楽部】${date} ${troupe}公演 お食事メニューのご案内`;
-      const body =
-`お食事会からのご参加ありがとうございます。
+      mailBtn.disabled = true;
+      let successCount = 0;
+      const failedNames = [];
 
-下記フォームより、お食事メニューとお飲み物をお選びのうえ、
-締め切りまでにご入力をお願いいたします。
+      for(let i = 0; i < recipients.length; i++){
+        const r = recipients[i];
+        statusEl.className = 'status';
+        statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
+        try{
+          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_MEAL_TEMPLATE_ID, {
+            email: r.email,
+            to_name: r.name,
+            event_date: date,
+            troupe: troupe,
+            deadline: deadline,
+            form_url: url
+          });
+          successCount++;
+        }catch(sendErr){
+          console.warn('送信失敗:', r.email, sendErr);
+          failedNames.push(r.name);
+        }
+      }
 
-▼ お食事申込フォーム
-${url}
-
-【登録締め切り】
-${deadline}
-
-どうぞよろしくお願いいたします。
-小林タカラヅカ倶楽部`;
-
-      const mailtoUrl =
-        `mailto:?bcc=${encodeURIComponent(emails.join(','))}` +
-        `&subject=${encodeURIComponent(subject)}` +
-        `&body=${encodeURIComponent(body)}`;
-
-      window.location.href = mailtoUrl;
-      statusEl.classList.add('ok');
-      statusEl.textContent = `メールアプリを開きました(宛先:${emails.length}名・BCC)`;
+      statusEl.className = 'status';
+      if(failedNames.length === 0){
+        statusEl.classList.add('ok');
+        statusEl.textContent = `送信完了:${successCount}名に送信しました。`;
+      } else {
+        statusEl.classList.add('err');
+        statusEl.textContent = `送信完了:${successCount}名成功 / ${failedNames.length}名失敗(${failedNames.join('、')})`;
+      }
     }catch(err){
       console.error(err);
       statusEl.classList.add('err');
-      statusEl.textContent = 'メール作成に失敗しました:' + (err.message || err);
+      statusEl.textContent = 'メール送信に失敗しました:' + (err.message || err);
+    }finally{
+      mailBtn.disabled = false;
     }
   });
 
@@ -802,6 +824,7 @@ ${deadline}
   async function init(){
     await waitForLib(10000);
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    try { window.emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
 
     const { data: { session } } = await sb.auth.getSession();
     if(session){
