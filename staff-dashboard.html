@@ -1,0 +1,33 @@
+<!DOCTYPE html><html lang="ja"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>スタッフ用ダッシュボード｜小林タカラヅカ倶楽部</title>
+<meta name="theme-color" content="#f7ebe8">
+<link rel="icon" type="image/png" href="staff-dashboard-icon.png">
+<link rel="apple-touch-icon" href="staff-dashboard-icon.png">
+
+<style>
+:root{--rose:#b96f7c;--rose2:#874d58;--gold:#c9a568;--gold2:#9b783f;--ink:#453438;--muted:#89787b;--line:rgba(201,165,104,.34)}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;background:radial-gradient(circle at 10% 0%,#f3dfe2 0,transparent 34%),linear-gradient(180deg,#fff9f5,#f6e8e5)}
+.page{max-width:760px;margin:auto;padding:14px 10px 30px}
+.hero,.card{background:#fffdf9;border:1px solid var(--line);box-shadow:0 14px 36px rgba(104,70,75,.10)}
+.hero{border-radius:22px;text-align:center;padding:26px 18px 22px}
+.club{font-family:"Yu Mincho",serif;color:var(--gold2);letter-spacing:.12em;font-size:12px}
+h1{font-family:"Yu Mincho",serif;color:var(--rose2);font-size:32px;margin:8px 0 10px;font-weight:600}
+.hero p{font-size:12px;color:var(--muted);line-height:1.8;margin:0}
+.cards{display:grid;gap:13px;margin-top:15px}
+.card{display:grid;grid-template-columns:60px 1fr 20px;gap:12px;align-items:center;text-decoration:none;color:var(--ink);border-radius:18px;padding:15px 13px}
+.icon{width:56px;height:56px;border-radius:17px;display:grid;place-items:center;font-size:27px;background:linear-gradient(145deg,#fff8f4,#f6dfdf);border:1px solid var(--line)}
+.card h2{font-family:"Yu Mincho",serif;color:var(--rose2);font-size:19px;margin:0;line-height:1.4}
+.card p{font-size:12px;color:var(--muted);line-height:1.7;margin:6px 0 0}
+.role{display:inline-block;margin-top:7px;padding:4px 8px;border-radius:999px;background:#fbf2e4;color:var(--gold2);font-size:10px;font-weight:700}
+.arrow{font-size:22px;color:var(--gold2)}
+.footer{text-align:center;color:var(--muted);font-size:11px;line-height:1.8;margin-top:17px}
+</style></head><body><main class="page">
+<section class="hero"><div class="club">小林タカラヅカ倶楽部</div><h1>スタッフ用<br>ダッシュボード</h1><p>観劇会の開催予定・申込状況・食事申込・請求確認を、スマートフォンからまとめて確認できます。</p></section>
+<section class="cards">
+<a class="card" href="https://takarazuka-mikokoro.vercel.app/event-schedule-view.html"><div class="icon">📅</div><div><h2>今後のスケジュール確認</h2><p>今後の観劇会開催予定を確認します。公演日・開演時間・座席種類など、全体の目安を確認できます。</p><span class="role">全スタッフ</span></div><div class="arrow">›</div></a>
+<a class="card" href="https://takarazuka-mikokoro.vercel.app/admin-list-view.html"><div class="icon">👥</div><div><h2>観劇会 申込状況</h2><p>申込人数や参加状況を確認します。定員超過時は、締切後に直近7回の参加状況を見ながら調整できます。</p><span class="role">申込担当・調整担当</span></div><div class="arrow">›</div></a>
+<a class="card" href="https://takarazuka-mikokoro.vercel.app/lunch-summary-view.html"><div class="icon">🍽️</div><div><h2>食事申込状況</h2><p>食事参加者・未入力者・メニュー集計を確認します。締切前の未入力者への連絡や、集計結果の印刷に使用します。</p><span class="role">レストラン担当</span></div><div class="arrow">›</div></a>
+<a class="card" href="https://takarazuka-mikokoro.vercel.app/lunch-billing-view.html"><div class="icon">💴</div><div><h2>請求額確認・一覧</h2><p>チケット代・食事代・合計請求額を一覧で確認します。入金額の確認や個別請求内容のチェックに使用します。</p><span class="role">会計・請求担当</span></div><div class="arrow">›</div></a>
+</section><div class="footer">スタッフ確認用ページです。<br>必要な担当ページを選んでご利用ください。</div>
+</main></body></html>
