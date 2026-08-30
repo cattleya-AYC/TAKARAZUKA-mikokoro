@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>私用ダッシュボード｜小林タカラヅカ倶楽部</title>
+<meta name="theme-color" content="#f8e9e6">
+<link rel="icon" type="image/png" href="dashboard-icon.png">
+<link rel="apple-touch-icon" href="dashboard-icon.png">
+<style>
+:root{
+  --rose:#b86f7b; --rose-deep:#874d58; --gold:#c9a568; --gold-deep:#9b783f;
+  --ink:#463438; --muted:#88777a; --line:rgba(201,165,104,.34);
+  --shadow:0 14px 34px rgba(104,70,75,.10);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(246,218,221,.88),transparent 34%),
+    radial-gradient(circle at 90% 4%,rgba(255,237,220,.72),transparent 34%),
+    linear-gradient(180deg,#fff9f5,#f6e8e5);
+}
+.page{max-width:760px;margin:0 auto;padding:14px 10px 34px}
+.hero{
+  background:rgba(255,253,249,.96); border:1px solid var(--line); border-radius:24px;
+  box-shadow:var(--shadow); padding:28px 18px 24px; text-align:center;
+}
+.club{font-family:"Yu Mincho",serif;color:var(--gold-deep);font-size:12px;letter-spacing:.13em}
+h1{
+  margin:8px 0 10px; font-family:"Yu Mincho",serif; color:var(--rose-deep);
+  font-size:clamp(31px,8vw,43px); line-height:1.35; font-weight:600;
+}
+.hero p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.85}
+.flow-title{
+  margin:22px 6px 12px; font-family:"Yu Mincho",serif; color:var(--rose-deep);
+  font-size:18px; font-weight:600; display:flex; align-items:center; gap:10px;
+}
+.flow-title:before{content:"";width:28px;height:1px;background:var(--gold)}
+.steps{display:grid;gap:13px}
+.step{
+  display:grid;grid-template-columns:52px 1fr 22px;gap:12px;align-items:center;
+  text-decoration:none;color:var(--ink);background:rgba(255,253,249,.97);
+  border:1px solid var(--line);border-radius:18px;padding:16px 13px;box-shadow:var(--shadow);
+}
+.num{
+  width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+  background:linear-gradient(145deg,#fff8f4,#f5dddd);border:1px solid var(--line);
+  color:var(--rose-deep);font-family:"Yu Mincho",serif;font-size:20px;font-weight:700;
+}
+.step h2{margin:0;font-family:"Yu Mincho",serif;color:var(--rose-deep);font-size:18px;line-height:1.45;font-weight:600}
+.step p{margin:6px 0 0;color:var(--muted);font-size:12.2px;line-height:1.75}
+.tip{
+  display:inline-block;margin-top:8px;padding:4px 8px;border-radius:999px;background:#fbf2e4;
+  border:1px solid rgba(201,165,104,.28);color:var(--gold-deep);font-size:10.5px;font-weight:700;
+}
+.arrow{color:var(--gold-deep);font-size:22px;text-align:center}
+.secondary{
+  margin:2px 18px 0 58px;padding:12px 13px;border:1px dashed rgba(184,111,123,.40);
+  border-radius:14px;background:rgba(255,248,244,.78);text-decoration:none;color:var(--ink);display:block;
+}
+.secondary strong{color:var(--rose-deep);font-size:12.5px}
+.secondary p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.7}
+.separator{text-align:center;color:var(--gold);margin:4px 0;font-size:14px;letter-spacing:.22em}
+.other-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.other{
+  display:grid;grid-template-columns:46px 1fr 20px;gap:10px;align-items:center;
+  background:rgba(255,253,249,.92);border:1px solid var(--line);border-radius:16px;
+  padding:13px 12px;text-decoration:none;color:var(--ink);
+}
+.other .icon{
+  width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-size:21px;
+  background:#fff7f2;border:1px solid var(--line);
+}
+.other h3{margin:0;color:var(--rose-deep);font-family:"Yu Mincho",serif;font-size:15px}
+.other p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
+.footer{text-align:center;margin-top:20px;color:var(--muted);font-size:11px;line-height:1.8}
+.highlight-step{
+  border-color:rgba(184,111,123,.55) !important;
+  background:linear-gradient(180deg,#fff8f4,#fdeeee) !important;
+}
+@media(max-width:430px){
+  .page{padding:10px 8px 26px}
+  .hero{padding:24px 14px 21px;border-radius:20px}
+  .step{grid-template-columns:46px 1fr 18px;gap:10px;padding:14px 11px}
+  .num{width:42px;height:42px;font-size:18px}
+  .step h2{font-size:17px}.step p{font-size:11.8px}
+  .secondary{margin-left:50px;margin-right:8px}
+}
+</style>
+</head>
+<body>
+<main class="page">
+<section class="hero">
+  <div class="club">小林タカラヅカ倶楽部</div>
+  <h1>私用<br>ダッシュボード</h1>
+  <p>観劇会の準備から募集、人数調整、食事手配、請求までを作業順に並べています。各項目をタップすると、その作業ページへ直接移動します。</p>
+</section>
+
+<section class="steps" style="margin-top:14px">
+<a class="step highlight-step" href="https://takarazuka-mikokoro.vercel.app/task-tracker.html">
+  <div class="num">✓</div><div><h2>やることリスト</h2>
+  <p>複数の公演の「やること」を、期限が近い順にまとめて確認できます。終わったらチェックを入れられます。</p>
+  <span class="tip">全公演まとめて確認</span></div><div class="arrow">›</div>
+</a>
+</section>
+
+<div class="flow-title">観劇会の準備・募集</div>
+<section class="steps">
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/admin-event-detail.html">
+  <div class="num">1</div><div><h2>全日程確認</h2>
+  <p>登録済みの観劇会を一覧で確認します。開催日・組・公演時間・募集期間など、今後の予定全体を最初に確認します。</p>
+  <span class="tip">最初に確認</span></div><div class="arrow">›</div>
+</a>
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/admin-new-event.html">
+  <div class="num">2</div><div><h2>募集フォーム作成</h2>
+  <p>公演画像を用意し、開催日・公演時間・座席種類・募集期間など必要事項を入力して「作成」ボタンを押します。</p>
+  <span class="tip">画像を用意 → 作成</span></div><div class="arrow">›</div>
+</a>
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/admin-event-detail.html">
+  <div class="num">3</div><div><h2>募集開始LINE案内を予約</h2>
+  <p>画面最下部に生成されたLINE文をコピーし、公式LINEで募集開始日時に合わせて告知メッセージの配信予約を入れます。</p>
+  <span class="tip">LINE文コピー → 公式LINEで予約</span></div><div class="arrow">›</div>
+</a>
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/admin-list.html">
+  <div class="num">4</div><div><h2>申込状況を確認</h2>
+  <p>申込人数・申込者情報を確認します。定員超過時は、締切後に直近7回の参加状況も確認しながら人数調整を行います。</p>
+  <span class="tip">締切後の人数調整にも使用</span></div><div class="arrow">›</div>
+</a>
+<div class="step">
+  <div class="num">5</div><div><h2>締切後に人数調整・決定</h2>
+  <p>募集締切後、申込人数と直近の参加状況を確認して参加者を決定します。決定後は、申込結果をそれぞれの方へ個別LINEで送信します。</p>
+  <span class="tip">決定後 → 個別LINE送信</span></div><div class="arrow">✓</div>
+</div>
+<a class="secondary" href="https://takarazuka-mikokoro.vercel.app/admin-new-event.html">
+  <strong>（二次募集）人数に達していない場合</strong>
+  <p>該当公演を選び、締切日を延長して再募集します。修正後、必要に応じて募集案内を再度LINEで配信します。</p>
+</a>
+</section>
+
+<div class="separator">◆ ◇ ◆</div>
+<div class="flow-title">食事の準備</div>
+<section class="steps">
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/lunch-admin.html">
+  <div class="num">6</div><div><h2>食事申込フォーム作成</h2>
+  <p>対象公演を選び、食事メニューなどを設定してフォームを作成します。ページ下に生成された「食事メニュー選択フォーム入力のお願い」のLINE文をコピーし、公式LINEから送ります。</p>
+  <span class="tip">フォーム作成 → LINE案内送信</span></div><div class="arrow">›</div>
+</a>
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/lunch-summary.html">
+  <div class="num">7</div><div><h2>食事集計をチェック</h2>
+  <p>食事参加者・メニュー・飲み物・未入力者を確認します。締切前には未入力者へ連絡し、締切後はレストランへ渡す集計結果を確認・印刷します。</p>
+  <span class="tip">未入力確認・集計・印刷</span></div><div class="arrow">›</div>
+</a>
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/lunch-namecard.html">
+  <div class="num">8</div><div><h2>名刺(席札)印刷</h2>
+  <p>対象公演を選び、食事申込者から本人・同伴者分の名刺を自動生成します。内容を確認・修正してからA4で印刷します。</p>
+  <span class="tip">当日直前に印刷</span></div><div class="arrow">›</div>
+</a>
+</section>
+
+<div class="separator">◆ ◇ ◆</div>
+<div class="flow-title">請求</div>
+<section class="steps">
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/lunch-billing.html">
+  <div class="num">9</div><div><h2>個別請求書をLINEで送る</h2>
+  <p>参加者ごとのチケット代・食事代・合計請求額を確認します。「LINE文をコピー」から請求内容をコピーし、個別LINEで送信します。振込後は入金額と内容も確認します。</p>
+  <span class="tip">請求確認 → LINE送信 → 入金確認</span></div><div class="arrow">›</div>
+</a>
+</section>
+
+<div class="separator">◆ ◇ ◆</div>
+<div class="flow-title">その他の管理ページ</div>
+<section class="other-grid">
+<a class="other" href="https://takarazuka-mikokoro.vercel.app/entry-form.html">
+  <div class="icon">📝</div><div><h3>申込フォーム表示</h3><p>実際に会員が見る申込フォームを確認したい時に使用します。</p></div><div class="arrow">›</div>
+</a>
+<a class="other" href="https://takarazuka-mikokoro.vercel.app/entry-form.html?preview=thankyou">
+  <div class="icon">📩</div><div><h3>締切後画面プレビュー</h3><p>募集締切後に会員へ表示される画面を事前確認します。</p></div><div class="arrow">›</div>
+</a>
+<a class="other" href="https://takarazuka-mikokoro.vercel.app/admin-agency.html">
+  <div class="icon">💼</div><div><h3>旅行代理店</h3><p>旅行代理店への申込・確定内容などを確認する管理ページです。</p></div><div class="arrow">›</div>
+</a>
+</section>
+
+<div class="footer">上から順番に進めれば、観劇会運営の一連の作業を確認できます。</div>
+</main>
+</body>
+</html>
