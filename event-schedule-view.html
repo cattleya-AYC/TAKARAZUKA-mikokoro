@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>観劇会 詳細・スケジュール(閲覧用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
+      var(--navy-deep);
+    color:var(--cream);
+    font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; letter-spacing:.03em; }
+  .divider{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    max-width:160px; margin:12px auto 0; opacity:.85;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px;
+    background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .divider .gem{
+    width:6px; height:6px; background:var(--gold); transform:rotate(45deg);
+    border:1px solid var(--gold-soft); flex-shrink:0;
+  }
+
+  .toolbar{ max-width:640px; margin:14px auto 0; padding:0 16px; display:flex; justify-content:flex-end; }
+  .print-btn{
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    border:1px solid var(--gold-soft); color:#fffaf3;
+    border-radius:8px; padding:11px 16px; font-size:13px; cursor:pointer; font-weight:700; font-family:inherit;
+  }
+
+  .content{ max-width:640px; margin:18px auto 0; padding:0 16px; }
+  .event-block{ margin-bottom:30px; }
+  .event-block-title{
+    font-family:'Shippori Mincho', serif; font-size:16px; color:var(--rose); font-weight:700;
+    margin:0 0 10px; padding-left:2px;
+  }
+  .panel{
+    background:var(--navy-card); border:1px solid var(--gold); border-radius:12px;
+    padding:20px 20px; margin-bottom:12px;
+  }
+  .panel-title{
+    font-family:'Shippori Mincho', serif; font-size:15px; color:var(--gold-soft); font-weight:700;
+    margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid var(--line);
+  }
+  .info-row{
+    display:flex; justify-content:space-between; gap:10px; padding:7px 0; font-size:13px;
+    border-bottom:1px dashed var(--line);
+  }
+  .info-row:last-child{ border-bottom:none; }
+  .info-row span{ color:var(--muted); }
+  .info-row b{ color:var(--cream); font-weight:700; text-align:right; }
+
+  .schedule-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:9px 4px; border-bottom:1px dashed var(--line); font-size:13px;
+  }
+  .schedule-row:last-child{ border-bottom:none; }
+  .schedule-row b{ color:var(--gold-soft); font-weight:700; white-space:nowrap; }
+  .schedule-row.highlight{ background:rgba(165,84,74,0.08); border-radius:6px; padding:9px 8px; }
+  .schedule-row.highlight b{ color:var(--rose); }
+  .schedule-note{ font-size:11px; color:var(--muted); margin:6px 2px 0; }
+
+  .empty-msg{ text-align:center; color:var(--muted); padding:50px 20px; font-size:13.5px; }
+
+  @media print{
+    body{ background:#fff !important; color:#000 !important; }
+    .toolbar{ display:none !important; }
+    .panel{ border-color:#999; break-inside:avoid; }
+    .panel-title{ color:#000 !important; border-color:#ccc; }
+    .info-row span, .info-row b, .schedule-row, .schedule-row b{ color:#000 !important; }
+    .schedule-row.highlight{ background:#f2f2f2 !important; }
+    .event-block-title{ color:#000 !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">スタッフ閲覧用(編集不可)</div>
+  <h1>観劇会 詳細・運営スケジュール</h1>
+  <div class="divider"><span class="gem"></span></div>
+</div>
+
+<div class="toolbar">
+  <button class="print-btn" id="printBtn">🖨 印刷</button>
+</div>
+
+<div class="content" id="content"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  function addDays(base, diff){ const d = new Date(base.getTime()); d.setDate(d.getDate()+diff); return d; }
+  function formatDateJp(dateStr){
+    if(!dateStr) return '―';
+    const d = new Date(dateStr + (dateStr.length <= 10 ? 'T00:00:00' : ''));
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${w})`;
+  }
+
+  function eventBlockHtml(ev, label){
+    const eventDate = new Date(ev.event_date + 'T00:00:00');
+    const start = ev.recruitment_start_date ? new Date(ev.recruitment_start_date) : addDays(eventDate, -59);
+    const deadline = ev.application_deadline ? new Date(ev.application_deadline) : addDays(eventDate, -51);
+    const mealStart = addDays(eventDate, -49);
+    const mealDeadline = addDays(eventDate, -42);
+    const payStart = addDays(eventDate, -40);
+    const payDeadline = addDays(eventDate, -30);
+    const namecard = addDays(eventDate, -3);
+
+    return `
+      <div class="event-block">
+        <div class="event-block-title">${label}</div>
+        <div class="panel">
+          <div class="panel-title">基本情報</div>
+          <div class="info-row"><span>公演名</span><b>第${ev.event_number ?? '◯'}回 ${ev.troupe ?? '◯'}組観劇会</b></div>
+          <div class="info-row"><span>開催日</span><b>${formatDateJp(ev.event_date)}</b></div>
+          <div class="info-row"><span>公演時間</span><b>${ev.show_time || '―'}公演</b></div>
+          <div class="info-row"><span>会場</span><b>宝塚大劇場</b></div>
+          <div class="info-row"><span>席種</span><b>${ev.seat_type || '―'}</b></div>
+          <div class="info-row"><span>料金(お一人様)</span><b>${(ev.base_price||0).toLocaleString('ja-JP')}円</b></div>
+          <div class="info-row"><span>定員</span><b>${ev.capacity ?? '―'}人</b></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">運営スケジュール(目安)</div>
+          <div class="schedule-row"><span>募集開始</span><b>${formatDateJp(start.toISOString().slice(0,10))}</b></div>
+          <div class="schedule-row"><span>観劇会申込締切(参加者決定)</span><b>${formatDateJp(deadline.toISOString().slice(0,10))}</b></div>
+          <div class="schedule-row"><span>食事フォーム入力開始</span><b>${formatDateJp(mealStart.toISOString().slice(0,10))}</b></div>
+          <div class="schedule-row"><span>食事メニュー申込締切</span><b>${formatDateJp(mealDeadline.toISOString().slice(0,10))}</b></div>
+          <div class="schedule-row"><span>振込案内開始</span><b>${formatDateJp(payStart.toISOString().slice(0,10))}</b></div>
+          <div class="schedule-row"><span>入金締切</span><b>${formatDateJp(payDeadline.toISOString().slice(0,10))}</b></div>
+          <div class="schedule-row highlight"><span>開催日</span><b>${formatDateJp(ev.event_date)}</b></div>
+          <div class="schedule-row"><span>席札作成</span><b>${formatDateJp(namecard.toISOString().slice(0,10))}</b></div>
+        </div>
+        <div class="schedule-note">※スケジュールは開催日からの自動計算による目安です。実際の日程は管理者にご確認ください。</div>
+      </div>
+    `;
+  }
+
+  async function init(){
+    const content = document.getElementById('content');
+    try{
+      await waitForLib(10000);
+      const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const todayStr = new Date().toISOString().slice(0,10);
+
+      const { data, error } = await sb
+        .from('events')
+        .select('*')
+        .gte('event_date', todayStr)
+        .order('event_date', { ascending: true });
+      if(error) throw error;
+
+      const events = data || [];
+      if(events.length === 0){
+        content.innerHTML = '<div class="empty-msg">今後開催予定の観劇会はまだ登録されていません。</div>';
+        return;
+      }
+
+      content.innerHTML = events.map((ev, i)=>{
+        const label = i === 0 ? '直近の観劇会' : (i === 1 ? '次の観劇会' : `${i+1}番目の観劇会`);
+        return eventBlockHtml(ev, label);
+      }).join('');
+    }catch(e){
+      console.error(e);
+      content.innerHTML = '<div class="empty-msg">データを取得できませんでした。</div>';
+    }
+  }
+
+  document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+  init();
+</script>
+</body>
+</html>
