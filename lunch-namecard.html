@@ -54,11 +54,12 @@
     border:1px solid var(--line); border-radius:6px; position:relative; overflow:hidden;
     background-size:cover; background-position:center; background-color:#fff;
     display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
-    padding:6% 5%;
+    padding:6% 5%; font-family:'Shippori Mincho', 'Noto Sans JP', serif;
   }
-  .namecard .nc-header{ font-size:11px; color:#555; font-weight:700; }
+  .namecard .nc-header{ font-size:11px; color:#555; font-weight:700; letter-spacing:.05em; }
   .namecard .nc-name{ font-size:26px; font-weight:700; color:#222; margin:6px 0 4px; line-height:1.25; outline:none; }
-  .namecard .nc-menu{ font-size:15px; color:#333; outline:none; }
+  .namecard .nc-name-small{ font-size:14px; font-weight:700; color:#555; margin-top:4px; outline:none; }
+  .namecard .nc-menu{ font-size:19px; font-weight:700; color:#7a3b3b; outline:none; }
   .namecard .nc-drink{ font-size:15px; color:#333; margin-top:2px; outline:none; }
   .nc-editable{ cursor:text; border-bottom:1px dashed transparent; }
   .nc-editable:hover{ border-bottom:1px dashed var(--gold-soft); }
@@ -86,11 +87,12 @@
       width:91mm; height:55mm; box-sizing:border-box; overflow:hidden;
       background-size:cover; background-position:center; background-color:#fff;
       display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
-      padding:4mm 5mm; break-inside:avoid;
+      padding:4mm 5mm; break-inside:avoid; font-family:'Shippori Mincho', 'Noto Sans JP', serif;
     }
-    .pnamecard .nc-header{ font-size:8pt; color:#555; font-weight:700; }
+    .pnamecard .nc-header{ font-size:8pt; color:#555; font-weight:700; letter-spacing:.05em; }
     .pnamecard .nc-name{ font-size:20pt; font-weight:700; color:#111; margin:2mm 0 1.5mm; line-height:1.25; }
-    .pnamecard .nc-menu{ font-size:11pt; color:#222; }
+    .pnamecard .nc-name-small{ font-size:10pt; font-weight:700; color:#555; margin-top:1mm; }
+    .pnamecard .nc-menu{ font-size:14pt; font-weight:700; color:#7a3b3b; }
     .pnamecard .nc-drink{ font-size:11pt; color:#222; margin-top:1mm; }
   }
   #printArea{ display:none; }
@@ -265,7 +267,7 @@
           cards.push({
             header,
             name: `${o.representative_name}様`,
-            relationLine: o.relation ? `${o.relation}様` : 'ご同伴者様',
+            relationLine: (o.relation && o.relation !== 'その他') ? `${o.relation}様` : 'ご同伴者様',
             menu: i2.menu_name,
             drink: i2.drink || '',
             isCompanion:true
@@ -288,8 +290,11 @@
     return `
       <div class="${cls}" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}">
         <div class="nc-header">${c.header}</div>
-        <div class="nc-name nc-editable" contenteditable="true">${c.name}</div>
-        ${c.isCompanion ? `<div class="nc-name nc-editable" contenteditable="true" style="font-size:inherit;margin-top:-2px;">${c.relationLine}</div>` : ''}
+        ${c.isCompanion
+          ? `<div class="nc-name-small nc-editable" contenteditable="true">${c.name}</div>
+             <div class="nc-name nc-editable" contenteditable="true">${c.relationLine}</div>`
+          : `<div class="nc-name nc-editable" contenteditable="true">${c.name}</div>`
+        }
         <div class="nc-menu nc-editable" contenteditable="true">${c.menu}</div>
         <div class="nc-drink nc-editable" contenteditable="true">${c.drink}</div>
       </div>
