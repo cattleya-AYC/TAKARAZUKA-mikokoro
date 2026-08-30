@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>やることリスト(私用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+    --warn-bg:#f8e3df; --warn-text:#a5544a; --warn-bg-strong:#f0c3ba; --warn-text-strong:#8a3226;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%), var(--navy-deep);
+    color:var(--cream); font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; }
+  .divider{ display:flex; align-items:center; justify-content:center; gap:10px; max-width:160px; margin:12px auto 0; opacity:.85; }
+  .divider::before, .divider::after{ content:""; flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); }
+  .divider .gem{ width:6px; height:6px; background:var(--gold); transform:rotate(45deg); border:1px solid var(--gold-soft); flex-shrink:0; }
+
+  .wrap{ max-width:640px; margin:0 auto; padding:0 16px; }
+  .toolbar{ display:flex; gap:10px; justify-content:flex-end; margin:14px 0; }
+  .toggle-btn{
+    background:var(--navy-card); border:1px solid var(--gold-soft); color:var(--gold-soft);
+    border-radius:20px; padding:9px 16px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .toggle-btn.active{ background:var(--gold-soft); color:#fff; }
+
+  .summary-bar{ display:flex; gap:10px; margin-bottom:16px; }
+  .summary-card{
+    flex:1; background:var(--navy-card); border:1px solid var(--line); border-radius:10px;
+    padding:12px 10px; text-align:center;
+  }
+  .summary-card .num{ font-size:22px; font-weight:700; color:var(--rose); }
+  .summary-card.overdue .num{ color:var(--warn-text-strong); }
+  .summary-card .lbl{ font-size:11px; color:var(--muted); margin-top:2px; }
+
+  .task-row{
+    display:flex; align-items:flex-start; gap:12px;
+    background:var(--navy-card); border:1px solid var(--line); border-radius:10px;
+    padding:14px 15px; margin-bottom:9px; cursor:pointer;
+  }
+  .task-row.overdue{ border-color:var(--warn-text-strong); background:var(--warn-bg-strong); }
+  .task-row.soon{ border-color:var(--warn-text); background:var(--warn-bg); }
+  .task-row.done{ opacity:.5; }
+  .task-check{
+    flex-shrink:0; width:24px; height:24px; border-radius:6px; border:2px solid var(--gold-soft);
+    background:var(--navy-card-2); display:grid; place-items:center; font-size:15px; color:#fff;
+    margin-top:2px;
+  }
+  .task-check.done{ background:var(--ok); border-color:var(--ok); }
+  .task-body{ flex:1; }
+  .task-event{ font-size:11px; color:var(--gold-soft); font-weight:700; }
+  .task-name{ font-size:15px; font-weight:700; margin-top:2px; }
+  .task-row.done .task-name{ text-decoration:line-through; }
+  .task-due{ font-size:11.5px; color:var(--muted); margin-top:4px; }
+  .task-row.overdue .task-due{ color:var(--warn-text-strong); font-weight:700; }
+  .task-row.soon .task-due{ color:var(--warn-text); font-weight:700; }
+
+  .empty-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
+
+  #authGate{
+    position:fixed; inset:0; z-index:9999; background:var(--navy-deep);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  #authGate .box{ max-width:340px; width:100%; background:var(--navy-card); border:1px solid var(--gold); border-radius:14px; padding:28px 24px; }
+  #authGate .title{ text-align:center; margin-bottom:18px; font-family:'Shippori Mincho',serif; font-size:13px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  #authGate label{ display:block; margin-bottom:14px; }
+  #authGate .lbl{ font-size:13px; color:var(--gold-soft); font-weight:700; display:block; margin-bottom:6px; }
+  #authGate input{ width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:8px; background:var(--navy-card-2); color:var(--cream); font-size:15px; font-family:inherit; }
+  #authGate button{ width:100%; padding:13px; border:1px solid var(--gold-soft); border-radius:8px; background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fffaf3; font-weight:700; font-size:15px; cursor:pointer; font-family:'Shippori Mincho','Noto Sans JP',sans-serif; }
+  #authGate .err{ text-align:center; font-size:12.5px; color:var(--rose); margin-top:12px; display:none; }
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <form class="box" id="loginForm">
+    <div class="title">管理者ログイン</div>
+    <label><span class="lbl">メールアドレス</span><input type="email" id="loginEmail" required autocomplete="username"></label>
+    <label><span class="lbl">パスワード</span><input type="password" id="loginPassword" required autocomplete="current-password"></label>
+    <button type="submit" id="loginBtn">ログイン</button>
+    <p class="err" id="loginError"></p>
+  </form>
+</div>
+
+<div class="hero">
+  <div class="eyebrow">私用</div>
+  <h1>やることリスト</h1>
+  <div class="divider"><span class="gem"></span></div>
+</div>
+
+<div class="wrap">
+  <div class="summary-bar">
+    <div class="summary-card overdue"><div class="num" id="overdueCount">―</div><div class="lbl">締切超過</div></div>
+    <div class="summary-card"><div class="num" id="soonCount">―</div><div class="lbl">3日以内</div></div>
+    <div class="summary-card"><div class="num" id="pendingCount">―</div><div class="lbl">未完了(全体)</div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="toggle-btn active" id="hideDoneBtn">完了を隠す</button>
+  </div>
+
+  <div id="content"></div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  let sb = null;
+  let hideDone = true;
+  let allTasks = [];
+
+  const TASK_DEFS = [
+    { key:'form',    name:'募集フォーム作成',           offset:-59 },
+    { key:'line',    name:'LINE告知予約',               offset:-59 },
+    { key:'adjust',  name:'申込状況確認・人数調整',      offset:-51 },
+    { key:'mealform',name:'食事フォーム作成・LINE案内送信', offset:-49 },
+    { key:'mealchk', name:'食事集計チェック(未入力催促)', offset:-42 },
+    { key:'billing', name:'個別請求書をLINEで送る',      offset:-40 },
+    { key:'payment', name:'入金確認',                    offset:-30 },
+    { key:'namecard',name:'名刺・席札作成',              offset:-3 },
+  ];
+
+  function addDays(base, diff){ const d = new Date(base.getTime()); d.setDate(d.getDate()+diff); return d; }
+  function fmtDateJp(d){
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getMonth()+1}/${d.getDate()}(${w})`;
+  }
+  function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
+  function daysUntil(d, today){ return Math.round((startOfDay(d) - startOfDay(today)) / 86400000); }
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  async function startApp(){
+    const content = document.getElementById('content');
+    try{
+      const today = new Date();
+      const windowStart = addDays(today, -14).toISOString().slice(0,10);
+
+      const { data: events, error } = await sb
+        .from('events')
+        .select('*')
+        .gte('event_date', windowStart)
+        .order('event_date', { ascending:true });
+      if(error) throw error;
+
+      const eventIds = (events||[]).map(e=>e.id);
+      const { data: progressRows } = await sb
+        .from('event_task_progress')
+        .select('*')
+        .in('event_id', eventIds.length ? eventIds : ['00000000-0000-0000-0000-000000000000']);
+      const progressMap = {};
+      (progressRows||[]).forEach(p => { progressMap[`${p.event_id}_${p.task_key}`] = p; });
+
+      allTasks = [];
+      (events||[]).forEach(ev=>{
+        const eventDate = new Date(ev.event_date + 'T00:00:00');
+        const eventLabel = `第${ev.event_number ?? '◯'}回 ${ev.troupe ?? '◯'}組(${fmtDateJp(eventDate)})`;
+        TASK_DEFS.forEach(def=>{
+          const due = addDays(eventDate, def.offset);
+          const progress = progressMap[`${ev.id}_${def.key}`];
+          allTasks.push({
+            eventId: ev.id,
+            eventLabel,
+            taskKey: def.key,
+            taskName: def.name,
+            due,
+            done: !!(progress && progress.done)
+          });
+        });
+      });
+
+      render();
+    }catch(e){
+      console.error(e);
+      content.innerHTML = '<div class="empty-msg">データを取得できませんでした。</div>';
+    }
+  }
+
+  function render(){
+    const today = new Date();
+    const content = document.getElementById('content');
+    let tasks = allTasks.slice().sort((a,b)=> a.due - b.due);
+
+    const overdueCount = tasks.filter(t=>!t.done && daysUntil(t.due, today) < 0).length;
+    const soonCount = tasks.filter(t=>!t.done && daysUntil(t.due, today) >= 0 && daysUntil(t.due, today) <= 3).length;
+    const pendingCount = tasks.filter(t=>!t.done).length;
+    document.getElementById('overdueCount').textContent = overdueCount;
+    document.getElementById('soonCount').textContent = soonCount;
+    document.getElementById('pendingCount').textContent = pendingCount;
+
+    if(hideDone) tasks = tasks.filter(t=>!t.done);
+
+    if(tasks.length === 0){
+      content.innerHTML = '<div class="empty-msg">表示するタスクがありません。</div>';
+      return;
+    }
+
+    content.innerHTML = tasks.map(t=>{
+      const diff = daysUntil(t.due, today);
+      let cls = '';
+      if(!t.done){
+        if(diff < 0) cls = 'overdue';
+        else if(diff <= 3) cls = 'soon';
+      }
+      const dueLabel = diff === 0 ? '本日期限' : (diff < 0 ? `${Math.abs(diff)}日超過` : `あと${diff}日`);
+      return `
+        <div class="task-row ${cls} ${t.done ? 'done' : ''}" data-event="${t.eventId}" data-key="${t.taskKey}">
+          <div class="task-check ${t.done ? 'done' : ''}">${t.done ? '✓' : ''}</div>
+          <div class="task-body">
+            <div class="task-event">${t.eventLabel}</div>
+            <div class="task-name">${t.taskName}</div>
+            <div class="task-due">${fmtDateJp(t.due)}目安・${dueLabel}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    content.querySelectorAll('.task-row').forEach(row=>{
+      row.addEventListener('click', async ()=>{
+        const eventId = row.dataset.event;
+        const taskKey = row.dataset.key;
+        const task = allTasks.find(t=>t.eventId===eventId && t.taskKey===taskKey);
+        const newDone = !task.done;
+        task.done = newDone;
+        render();
+        try{
+          await sb.from('event_task_progress').upsert({
+            event_id: eventId, task_key: taskKey, done: newDone,
+            done_at: newDone ? new Date().toISOString() : null
+          }, { onConflict:'event_id,task_key' });
+        }catch(err){
+          console.error(err);
+        }
+      });
+    });
+  }
+
+  document.getElementById('hideDoneBtn').addEventListener('click', ()=>{
+    hideDone = !hideDone;
+    document.getElementById('hideDoneBtn').classList.toggle('active', hideDone);
+    document.getElementById('hideDoneBtn').textContent = hideDone ? '完了を隠す' : '完了も表示';
+    render();
+  });
+
+  async function init(){
+    await waitForLib(10000);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      document.getElementById('authGate').style.display = 'none';
+      await startApp();
+    } else {
+      document.getElementById('authGate').style.display = 'flex';
+    }
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errEl.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'ログインしています…';
+    try{
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      document.getElementById('authGate').style.display = 'none';
+      await startApp();
+    }catch(err){
+      errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'ログイン';
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>
