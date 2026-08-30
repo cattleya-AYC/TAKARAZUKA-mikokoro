@@ -116,6 +116,30 @@
 
     .table-wrap{ overflow:visible; }
   }
+  .invalid-card{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:var(--navy-card); border:1px solid var(--warn-text); border-radius:10px;
+    padding:14px 16px; margin-bottom:10px;
+  }
+  .invalid-card.contacted{ opacity:.55; border-color:var(--line); }
+  .invalid-name{ font-size:26px; font-weight:700; color:var(--cream); line-height:1.3; }
+  .invalid-items{ font-size:10.5px; color:var(--muted); margin-top:4px; line-height:1.6; }
+  .invalid-badge{
+    display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px;
+    background:var(--warn-text); color:#fff; margin-bottom:4px;
+    animation: invalidBlink 1s infinite;
+  }
+  .invalid-badge.done{ background:var(--ok); animation:none; }
+  @keyframes invalidBlink{
+    0%,100%{ opacity:1; }
+    50%{ opacity:.35; }
+  }
+  .contact-btn{
+    flex-shrink:0; white-space:nowrap; background:var(--navy-card-2); color:var(--warn-text);
+    border:1px solid var(--warn-text); border-radius:8px; padding:9px 14px; font-size:12.5px;
+    font-weight:700; cursor:pointer;
+  }
+  .contact-btn.done{ color:var(--ok); border-color:var(--ok); cursor:default; }
 </style>
 </head>
 <body>
@@ -152,6 +176,12 @@
       <button class="primary" id="printBtn">印刷</button>
     </div>
 
+    <section class="section" id="invalidSection" style="display:none;border-color:#df9c9c;background:var(--warn-bg);">
+      <h2 style="color:var(--warn-text)">⚠ 観劇会申込のない無効な食事申込</h2>
+      <div id="invalidCards"></div>
+      <div class="small">※観劇会申込データに見つからない名前です。観劇会に申込がない(または名前の表記が違う)可能性があるので、ご本人に確認のうえ「無効」とご連絡ください。</div>
+    </section>
+
     <section class="info">
       <div class="info-card"><div class="label">公演</div><div class="value" id="eventLabel">―</div></div>
       <div class="info-card"><div class="label">お食事参加人数(観劇会申込ベース)</div><div class="value rose" id="registrantCount">―</div></div>
@@ -169,17 +199,6 @@
       </div>
       <div class="empty-note" id="emptyNote" style="display:none">お食事参加希望の申込者がいません。</div>
       <div class="small">※「観劇会申込フォーム」でお食事「出席」を選んだ方だけを自動的に対象にしています。1人参加は本人分、2人参加は本人分・同伴者分の両方が登録されて初めて「入力済み」となります。</div>
-    </section>
-
-    <section class="section" id="invalidSection" style="display:none;border-color:#df9c9c;background:var(--warn-bg);">
-      <h2 style="color:var(--warn-text)">⚠ 観劇会申込のない無効な食事申込</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>お名前</th><th>1人目 食事／飲み物</th><th>2人目 食事／飲み物</th></tr></thead>
-          <tbody id="invalidBody"></tbody>
-        </table>
-      </div>
-      <div class="small">※観劇会申込データに見つからない名前です。観劇会に申込がない(または名前の表記が違う)可能性があるので、ご本人に確認のうえ「無効」とご連絡ください。</div>
     </section>
 
     <section class="section">
@@ -400,20 +419,44 @@
       !registrants.some(r => normalizeName(r.name) === normalizeName(o.representative_name))
     );
     const invalidSection = document.getElementById('invalidSection');
-    const invalidBody = document.getElementById('invalidBody');
+    const invalidCards = document.getElementById('invalidCards');
     if(invalidOrders.length){
       invalidSection.style.display = 'block';
-      invalidBody.innerHTML = invalidOrders.map(o=>{
-        const i1 = o.items?.[0], i2 = o.items?.[1];
-        return `<tr>
-          <td>${o.representative_name}</td>
-          <td>${i1 ? `${i1.menu_name||'―'} / ${i1.drink||'―'}` : '―'}</td>
-          <td>${i2 ? `${i2.menu_name||'―'} / ${i2.drink||'―'}` : '―'}</td>
-        </tr>`;
+      invalidCards.innerHTML = invalidOrders.map(o=>{
+        const itemsText = (o.items||[]).map(i => `${i.menu_name||'―'}/${i.drink||'―'}`).join('　　');
+        const done = !!o.invalid_contacted;
+        return `
+          <div class="invalid-card ${done ? 'contacted' : ''}">
+            <div>
+              <span class="invalid-badge ${done ? 'done' : ''}">${done ? '連絡済み' : '未連絡'}</span>
+              <div class="invalid-name">${o.representative_name}</div>
+              <div class="invalid-items">${itemsText}</div>
+            </div>
+            <button type="button" class="contact-btn ${done ? 'done' : ''}" data-id="${o.id}" ${done ? 'disabled' : ''}>
+              ${done ? '連絡済み' : '連絡済みにする'}
+            </button>
+          </div>
+        `;
       }).join('');
+
+      invalidCards.querySelectorAll('.contact-btn:not(.done)').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          const id = btn.dataset.id;
+          btn.disabled = true;
+          try{
+            await sb.from('meal_orders').update({ invalid_contacted: true }).eq('id', id);
+            await loadOrders(eventRow.id);
+            render();
+          }catch(err){
+            console.error(err);
+            alert('更新に失敗しました。もう一度お試しください。');
+            btn.disabled = false;
+          }
+        });
+      });
     } else {
       invalidSection.style.display = 'none';
-      invalidBody.innerHTML = '';
+      invalidCards.innerHTML = '';
     }
 
     const banner = document.getElementById('alertBanner');
