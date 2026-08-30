@@ -145,6 +145,7 @@
 </div>
 
 <button id="logoutBtn" type="button" style="position:fixed;top:10px;right:10px;z-index:1000;padding:6px 12px;border:1px solid var(--gold-soft, #6d5aa3);border-radius:20px;background:var(--navy-card, #fffdf9);color:var(--gold-soft, #6d5aa3);font-size:11px;font-weight:700;cursor:pointer;display:none;">ログアウト</button>
+<div id="whoami" style="position:fixed;top:10px;right:110px;z-index:1000;padding:6px 10px;font-size:10.5px;color:var(--muted, #8b84a0);display:none;"></div>
 
 <div class="hero">
   <div class="eyebrow">管理者用</div>
@@ -263,7 +264,7 @@
     if(evErr || !ev) throw evErr || new Error('not found');
     eventRow = ev;
 
-    const { data: bank } = await sb.from('event_bank_info').select('*').eq('event_id', eventId).maybeSingle();
+    const { data: bank, error: bankErr } = await sb.from('event_bank_info').select('*').eq('event_id', eventId).maybeSingle();
     if(bank){
       bankInfo = bank;
       savedForThisEvent = true;
@@ -271,6 +272,11 @@
       const { data: lastBank } = await sb.from('event_bank_info').select('*').order('updated_at', { ascending:false }).limit(1).maybeSingle();
       bankInfo = lastBank || null;
       savedForThisEvent = false;
+    }
+    console.log('[debug] event_bank_info fetch:', { bank, bankErr });
+    const whoamiEl = document.getElementById('whoami');
+    if(whoamiEl.style.display !== 'none'){
+      whoamiEl.textContent += bank ? ' / 振込先:取得できた' : ' / 振込先:取得できなかった';
     }
     fillBankForm(bankInfo);
 
@@ -311,6 +317,13 @@
     }
   }
 
+  async function showWhoami(){
+    const { data: { user } } = await sb.auth.getUser();
+    const el = document.getElementById('whoami');
+    el.textContent = 'ログイン中:' + (user?.email || '不明');
+    el.style.display = 'block';
+  }
+
   async function init(){
     await waitForLib(10000);
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -319,6 +332,7 @@
     if(session){
       document.getElementById('authGate').style.display = 'none';
       document.getElementById('logoutBtn').style.display = 'inline-block';
+      await showWhoami();
       await startApp();
     } else {
       document.getElementById('authGate').style.display = 'flex';
@@ -338,6 +352,7 @@
       if(error) throw error;
       document.getElementById('authGate').style.display = 'none';
       document.getElementById('logoutBtn').style.display = 'inline-block';
+      await showWhoami();
       await startApp();
     }catch(err){
       errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
