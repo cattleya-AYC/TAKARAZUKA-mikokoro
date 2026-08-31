@@ -547,7 +547,6 @@
   <span class="count-badge" id="countBadge"></span>
   <span class="count-badge" id="statusBreakdown"></span>
   <button class="refresh-btn" id="refreshBtn">更新</button>
-  <button class="refresh-btn" id="printBtn">🖨 PDF印刷</button>
   <button class="refresh-btn" id="changeBtn" style="background:var(--rose); border-color:var(--rose);">📝 変更・キャンセルを記録</button>
 </div>
 
@@ -1306,14 +1305,6 @@ ${body}
       });
       document.getElementById('statusFilter').addEventListener('change', ()=>{
         renderTable(currentRows);
-      });
-      document.getElementById('printBtn').addEventListener('click', ()=>{
-        updatePrintTitle();
-        if(window.paginatePrintTable) window.paginatePrintTable();
-        window.print();
-      });
-      window.addEventListener('beforeprint', ()=>{
-        if(window.paginatePrintTable) window.paginatePrintTable();
       });
       document.getElementById('changeBtn').addEventListener('click', openChangeModal);
       document.getElementById('emergencySendBtn').addEventListener('click', sendEmergencyEmail);
