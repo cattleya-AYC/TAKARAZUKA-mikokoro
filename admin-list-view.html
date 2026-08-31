@@ -246,30 +246,63 @@
   }
 
   @media print{
-    @page{ size: A4 portrait; margin: 8mm; }
+    @page{ size: A4 portrait; margin: 10mm 12mm; }
+    html{ background:#fff !important; }
     body{ background:#fff !important; color:#000 !important; padding:0; }
     .toolbar, .refresh-btn, .actions, .penalty-btn, .modal-overlay, #printBtn, .detail-row, .nav-links{ display:none !important; }
     .hero:not(#printTitle){ display:none !important; }
-    #printTitle{ display:block !important; padding:2px 0; }
-    #printTitle h1{ color:#000; font-size:15px; margin:0; }
     .summary-bar, .table-wrap{ display:none !important; }
-    #printOnlyStats{ display:block !important; font-size:11px; color:#000; margin:0 0 8px; width:100%; max-width:none; }
-    #printOnlyStats span{ margin-right:20px; }
+
+    #printTitle{ display:block !important; padding:0; margin:0 0 12px; text-align:center; }
+    #printTitle h1{ color:#000 !important; font-size:26px; margin:0; font-family:'Shippori Mincho', serif; font-weight:700; letter-spacing:.04em; }
+    #printEventSubtitle{ color:#000 !important; font-size:13px; margin:6px 0 0 !important; font-family:'Shippori Mincho', serif; }
+
+    .net-score-summary-wrap{ display:flex !important; justify-content:center; max-width:none !important; width:100% !important; padding:0 !important; margin:0 0 10px; }
+    .net-score-summary{
+      background:#fff !important; border:1px solid #000 !important; color:#000 !important;
+      max-width:420px !important; width:auto !important; margin:0 auto !important;
+    }
+    .net-score-summary td, .net-score-summary th{
+      color:#000 !important; border:1px solid #999 !important; background:#fff !important;
+      padding:5px 14px !important; font-size:11px !important; text-align:center;
+    }
+    .net-score-summary td:first-child{ text-align:left; }
+
+    #printOnlyStats{
+      display:block !important; text-align:center; font-size:11.5px; color:#000;
+      margin:0 0 12px; width:100%; max-width:none; padding-bottom:8px; border-bottom:1px solid #000;
+    }
+    #printOnlyStats span{ margin:0 10px; }
+    #printOnlyStats span + span::before{ content:"｜"; margin-right:20px; color:#999; }
+
     #printOnlyList{ display:block !important; width:100%; max-width:none; }
-    html{ background:#fff !important; }
-    #printOnlyTable{ table-layout:fixed; width:100%; }
-    #printOnlyTable td{ color:#000 !important; border-bottom:1px solid #ccc; padding:3px 4px; font-size:8.5px; white-space:nowrap; overflow:hidden; }
-    #printOnlyTable .p-score{ width:8%; text-align:center; font-weight:700; }
-    #printOnlyTable .p-grade{ width:10%; }
-    #printOnlyTable .p-name{ width:38%; font-size:12px; font-weight:700; }
-    #printOnlyTable .p-count{ width:14%; font-size:12px; font-weight:700; }
+    #printOnlyTable{ table-layout:fixed; width:100%; border-collapse:collapse; }
+    #printOnlyTable thead{ display:table-header-group; }
+    #printOnlyTable th{
+      color:#000 !important; background:#fff !important; border-bottom:2px solid #000 !important;
+      padding:6px 4px; font-size:10px; font-weight:700; text-align:center;
+    }
+    #printOnlyTable td{ color:#000 !important; border-bottom:1px solid #ccc; padding:5px 4px; font-size:10px; white-space:nowrap; overflow:hidden; }
+    #printOnlyTable .p-score{ width:9%; text-align:center; }
+    #printOnlyTable .p-grade{ width:14%; text-align:center; }
+    #printOnlyTable .p-name{ width:33%; font-size:13px; font-weight:700; text-align:left; padding-left:10px; }
+    #printOnlyTable .p-count{ width:14%; font-size:12px; font-weight:700; text-align:center; }
     #printOnlyTable .p-meal{ width:15%; text-align:center; }
     #printOnlyTable .p-seat{ width:15%; text-align:center; }
+
+    .row-num{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:18px; height:18px; border-radius:50%; border:1px solid #000;
+      font-size:9px; font-weight:700;
+    }
     .print-hide{ display:none !important; }
-    .mark-circle{ width:14px; height:14px; font-size:8px; background:#fff !important; border-color:#999 !important; color:#000 !important; }
-    .net-score-summary{ background:#fff !important; border:1px solid #999 !important; color:#000 !important; max-width:none !important; width:100% !important; }
-    .net-score-summary-wrap{ max-width:none !important; width:100% !important; padding:0 !important; }
-    .net-score-summary td, .net-score-summary th{ color:#000 !important; border-color:#ccc !important; background:#fff !important; }
+    .mark-circle{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:18px; height:18px; border-radius:50%; font-size:9px; font-weight:700;
+      border:1px solid #999; background:#fff; color:#999;
+    }
+    .mark-circle.meal-on{ background:#a5544a !important; border-color:#a5544a !important; color:#fff !important; }
+    .mark-circle.seat-on{ background:#5a4a9a !important; border-color:#5a4a9a !important; color:#fff !important; }
   }
 </style>
 </head>
@@ -344,6 +377,7 @@
 
 <div class="hero" id="printTitle" style="display:none;">
   <h1 id="printEventName"></h1>
+  <p id="printEventSubtitle" style="margin:4px 0 0;"></p>
 </div>
 
 <div class="hero">
@@ -423,6 +457,16 @@
 <div id="printOnlyStats" style="display:none;"></div>
 <div id="printOnlyList" style="display:none;">
   <table id="printOnlyTable" style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>回生</th>
+        <th>申込者名</th>
+        <th>チケット枚数</th>
+        <th>食事</th>
+        <th>連番希望</th>
+      </tr>
+    </thead>
     <tbody id="printOnlyBody"></tbody>
   </table>
 </div>
@@ -784,18 +828,22 @@
     table.style.display = 'table';
 
     // 印刷専用：1人1行、ポイント→回生→氏名→枚数→お食事→座席希望の順
-    document.getElementById('printOnlyBody').innerHTML = filtered.map(r=>{
+    document.getElementById('printOnlyBody').innerHTML = filtered.map((r, idx)=>{
       const p = r.participants || {};
       const a = r.answers || {};
-      const points = p.penalty_points || 0;
-      const recentCount = recentCounts[p.id];
-      const netScore = (recentCount === undefined || recentCount === null) ? '-' : (recentCount - points);
-      const mealMark = a.meal === 'ご参加' ? '<span class="mark-circle">食</span>' : '-';
-      const seatMark = a.seat_pref === '連席希望' ? '<span class="mark-circle">連</span>' : (a.seat_pref === '抽選' ? '<span class="mark-circle">抽</span>' : '-');
+      const mealOn = a.meal === 'ご参加';
+      const seatOn = a.seat_pref === '連席希望';
+      const mealMark = mealOn
+        ? '<span class="mark-circle meal-on">食</span>'
+        : '<span class="mark-circle">-</span>';
+      const seatMark = seatOn
+        ? '<span class="mark-circle seat-on">連</span>'
+        : (a.seat_pref === '抽選' ? '<span class="mark-circle">抽</span>' : '<span class="mark-circle">-</span>');
+      const gradeText = a.grade ? `${escapeHtml(a.grade)}回生` : '';
       return `
         <tr>
-          <td class="p-score">${netScore}</td>
-          <td class="p-grade">${escapeHtml(a.grade || '')}</td>
+          <td class="p-score"><span class="row-num">${idx + 1}</span></td>
+          <td class="p-grade">${gradeText}</td>
           <td class="p-name">${escapeHtml(p.name || a.full_name || '')}</td>
           <td class="p-count">${escapeHtml(a.participant_count || '1')}枚</td>
           <td class="p-meal">${mealMark}</td>
@@ -959,7 +1007,15 @@
   function updatePrintTitle(){
     const sel = document.getElementById('eventSelect');
     const opt = sel.options[sel.selectedIndex];
-    document.getElementById('printEventName').textContent = opt ? `申込者一覧:${opt.textContent}` : '申込者一覧';
+    document.getElementById('printEventName').textContent = '申込者一覧';
+    const ev = events.find(e => e.id === currentEventId);
+    if(ev){
+      const dateLabel = formatDateJp(ev.event_date);
+      document.getElementById('printEventSubtitle').textContent =
+        `第${ev.event_number ?? '?'}回 ${ev.troupe ?? ''}組公演　${dateLabel}` + (ev.work_title ? `『${ev.work_title}』` : '');
+    } else {
+      document.getElementById('printEventSubtitle').textContent = opt ? opt.textContent : '';
+    }
   }
 
   // ---- 変更・キャンセル受付モーダル ----
