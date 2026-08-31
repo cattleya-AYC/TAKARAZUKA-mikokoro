@@ -226,13 +226,14 @@
     events.forEach(ev=>{
       const opt = document.createElement('option');
       opt.value = ev.id;
-      opt.textContent = `第${ev.event_number ?? '?'}回 ${ev.troupe ?? ''}組(${formatDateJp(ev.event_date)})`;
+      opt.textContent = `第${ev.event_number ?? '?'}回 ${ev.troupe ?? ''}組(${formatDateJp(ev.event_date)})` + (ev.work_title ? `『${ev.work_title}』` : '');
       sel.appendChild(opt);
     });
   }
 
   function renderInfo(ev){
-    document.getElementById('infoName').textContent = `第${ev.event_number ?? '◯'}回 ${ev.troupe ?? ''}組観劇会`;
+    document.getElementById('infoName').textContent =
+      `第${ev.event_number ?? '◯'}回 ${ev.troupe ?? ''}組観劇会` + (ev.work_title ? `『${ev.work_title}』` : '');
     document.getElementById('infoDate').textContent = formatDateJp(ev.event_date);
     document.getElementById('infoTime').textContent = ev.show_time ? `${ev.show_time}公演` : '未定';
     document.getElementById('infoSeat').textContent = ev.seat_type || '-';
@@ -279,7 +280,7 @@
 `${mark}小林みこころ宝塚クラブ通信${mark}
 
 第${ev.event_number ?? '◯'}回　${ev.troupe ?? '◯'}組観劇会のお知らせ
-
+${ev.work_title ? `『${ev.work_title}』\n` : ''}
 ${formatDateJpLong(ev.event_date)}${ev.show_time || '◯時'}公演
 ${ev.troupe ?? '◯'}組公演　観劇会の募集を
 ${start.getMonth()+1}月${start.getDate()}日9時から開始いたします✨

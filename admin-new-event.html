@@ -241,6 +241,12 @@
     </label>
 
     <label class="field">
+      <span class="lbl">作品名(任意)</span>
+      <input type="text" name="work_title" id="workTitleInput" placeholder="例:天穹のアルテミス">
+      <p class="note" style="margin-top:6px">入力すると、募集LINE案内や食事案内などに『作品名』として自動で反映されます。</p>
+    </label>
+
+    <label class="field">
       <span class="lbl">募集開始日</span>
       <input type="date" name="recruitment_start" id="recruitmentStartInput">
     </label>
@@ -392,6 +398,7 @@
     document.getElementById('troupeSelect').value = ev.troupe || '';
     document.getElementById('eventDateInput').value = ev.event_date || '';
     document.getElementById('showTimeSelect').value = ev.show_time || '';
+    document.getElementById('workTitleInput').value = ev.work_title || '';
     document.getElementById('recruitmentStartInput').value = ev.recruitment_start_date ? ev.recruitment_start_date.slice(0,10) : '';
     document.getElementById('deadlineInput').value = ev.application_deadline ? ev.application_deadline.slice(0,10) : '';
     document.getElementById('seatTypeSelect').value = ev.seat_type || 'S席';
@@ -578,6 +585,7 @@
         troupe: fd.get('troupe'),
         event_date: fd.get('event_date'),
         show_time: fd.get('show_time'),
+        work_title: fd.get('work_title') ? fd.get('work_title').trim() : null,
         recruitment_start_date: fd.get('recruitment_start') ? (fd.get('recruitment_start') + 'T09:00:00+09:00') : null,
         application_deadline: fd.get('deadline') + 'T21:00:00+09:00',
         seat_type: fd.get('seat_type'),

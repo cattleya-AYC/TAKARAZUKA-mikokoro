@@ -143,7 +143,7 @@
         <div class="event-block-title">${label}</div>
         <div class="panel">
           <div class="panel-title">基本情報</div>
-          <div class="info-row"><span>公演名</span><b>第${ev.event_number ?? '◯'}回 ${ev.troupe ?? '◯'}組観劇会</b></div>
+          <div class="info-row"><span>公演名</span><b>第${ev.event_number ?? '◯'}回 ${ev.troupe ?? '◯'}組観劇会${ev.work_title ? `『${ev.work_title}』` : ''}</b></div>
           <div class="info-row"><span>開催日</span><b>${formatDateJp(ev.event_date)}</b></div>
           <div class="info-row"><span>公演時間</span><b>${ev.show_time || '―'}公演</b></div>
           <div class="info-row"><span>会場</span><b>宝塚大劇場</b></div>

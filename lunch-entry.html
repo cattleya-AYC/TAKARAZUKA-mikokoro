@@ -344,7 +344,8 @@
   }
 
   function renderEvent(){
-    document.getElementById('eyebrowText').textContent = `第${eventRow.event_number || ''}回 ${eventRow.troupe || ''}組公演`;
+    document.getElementById('eyebrowText').textContent =
+      `第${eventRow.event_number || ''}回 ${eventRow.troupe || ''}組公演` + (eventRow.work_title ? `『${eventRow.work_title}』` : '');
     document.getElementById('eventMeta').innerHTML =
       `${fmtDateJp(eventRow.event_date)} ${eventRow.show_time || ''}公演のお食事会です`;
     if(settingsRow.deadline){

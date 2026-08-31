@@ -596,7 +596,7 @@
     const time = document.getElementById('meetingTimeInput').value.trim() || '○時○分';
 
     document.getElementById('lineMessage').value =
-`${date} ${troupe}公演観劇会にお申し込みいただき、ありがとうございます。
+`${date} ${troupe}公演観劇会${selectedEvent?.work_title ? `『${selectedEvent.work_title}』` : ''}にお申し込みいただき、ありがとうございます。
 
 下記フォームより、当日のお食事メニューとドリンクをお選びください。
 
@@ -647,7 +647,7 @@ ${time}
     const message =
 `テスト太郎様(テスト送信です)
 
-この度は、第${eventNumber}回 ${troupe}観劇会にお申し込みいただき、誠にありがとうございました。
+この度は、第${eventNumber}回 ${troupe}観劇会${selectedEvent?.work_title ? `『${selectedEvent.work_title}』` : ''}にお申し込みいただき、誠にありがとうございました。
 
 またこの度は、お食事会からのご参加もいただき、重ねてお礼申し上げます。
 
@@ -745,7 +745,7 @@ ${deadline}
         const message =
 `${r.name}様
 
-この度は、第${eventNumber}回 ${troupe}観劇会にお申し込みいただき、誠にありがとうございました。
+この度は、第${eventNumber}回 ${troupe}観劇会${selectedEvent?.work_title ? `『${selectedEvent.work_title}』` : ''}にお申し込みいただき、誠にありがとうございました。
 
 またこの度は、お食事会からのご参加もいただき、重ねてお礼申し上げます。
 

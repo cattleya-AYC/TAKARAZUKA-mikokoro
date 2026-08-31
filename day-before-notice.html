@@ -148,12 +148,12 @@
     const sel = document.getElementById('eventSelect');
     const todayStr = new Date().toISOString().slice(0,10);
     const { data, error } = await sb
-      .from('events').select('id, event_number, troupe, event_date, show_time')
+      .from('events').select('id, event_number, troupe, event_date, show_time, work_title')
       .gte('event_date', todayStr)
       .order('event_date', { ascending:true });
     if(error || !data){ return; }
     sel.innerHTML = '<option value="">選択してください</option>' +
-      data.map(ev => `<option value="${ev.id}">第${ev.event_number??'?'}回 ${ev.troupe||''}組 ${ev.event_date} ${ev.show_time||''}</option>`).join('');
+      data.map(ev => `<option value="${ev.id}">第${ev.event_number??'?'}回 ${ev.troupe||''}組 ${ev.event_date} ${ev.show_time||''}${ev.work_title ? `『${ev.work_title}』` : ''}</option>`).join('');
     sel.dataset.map = JSON.stringify(data);
   }
 
@@ -164,10 +164,10 @@
     selectedEvent = list.find(ev => ev.id === id) || { id };
   });
 
-  function buildMessage(troupe, dateLabel, eventNumber, meetingTime, meetingPlace){
+  function buildMessage(troupe, dateLabel, eventNumber, meetingTime, meetingPlace, workTitle){
     return `🌸【${dateLabel} ${troupe}組観劇会ご参加の皆様へ　集合場所・時間のご案内】🌸
 
-第${eventNumber}回【${troupe}組】観劇会にご参加いただき、誠にありがとうございます✨
+第${eventNumber}回【${troupe}組】観劇会${workTitle ? `『${workTitle}』` : ''}にご参加いただき、誠にありがとうございます✨
 
 【集合時間】
 ${meetingTime}　${meetingPlace}へお集まりください
@@ -204,18 +204,19 @@ ${meetingTime}　${meetingPlace}へお集まりください
       const dateLabel = fmtDateJp(selectedEvent.event_date);
       const troupe = selectedEvent.troupe || '◯◯';
       const eventNumber = selectedEvent.event_number ?? '◯';
+      const workTitle = selectedEvent.work_title || '';
       const showTime = (selectedEvent.show_time || '').replace(/[^0-9:]/g,'').slice(0,5);
 
       let mealYesMsg, mealNoMsg;
       if(showTime.startsWith('13')){
-        mealYesMsg = buildMessage(troupe, dateLabel, eventNumber, '11:30', `${restaurantName}前`);
-        mealNoMsg = buildMessage(troupe, dateLabel, eventNumber, '12:40', 'インフォメーションカウンター前');
+        mealYesMsg = buildMessage(troupe, dateLabel, eventNumber, '11:30', `${restaurantName}前`, workTitle);
+        mealNoMsg = buildMessage(troupe, dateLabel, eventNumber, '12:40', 'インフォメーションカウンター前', workTitle);
       } else if(showTime.startsWith('11')){
-        mealYesMsg = buildMessage(troupe, dateLabel, eventNumber, '10:30', 'インフォメーションカウンター前');
-        mealNoMsg = buildMessage(troupe, dateLabel, eventNumber, '10:30', 'インフォメーションカウンター前');
+        mealYesMsg = buildMessage(troupe, dateLabel, eventNumber, '10:30', 'インフォメーションカウンター前', workTitle);
+        mealNoMsg = buildMessage(troupe, dateLabel, eventNumber, '10:30', 'インフォメーションカウンター前', workTitle);
       } else {
-        mealYesMsg = buildMessage(troupe, dateLabel, eventNumber, '【集合時間を入力】', '【集合場所を入力】');
-        mealNoMsg = buildMessage(troupe, dateLabel, eventNumber, '【集合時間を入力】', '【集合場所を入力】');
+        mealYesMsg = buildMessage(troupe, dateLabel, eventNumber, '【集合時間を入力】', '【集合場所を入力】', workTitle);
+        mealNoMsg = buildMessage(troupe, dateLabel, eventNumber, '【集合時間を入力】', '【集合場所を入力】', workTitle);
       }
 
       document.getElementById('mealYesText').value = mealYesMsg;
