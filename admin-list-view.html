@@ -256,13 +256,15 @@
     #printOnlyStats{ display:block !important; font-size:11px; color:#000; margin:0 0 8px; }
     #printOnlyStats span{ margin-right:20px; }
     #printOnlyList{ display:block !important; }
-    #printOnlyTable td{ color:#000 !important; border-bottom:1px solid #ccc; padding:3px 6px; font-size:8.5px; white-space:nowrap; }
-    #printOnlyTable .p-score{ width:26px; text-align:center; font-weight:700; }
-    #printOnlyTable .p-grade{ width:34px; }
-    #printOnlyTable .p-name{ font-size:12px; font-weight:700; }
-    #printOnlyTable .p-count{ font-size:12px; font-weight:700; width:34px; }
-    #printOnlyTable .p-meal{ width:24px; text-align:center; }
-    #printOnlyTable .p-seat{ width:30px; text-align:center; }
+    html{ background:#fff !important; }
+    #printOnlyTable{ table-layout:fixed; width:100%; }
+    #printOnlyTable td{ color:#000 !important; border-bottom:1px solid #ccc; padding:3px 4px; font-size:8.5px; white-space:nowrap; overflow:hidden; }
+    #printOnlyTable .p-score{ width:6%; text-align:center; font-weight:700; }
+    #printOnlyTable .p-grade{ width:8%; }
+    #printOnlyTable .p-name{ width:40%; font-size:12px; font-weight:700; }
+    #printOnlyTable .p-count{ width:12%; font-size:12px; font-weight:700; }
+    #printOnlyTable .p-meal{ width:10%; text-align:center; }
+    #printOnlyTable .p-seat{ width:10%; text-align:center; }
     .print-hide{ display:none !important; }
     .mark-circle{ width:14px; height:14px; font-size:8px; background:#fff !important; border-color:#999 !important; color:#000 !important; }
     .net-score-summary{ background:#fff !important; border:1px solid #999 !important; color:#000 !important; }
