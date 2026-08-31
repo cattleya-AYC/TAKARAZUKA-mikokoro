@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前日集合案内(管理者用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%), var(--navy-deep);
+    color:var(--cream); font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; }
+  .divider{ display:flex; align-items:center; justify-content:center; gap:10px; max-width:160px; margin:12px auto 0; opacity:.85; }
+  .divider::before, .divider::after{ content:""; flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); }
+  .divider .gem{ width:6px; height:6px; background:var(--gold); transform:rotate(45deg); border:1px solid var(--gold-soft); flex-shrink:0; }
+
+  .wrap{ max-width:640px; margin:0 auto; padding:0 16px; }
+  .section{ border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; background:var(--navy-card); }
+  .section h2{ margin:0 0 12px; font-size:16px; color:var(--gold-soft); font-family:'Shippori Mincho', serif; }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:12.5px; color:var(--gold-soft); font-weight:700; margin-bottom:6px; }
+  select, input[type=text]{
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream);
+    border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit;
+  }
+  textarea{
+    width:100%; min-height:220px; background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream);
+    border-radius:8px; padding:12px; font-size:13px; font-family:inherit; line-height:1.7; resize:vertical;
+  }
+  button{ border:0; border-radius:8px; padding:11px 15px; cursor:pointer; font:inherit; font-weight:700; }
+  .secondary{ background:var(--navy-card-2); color:var(--gold-soft); }
+  .primary{ background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fff; }
+  .status{ font-size:12.5px; margin-top:10px; }
+  .status.ok{ color:var(--ok); } .status.err{ color:var(--rose); }
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .group-label{ font-size:13px; font-weight:700; color:var(--cream); margin:14px 0 6px; }
+  .count-badge{ font-size:11.5px; color:var(--muted); font-weight:400; }
+  .note{ font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.7; }
+
+  #authGate{ position:fixed; inset:0; z-index:9999; background:var(--navy-deep); display:flex; align-items:center; justify-content:center; padding:20px; }
+  #authGate .box{ max-width:340px; width:100%; background:var(--navy-card); border:1px solid var(--gold); border-radius:14px; padding:28px 24px; }
+  #authGate .title{ text-align:center; margin-bottom:18px; font-family:'Shippori Mincho',serif; font-size:13px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  #authGate label{ display:block; margin-bottom:14px; }
+  #authGate .lbl{ font-size:13px; color:var(--gold-soft); font-weight:700; display:block; margin-bottom:6px; }
+  #authGate input{ width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:8px; background:var(--navy-card-2); color:var(--cream); font-size:15px; font-family:inherit; }
+  #authGate button{ width:100%; padding:13px; border:1px solid var(--gold-soft); border-radius:8px; background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fffaf3; font-weight:700; font-size:15px; cursor:pointer; font-family:'Shippori Mincho','Noto Sans JP',sans-serif; }
+  #authGate .err{ text-align:center; font-size:12.5px; color:var(--rose); margin-top:12px; display:none; }
+  #logoutBtn{ position:fixed; top:10px; right:10px; z-index:1000; padding:6px 12px; border:1px solid var(--gold-soft); border-radius:20px; background:var(--navy-card); color:var(--gold-soft); font-size:11px; font-weight:700; cursor:pointer; display:none; }
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <form class="box" id="loginForm">
+    <div class="title">管理者ログイン</div>
+    <label><span class="lbl">メールアドレス</span><input type="email" id="loginEmail" required autocomplete="username"></label>
+    <label><span class="lbl">パスワード</span><input type="password" id="loginPassword" required autocomplete="current-password"></label>
+    <button type="submit" id="loginBtn">ログイン</button>
+    <p class="err" id="loginError"></p>
+  </form>
+</div>
+<button id="logoutBtn" type="button">ログアウト</button>
+
+<div class="hero">
+  <div class="eyebrow">管理者用</div>
+  <h1>前日集合案内メール</h1>
+  <div class="divider"><span class="gem"></span></div>
+</div>
+
+<div class="wrap">
+
+  <div class="section">
+    <h2>① 対象公演を選ぶ</h2>
+    <div class="field">
+      <label>公演</label>
+      <select id="eventSelect"><option value="">選択してください</option></select>
+    </div>
+    <button type="button" class="secondary" id="loadBtn">参加決定者を読み込む・文面を作る</button>
+    <p class="status" id="loadStatus"></p>
+    <p class="note">※「参加決定」のステータスの方だけを対象にしています。11時公演の日は、お食事有無に関係なく同じ文面になります。13時公演以外(イレギュラーな時間)は文面が自動生成されないため、手動でご記入ください。</p>
+  </div>
+
+  <div class="section" id="previewSection" style="display:none">
+    <h2>② 文面を確認・編集してから送信</h2>
+
+    <div class="group-label">🍽 お食事ありの方向け <span class="count-badge" id="mealYesCount"></span></div>
+    <textarea id="mealYesText"></textarea>
+    <div class="actions">
+      <button type="button" class="secondary" id="copyMealYesBtn">コピー</button>
+      <button type="button" class="primary" id="sendMealYesBtn">この文面で送信</button>
+    </div>
+    <p class="status" id="mealYesStatus"></p>
+
+    <div class="group-label" style="margin-top:24px">🎭 お食事なしの方向け <span class="count-badge" id="mealNoCount"></span></div>
+    <textarea id="mealNoText"></textarea>
+    <div class="actions">
+      <button type="button" class="secondary" id="copyMealNoBtn">コピー</button>
+      <button type="button" class="primary" id="sendMealNoBtn">この文面で送信</button>
+    </div>
+    <p class="status" id="mealNoStatus"></p>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
+  const EMAILJS_SERVICE_ID = "service_qpuxvaj";
+  const EMAILJS_GENERIC_TEMPLATE_ID = "template_khkmzni";
+
+  let sb = null;
+  let selectedEvent = null;
+  let mealYesRecipients = [];
+  let mealNoRecipients = [];
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase && window.emailjs) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+  function fmtDateJp(v){
+    const d = new Date(v + 'T00:00:00');
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getMonth()+1}月${d.getDate()}日(${w})`;
+  }
+
+  async function loadEventOptions(){
+    const sel = document.getElementById('eventSelect');
+    const todayStr = new Date().toISOString().slice(0,10);
+    const { data, error } = await sb
+      .from('events').select('id, event_number, troupe, event_date, show_time')
+      .gte('event_date', todayStr)
+      .order('event_date', { ascending:true });
+    if(error || !data){ return; }
+    sel.innerHTML = '<option value="">選択してください</option>' +
+      data.map(ev => `<option value="${ev.id}">第${ev.event_number??'?'}回 ${ev.troupe||''}組 ${ev.event_date} ${ev.show_time||''}</option>`).join('');
+    sel.dataset.map = JSON.stringify(data);
+  }
+
+  document.getElementById('eventSelect').addEventListener('change', (e)=>{
+    const id = e.target.value;
+    if(!id){ selectedEvent = null; return; }
+    const list = JSON.parse(e.target.dataset.map || '[]');
+    selectedEvent = list.find(ev => ev.id === id) || { id };
+  });
+
+  function buildMessage(troupe, dateLabel, eventNumber, meetingTime, meetingPlace){
+    return `🌸【${dateLabel} ${troupe}組観劇会ご参加の皆様へ　集合場所・時間のご案内】🌸
+
+第${eventNumber}回【${troupe}組】観劇会にご参加いただき、誠にありがとうございます✨
+
+【集合時間】
+${meetingTime}　${meetingPlace}へお集まりください
+
+【終演後】
+📸 終演後は集合写真撮影を予定しております。
+終演10分後を目安にお集まりください。
+
+皆さまとご一緒できますことを楽しみにしております✨
+
+小林みこころ宝塚倶楽部`;
+  }
+
+  document.getElementById('loadBtn').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('loadStatus');
+    statusEl.className = 'status'; statusEl.textContent = '';
+    if(!selectedEvent){ statusEl.classList.add('err'); statusEl.textContent = '先に公演を選んでください。'; return; }
+
+    try{
+      const { data: regRows, error } = await sb
+        .from('registrations').select('answers, status').eq('event_id', selectedEvent.id);
+      if(error) throw error;
+
+      const decided = (regRows||[]).filter(r => r.status === '参加決定' && r.answers?.email);
+      mealYesRecipients = decided.filter(r => r.answers.meal === 'ご参加')
+        .map(r => ({ email: r.answers.email.trim(), name: r.answers.full_name || 'ご参加者' }));
+      mealNoRecipients = decided.filter(r => r.answers.meal !== 'ご参加')
+        .map(r => ({ email: r.answers.email.trim(), name: r.answers.full_name || 'ご参加者' }));
+
+      let restaurantName = 'レストラン';
+      const { data: settings } = await sb.from('meal_settings').select('restaurant_name').eq('event_id', selectedEvent.id).maybeSingle();
+      if(settings?.restaurant_name) restaurantName = settings.restaurant_name;
+
+      const dateLabel = fmtDateJp(selectedEvent.event_date);
+      const troupe = selectedEvent.troupe || '◯◯';
+      const eventNumber = selectedEvent.event_number ?? '◯';
+      const showTime = (selectedEvent.show_time || '').replace(/[^0-9:]/g,'').slice(0,5);
+
+      let mealYesMsg, mealNoMsg;
+      if(showTime.startsWith('13')){
+        mealYesMsg = buildMessage(troupe, dateLabel, eventNumber, '11:30', `${restaurantName}前`);
+        mealNoMsg = buildMessage(troupe, dateLabel, eventNumber, '12:40', 'インフォメーションカウンター前');
+      } else if(showTime.startsWith('11')){
+        mealYesMsg = buildMessage(troupe, dateLabel, eventNumber, '10:30', 'インフォメーションカウンター前');
+        mealNoMsg = buildMessage(troupe, dateLabel, eventNumber, '10:30', 'インフォメーションカウンター前');
+      } else {
+        mealYesMsg = buildMessage(troupe, dateLabel, eventNumber, '【集合時間を入力】', '【集合場所を入力】');
+        mealNoMsg = buildMessage(troupe, dateLabel, eventNumber, '【集合時間を入力】', '【集合場所を入力】');
+      }
+
+      document.getElementById('mealYesText').value = mealYesMsg;
+      document.getElementById('mealNoText').value = mealNoMsg;
+      document.getElementById('mealYesCount').textContent = `(${mealYesRecipients.length}名)`;
+      document.getElementById('mealNoCount').textContent = `(${mealNoRecipients.length}名)`;
+      document.getElementById('previewSection').style.display = 'block';
+
+      statusEl.classList.add('ok');
+      statusEl.textContent = `お食事あり:${mealYesRecipients.length}名、お食事なし:${mealNoRecipients.length}名を読み込みました。`;
+      if(!showTime.startsWith('11') && !showTime.startsWith('13')){
+        statusEl.textContent += '(公演時間が11時/13時以外のため、文面は仮のプレースホルダーです。編集してください)';
+      }
+    }catch(err){
+      console.error(err);
+      statusEl.classList.add('err');
+      statusEl.textContent = '読み込みに失敗しました:' + (err.message || err);
+    }
+  });
+
+  function wireCopyButton(btnId, textareaId){
+    document.getElementById(btnId).addEventListener('click', async ()=>{
+      const ta = document.getElementById(textareaId);
+      try{
+        await navigator.clipboard.writeText(ta.value);
+        const btn = document.getElementById(btnId);
+        btn.textContent = 'コピーしました';
+        setTimeout(()=> btn.textContent = 'コピー', 1600);
+      }catch(e){ ta.select(); document.execCommand('copy'); }
+    });
+  }
+  wireCopyButton('copyMealYesBtn', 'mealYesText');
+  wireCopyButton('copyMealNoBtn', 'mealNoText');
+
+  async function sendGroup(recipients, textareaId, statusId){
+    const statusEl = document.getElementById(statusId);
+    statusEl.className = 'status'; statusEl.textContent = '';
+    if(recipients.length === 0){
+      statusEl.classList.add('err');
+      statusEl.textContent = '対象者が0名のため送信できません。';
+      return;
+    }
+    if(!confirm(`${recipients.length}名に送信します。よろしいですか？`)) return;
+
+    const message = document.getElementById(textareaId).value;
+    const subject = `【小林タカラヅカ倶楽部】${fmtDateJp(selectedEvent.event_date)} ${selectedEvent.troupe||''}組公演 集合場所のご案内`;
+
+    let successCount = 0;
+    const failedNames = [];
+    for(let i = 0; i < recipients.length; i++){
+      const r = recipients[i];
+      statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
+      try{
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+          email: r.email, subject, message: `${r.name}様\n\n${message}`
+        });
+        successCount++;
+      }catch(err){
+        console.warn('送信失敗:', r.email, err);
+        failedNames.push(r.name);
+      }
+    }
+    statusEl.className = 'status';
+    if(failedNames.length === 0){
+      statusEl.classList.add('ok');
+      statusEl.textContent = `送信完了:${successCount}名に送信しました。`;
+    } else {
+      statusEl.classList.add('err');
+      statusEl.textContent = `送信完了:${successCount}名成功 / ${failedNames.length}名失敗(${failedNames.join('、')})`;
+    }
+  }
+
+  document.getElementById('sendMealYesBtn').addEventListener('click', ()=>{
+    sendGroup(mealYesRecipients, 'mealYesText', 'mealYesStatus');
+  });
+  document.getElementById('sendMealNoBtn').addEventListener('click', ()=>{
+    sendGroup(mealNoRecipients, 'mealNoText', 'mealNoStatus');
+  });
+
+  async function init(){
+    await waitForLib(10000);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    try { window.emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      document.getElementById('authGate').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'inline-block';
+      await loadEventOptions();
+    } else {
+      document.getElementById('authGate').style.display = 'flex';
+    }
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errEl.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'ログインしています…';
+    try{
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      document.getElementById('authGate').style.display = 'none';
+      document.getElementById('logoutBtn').style.display = 'inline-block';
+      await loadEventOptions();
+    }catch(err){
+      errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'ログイン';
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+    await sb.auth.signOut();
+    location.reload();
+  });
+
+  init();
+</script>
+</body>
+</html>
