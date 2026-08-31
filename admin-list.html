@@ -15,8 +15,11 @@
     --muted:#8b84a0; --ok:#4f8f66;
   }
   *{box-sizing:border-box;}
+  html{ overflow-x:hidden; }
   body{
     margin:0;
+    overflow-x:hidden;
+    max-width:100vw;
     background:
       radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%),
       var(--navy-deep);
@@ -432,7 +435,7 @@
 <div class="net-score-summary-wrap">
   <div class="net-score-summary" style="padding:16px;margin-top:14px;">
     <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:var(--rose);">🚨 緊急連絡メール(公演中止・台風等)</p>
-    <p style="margin:0 0 10px;font-size:12px;color:var(--muted);" id="emergencyHeaderPreview">先に公演を選んでください</p>
+    <p style="margin:0 0 10px;font-size:12px;color:var(--muted);word-break:break-word;overflow-wrap:break-word;" id="emergencyHeaderPreview">先に公演を選んでください</p>
     <textarea id="emergencyBody" placeholder="例:本日の観劇会は、台風接近のため中止とさせていただきます。詳細は追ってご連絡いたします。" style="width:100%;min-height:120px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
     <button type="button" id="emergencySendBtn" style="margin-top:10px;background:var(--rose);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">緊急連絡メールを送信(参加決定者のみ)</button>
     <p class="status-msg" id="emergencyStatus" style="padding:8px 0 0;text-align:left;"></p>
@@ -618,7 +621,7 @@
       return;
     }
 
-    // 直近7回の参加回数を取得
+    // 直近7回の参加回数を取得（今日より前に開催された過去の回だけを対象）
     recentCounts = {};
     const pids = [...new Set(currentRows.map(r => r.participants?.id).filter(Boolean))];
     if(pids.length > 0){
@@ -695,8 +698,31 @@
     return m ? Number(m[0]) : 0;
   }
 
+  function netScoreSortValue(r){
+    const pid = r.participants?.id;
+    const points = r.participants?.penalty_points || 0;
+    const recentCount = recentCounts[pid];
+    return (recentCount === undefined || recentCount === null ? 0 : recentCount) - points;
+  }
+
+  function defaultSort(rows){
+    const sorted = [...rows];
+    sorted.sort((a, b)=>{
+      const scoreDiff = netScoreSortValue(b) - netScoreSortValue(a); // ポイント多い順
+      if(scoreDiff !== 0) return scoreDiff;
+      const mealA = a.answers?.meal === 'ご参加' ? 1 : 0;
+      const mealB = b.answers?.meal === 'ご参加' ? 1 : 0;
+      const mealDiff = mealB - mealA; // 食事参加が先
+      if(mealDiff !== 0) return mealDiff;
+      const countA = Number(a.answers?.participant_count) || 1;
+      const countB = Number(b.answers?.participant_count) || 1;
+      return countA - countB; // 枚数少ない順
+    });
+    return sorted;
+  }
+
   function applySorting(rows){
-    if(!sortState.key) return rows;
+    if(!sortState.key) return defaultSort(rows);
     const sorted = [...rows];
     sorted.sort((a, b)=>{
       let va, vb;

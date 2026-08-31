@@ -867,18 +867,21 @@
     submitBtn.textContent = '送信中…';
 
     try {
-      let { data: existing } = await sb
+      const normalizedName = (data.full_name || '').replace(/[\s\u3000]/g, '');
+
+      let { data: existing, error: findErr } = await sb
         .from('participants')
         .select('id')
-        .eq('email', data.email)
+        .eq('name', normalizedName)
         .maybeSingle();
+      if(findErr) throw findErr;
 
       let participantId = existing?.id;
       if(!participantId){
         const { data: created, error: pErr } = await sb
           .from('participants')
           .insert({
-            name: data.full_name,
+            name: normalizedName,
             email: data.email,
             phone: data.emergency_phone
           })
@@ -886,6 +889,11 @@
           .single();
         if(pErr) throw pErr;
         participantId = created.id;
+      } else {
+        // 既存の参加者と判定できた場合、メール・電話番号は最新の内容に更新しておく
+        await sb.from('participants')
+          .update({ email: data.email, phone: data.emergency_phone })
+          .eq('id', participantId);
       }
 
       // 同じ人・同じ回への申込みが既にあるか確認(再送信=変更として扱う)
