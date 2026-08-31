@@ -247,27 +247,30 @@
   }
 
   @media print{
-    @page{ size: landscape; margin: 8mm; }
+    @page{ size: A4 portrait; margin: 8mm; }
     body{ background:#fff !important; color:#000 !important; padding:0; }
     .toolbar, .refresh-btn, .actions, .penalty-btn, .modal-overlay, #printBtn, .detail-row, .nav-links, .print-hide-block{ display:none !important; }
     .hero:not(#printTitle){ display:none !important; }
     #printTitle{ display:block !important; padding:2px 0; }
     #printTitle h1{ color:#000; font-size:15px; margin:0; }
     .summary-bar, .table-wrap{ display:none !important; }
-    #printOnlyStats{ display:block !important; font-size:11px; color:#000; margin:0 0 8px; }
+    #printOnlyStats{ display:block !important; font-size:11px; color:#000; margin:0 0 8px; width:100%; max-width:none; }
     #printOnlyStats span{ margin-right:20px; }
-    #printOnlyList{ display:block !important; }
-    #printOnlyTable td{ color:#000 !important; border-bottom:1px solid #ccc; padding:3px 6px; font-size:8.5px; white-space:nowrap; }
-    #printOnlyTable .p-score{ width:26px; text-align:center; font-weight:700; }
-    #printOnlyTable .p-grade{ width:34px; }
-    #printOnlyTable .p-name{ font-size:12px; font-weight:700; }
-    #printOnlyTable .p-count{ font-size:12px; font-weight:700; width:34px; }
-    #printOnlyTable .p-meal{ width:24px; text-align:center; }
-    #printOnlyTable .p-seat{ width:30px; text-align:center; }
+    #printOnlyList{ display:block !important; width:100%; max-width:none; }
+    html{ background:#fff !important; }
+    #printOnlyTable{ table-layout:fixed; width:100%; }
+    #printOnlyTable td{ color:#000 !important; border-bottom:1px solid #ccc; padding:3px 4px; font-size:8.5px; white-space:nowrap; overflow:hidden; }
+    #printOnlyTable .p-score{ width:8%; text-align:center; font-weight:700; }
+    #printOnlyTable .p-grade{ width:10%; }
+    #printOnlyTable .p-name{ width:38%; font-size:12px; font-weight:700; }
+    #printOnlyTable .p-count{ width:14%; font-size:12px; font-weight:700; }
+    #printOnlyTable .p-meal{ width:15%; text-align:center; }
+    #printOnlyTable .p-seat{ width:15%; text-align:center; }
     .print-hide{ display:none !important; }
     .mark-circle{ width:14px; height:14px; font-size:8px; background:#fff !important; border-color:#999 !important; color:#000 !important; }
-    .net-score-summary{ background:#fff !important; border:1px solid #999 !important; color:#000 !important; }
-    .net-score-summary td, .net-score-summary th{ color:#000 !important; border-color:#ccc !important; }
+    .net-score-summary{ background:#fff !important; border:1px solid #999 !important; color:#000 !important; max-width:none !important; width:100% !important; }
+    .net-score-summary-wrap{ max-width:none !important; width:100% !important; padding:0 !important; }
+    .net-score-summary td, .net-score-summary th{ color:#000 !important; border-color:#ccc !important; background:#fff !important; }
   }
 
   #authGate{
@@ -851,8 +854,8 @@
       const points = p.penalty_points || 0;
       const recentCount = recentCounts[p.id];
       const netScore = (recentCount === undefined || recentCount === null) ? '-' : (recentCount - points);
-      const mealMark = a.meal === 'ご参加' ? '食' : '-';
-      const seatMark = a.seat_pref === '連席希望' ? '連' : (a.seat_pref === '抽選' ? '抽' : '-');
+      const mealMark = a.meal === 'ご参加' ? '<span class="mark-circle">食</span>' : '-';
+      const seatMark = a.seat_pref === '連席希望' ? '<span class="mark-circle">連</span>' : (a.seat_pref === '抽選' ? '<span class="mark-circle">抽</span>' : '-');
       return `
         <tr>
           <td class="p-score">${netScore}</td>
