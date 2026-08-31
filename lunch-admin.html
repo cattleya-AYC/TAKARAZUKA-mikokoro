@@ -269,11 +269,12 @@
     <p class="lbl" style="margin-bottom:10px">LINEコピペ用メッセージ</p>
     <textarea id="lineMessage" readonly></textarea>
     <button type="button" class="copy" id="copyBtn">LINE用メッセージをコピー</button>
-    <div style="display:flex;gap:8px;margin-top:14px;">
-      <input type="email" id="testEmailInput" placeholder="テスト送信先のメールアドレス" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
-      <button type="button" class="secondary" id="testMailBtn" style="margin-top:0;white-space:nowrap;">テスト送信</button>
-    </div>
-    <button type="button" class="secondary" id="mailBtn" style="margin-top:10px">✉ メールを一斉送信する(自動)</button>
+
+    <input type="email" id="testEmailInput" placeholder="テスト送信先のメールアドレス" style="width:100%;margin-top:14px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
+    <button type="button" class="secondary" id="testMailBtn" style="margin-top:8px;">テスト送信</button>
+
+    <p class="lbl" style="margin:16px 0 6px;">食事フォーム入力のお願いメール</p>
+    <button type="button" class="secondary" id="mailBtn">✉ メールを一斉送信する(自動)</button>
     <p class="status" id="mailStatus"></p>
   </div>
 </div>
@@ -641,20 +642,27 @@ ${time}
     const date = fmtDateJp(document.getElementById('eventDateInput').value) || '○月○日';
     const troupe = document.getElementById('troupeInput').value || '○○組';
     const deadline = fmtDateJp(document.getElementById('deadlineInput').value) || '○月○日';
+    const eventNumber = selectedEvent?.event_number ?? '◯';
     const subject = `【テスト】【小林タカラヅカ倶楽部】${date} ${troupe}公演 お食事メニューのご案内`;
     const message =
 `テスト太郎様(テスト送信です)
 
-お食事会からのご参加ありがとうございます。
+この度は、第${eventNumber}回 ${troupe}観劇会にお申し込みいただき、誠にありがとうございました。
 
-下記フォームより、お食事メニューとお飲み物をお選びのうえ、
-締め切りまでにご入力をお願いいたします。
+またこの度は、お食事会からのご参加もいただき、重ねてお礼申し上げます。
+
+さて、当日のお食事メニューとお飲み物につきまして、下記フォームより選択・ご入力をお願いいたします。ご入力いただいた内容をもとに、レストランへの手配を進めさせていただきます。
+
+お手数をおかけいたしますが、締め切りまでにご入力いただけますと幸いです。
 
 ▼ お食事申込フォーム
 ${url}
 
 【登録締め切り】
 ${deadline}
+
+ご不明な点がございましたら、いつでも公式LINEよりお問い合わせください。
+それでは、当日皆さまにお会いできますことを、スタッフ一同楽しみにしております。
 
 どうぞよろしくお願いいたします。
 小林タカラヅカ倶楽部`;
@@ -723,6 +731,7 @@ ${deadline}
       const date = fmtDateJp(document.getElementById('eventDateInput').value);
       const troupe = document.getElementById('troupeInput').value || '○○組';
       const deadline = fmtDateJp(document.getElementById('deadlineInput').value);
+      const eventNumber = selectedEvent?.event_number ?? '◯';
       const subject = `【小林タカラヅカ倶楽部】${date} ${troupe}公演 お食事メニューのご案内`;
 
       mailBtn.disabled = true;
@@ -736,16 +745,22 @@ ${deadline}
         const message =
 `${r.name}様
 
-お食事会からのご参加ありがとうございます。
+この度は、第${eventNumber}回 ${troupe}観劇会にお申し込みいただき、誠にありがとうございました。
 
-下記フォームより、お食事メニューとお飲み物をお選びのうえ、
-締め切りまでにご入力をお願いいたします。
+またこの度は、お食事会からのご参加もいただき、重ねてお礼申し上げます。
+
+さて、当日のお食事メニューとお飲み物につきまして、下記フォームより選択・ご入力をお願いいたします。ご入力いただいた内容をもとに、レストランへの手配を進めさせていただきます。
+
+お手数をおかけいたしますが、締め切りまでにご入力いただけますと幸いです。
 
 ▼ お食事申込フォーム
 ${url}
 
 【登録締め切り】
 ${deadline}
+
+ご不明な点がございましたら、いつでも公式LINEよりお問い合わせください。
+それでは、当日皆さまにお会いできますことを、スタッフ一同楽しみにしております。
 
 どうぞよろしくお願いいたします。
 小林タカラヅカ倶楽部`;
