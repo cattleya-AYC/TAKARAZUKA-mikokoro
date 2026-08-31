@@ -271,22 +271,49 @@
     return `${d.getMonth()+1}月${d.getDate()}日`;
   }
 
+  async function findCurrentMealEventId(){
+    const todayStr = new Date().toISOString().slice(0,10);
+    const windowStart = new Date(); windowStart.setDate(windowStart.getDate() - 60);
+    const { data: events } = await sb
+      .from('events').select('id, event_date')
+      .gte('event_date', windowStart.toISOString().slice(0,10))
+      .order('event_date', { ascending:true });
+    if(!events || events.length === 0) return null;
+
+    const ids = events.map(e=>e.id);
+    const { data: settingsRows } = await sb
+      .from('meal_settings').select('event_id').in('event_id', ids);
+    const withForm = new Set((settingsRows||[]).map(s=>s.event_id));
+
+    const upcoming = events.filter(e => withForm.has(e.id) && e.event_date >= todayStr);
+    if(upcoming.length) return upcoming[0].id;
+
+    const past = events.filter(e => withForm.has(e.id) && e.event_date < todayStr);
+    if(past.length) return past[past.length - 1].id;
+
+    return null;
+  }
+
   async function init(){
-    const eventId = getEventId();
+    let eventId = getEventId();
     document.getElementById('loadingCard').style.display = 'block';
     document.getElementById('missingCard').style.display = 'none';
     document.getElementById('closedCard').style.display = 'none';
     document.getElementById('mainContent').style.display = 'none';
     document.getElementById('doneCard').style.display = 'none';
-    if(!eventId){
-      document.getElementById('loadingCard').style.display = 'none';
-      document.getElementById('missingCard').style.display = 'block';
-      document.getElementById('eyebrowText').textContent = 'URLエラー';
-      return;
-    }
     try{
       await waitForLib(10000);
       sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      if(!eventId){
+        eventId = await findCurrentMealEventId();
+        if(!eventId){
+          document.getElementById('loadingCard').style.display = 'none';
+          document.getElementById('missingCard').style.display = 'block';
+          document.getElementById('eyebrowText').textContent = 'お食事フォーム';
+          return;
+        }
+      }
 
       const { data: ev, error: evErr } = await sb.from('events').select('*').eq('id', eventId).single();
       if(evErr || !ev) throw evErr || new Error('not found');
@@ -303,7 +330,7 @@
       renderEvent();
       document.getElementById('loadingCard').style.display = 'none';
 
-      if(isPastDeadline()){
+      if(isPastDeadline() || new URLSearchParams(window.location.search).get('preview') === 'closed'){
         document.getElementById('closedCard').style.display = 'block';
       }else{
         document.getElementById('mainContent').style.display = 'block';
