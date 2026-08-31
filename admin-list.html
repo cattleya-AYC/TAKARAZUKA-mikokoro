@@ -715,13 +715,17 @@
 
     const { data, error } = await sb
       .from('registrations')
-      .select('*, participants!left(id, name, email, phone, penalty_points, penalty_notes)')
+      .select('*, participants(id, name, email, phone, penalty_points, penalty_notes)')
       .eq('event_id', eventId)
       .order('applied_at', { ascending: false });
 
     if(error) throw error;
 
     currentRows = data || [];
+    console.log('[DEBUG] ①Supabase取得直後の件数:', currentRows.length);
+    console.log('[DEBUG] ①participants結合結果:', currentRows.map(r => ({
+      id: r.id, name: r.participants?.name, participant_id: r.participants?.id, hasParticipant: !!r.participants
+    })));
 
     if(currentRows.length === 0){
       emptyMsg.style.display = 'block';
@@ -743,6 +747,7 @@
         recentData.forEach(row => { recentCounts[row.participant_id] = row.recent_count; });
       }
     }
+    console.log('[DEBUG] ②participant結合後の件数(currentRows):', currentRows.length, '/ pids数:', pids.length);
 
     // 変更・キャンセル履歴を取得
     changeLogsMap = {};
@@ -875,13 +880,21 @@
     const countBadge = document.getElementById('countBadge');
     const filter = document.getElementById('statusFilter').value;
 
+    console.log('[DEBUG] ③renderTableに渡されたrows件数:', rows.length, '/ 現在のフィルター:', filter);
+
     let filtered = filter === 'all' ? rows : rows.filter(r => (r.status || '審査中') === filter);
+    console.log('[DEBUG] ④filter後の件数:', filtered.length);
+
     filtered = applySorting(filtered);
+    console.log('[DEBUG] ⑤sort後の件数:', filtered.length);
     updateSortArrows();
 
     tbody.innerHTML = '';
     countBadge.textContent = `${filtered.length}件`;
     renderSummary(filtered);
+
+    console.log('[DEBUG] ⑥render直前(filtered)の件数:', filtered.length,
+      filtered.map(r => r.participants?.name || r.answers?.full_name));
 
     filtered.forEach(r=>{
       const p = r.participants || {};
@@ -987,6 +1000,11 @@
         `;
       }
     }).join('') + '<tr class="print-spacer-row"><td colspan="6"></td></tr>';
+
+    console.log('[DEBUG] ⑦実際のtbody行数(操作用テーブル、detail行含まず):',
+      tbody.querySelectorAll('tr:not(.detail-row)').length);
+    console.log('[DEBUG] ⑧実際のprintOnlyBody行数(spacer除く):',
+      document.getElementById('printOnlyBody').querySelectorAll('tr:not(.print-spacer-row)').length);
 
     // 印刷時、最後の行がページの端で消えないよう、実際の行の高さを測って
     // 手動で改ページ位置を決める（beforeprintイベント内で呼び出す＝この時点で
