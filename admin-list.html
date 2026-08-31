@@ -247,7 +247,7 @@
   }
 
   @media print{
-    @page{ size: A4 portrait; margin: 10mm 12mm; }
+    @page{ size: A4 portrait; margin: 10mm 12mm 14mm 12mm; }
 
     html, body{
       width:100% !important; max-width:none !important; min-width:0 !important;
@@ -318,6 +318,11 @@
     .applicant-table td{ font-size:9.5pt; }
     thead{ display:table-header-group; }
     tr{ break-inside:avoid; page-break-inside:avoid; }
+    /* 印刷ページの最後の1行が消える対策の"逃がし行"。実データの後ろに置き、
+       このダミー行だけは改ページ回避の対象外にすることで、直前の本物の最終行が
+       正しく次ページへ送られるようにする（Chromeの印刷ページ計算のクセ対策）。 */
+    tr.print-spacer-row{ break-inside:auto; page-break-inside:auto; height:0; border:0; }
+    tr.print-spacer-row td{ height:0; padding:0; border:0; }
 
     /* 6列の幅 */
     .col-no{ width:8%; text-align:center; }
@@ -981,7 +986,7 @@
           </tr>
         `;
       }
-    }).join('');
+    }).join('') + '<tr class="print-spacer-row"><td colspan="6"></td></tr>';
 
     tbody.querySelectorAll('.name-btn, .submit-count').forEach(btn=>{
       btn.addEventListener('click', ()=>{
