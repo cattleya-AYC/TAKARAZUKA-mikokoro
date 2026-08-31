@@ -710,7 +710,7 @@
 
     const { data, error } = await sb
       .from('registrations')
-      .select('*, participants(id, name, email, phone, penalty_points, penalty_notes)')
+      .select('*, participants!left(id, name, email, phone, penalty_points, penalty_notes)')
       .eq('event_id', eventId)
       .order('applied_at', { ascending: false });
 
@@ -940,30 +940,47 @@
 
     // 印刷専用：1人1行、ポイント→回生→氏名→枚数→お食事→座席希望の順
     document.getElementById('printOnlyBody').innerHTML = filtered.map(r=>{
-      const p = r.participants || {};
-      const a = r.answers || {};
-      const points = p.penalty_points || 0;
-      const recentCount = recentCounts[p.id];
-      const netScore = (recentCount === undefined || recentCount === null) ? '-' : (recentCount - points);
-      const mealOn = a.meal === 'ご参加';
-      const seatOn = a.seat_pref === '連席希望';
-      const mealMark = mealOn
-        ? '<span class="status-mark status-meal">食</span>'
-        : '<span class="status-mark status-none">-</span>';
-      const seatMark = seatOn
-        ? '<span class="status-mark status-pair">連</span>'
-        : (a.seat_pref === '抽選' ? '<span class="status-mark status-none">抽</span>' : '<span class="status-mark status-none">-</span>');
-      const gradeText = a.grade ? `${escapeHtml(a.grade)}回生` : '';
-      return `
-        <tr>
-          <td class="col-no">${netScore}</td>
-          <td class="col-generation">${gradeText}</td>
-          <td class="col-name">${escapeHtml(p.name || a.full_name || '')}</td>
-          <td class="col-count">${escapeHtml(a.participant_count || '1')}枚</td>
-          <td class="col-meal">${mealMark}</td>
-          <td class="col-pair">${seatMark}</td>
-        </tr>
-      `;
+      try{
+        const p = r.participants || {};
+        const a = r.answers || {};
+        const points = p.penalty_points || 0;
+        const recentCount = recentCounts[p.id];
+        const netScore = (recentCount === undefined || recentCount === null) ? '-' : (recentCount - points);
+        const mealOn = a.meal === 'ご参加';
+        const seatOn = a.seat_pref === '連席希望';
+        const mealMark = mealOn
+          ? '<span class="status-mark status-meal">食</span>'
+          : '<span class="status-mark status-none">-</span>';
+        const seatMark = seatOn
+          ? '<span class="status-mark status-pair">連</span>'
+          : (a.seat_pref === '抽選' ? '<span class="status-mark status-none">抽</span>' : '<span class="status-mark status-none">-</span>');
+        const gradeText = a.grade ? `${escapeHtml(a.grade)}回生` : '';
+        return `
+          <tr>
+            <td class="col-no">${netScore}</td>
+            <td class="col-generation">${gradeText}</td>
+            <td class="col-name">${escapeHtml(p.name || a.full_name || '')}</td>
+            <td class="col-count">${escapeHtml(a.participant_count || '1')}枚</td>
+            <td class="col-meal">${mealMark}</td>
+            <td class="col-pair">${seatMark}</td>
+          </tr>
+        `;
+      }catch(e){
+        // 何らかの理由でこの1人分の描画に失敗しても、行ごと消えないよう最低限の内容で表示する
+        console.warn('印刷行の生成に失敗:', r, e);
+        const a = r.answers || {};
+        const p = r.participants || {};
+        return `
+          <tr>
+            <td class="col-no">-</td>
+            <td class="col-generation">${escapeHtml(a.grade || '')}${a.grade ? '回生' : ''}</td>
+            <td class="col-name">${escapeHtml(p.name || a.full_name || '(不明)')}</td>
+            <td class="col-count">${escapeHtml(a.participant_count || '1')}枚</td>
+            <td class="col-meal"><span class="status-mark status-none">-</span></td>
+            <td class="col-pair"><span class="status-mark status-none">-</span></td>
+          </tr>
+        `;
+      }
     }).join('');
 
     tbody.querySelectorAll('.name-btn, .submit-count').forEach(btn=>{
