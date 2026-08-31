@@ -164,8 +164,11 @@
     selectedEvent = list.find(ev => ev.id === id) || { id };
   });
 
+  const TROUPE_MARK = { '花':'🌸', '月':'🌙', '雪':'❄️', '星':'⭐', '宙':'🪐' };
+
   function buildMessage(troupe, dateLabel, eventNumber, meetingTime, meetingPlace, workTitle){
-    return `🌸【${dateLabel} ${troupe}組観劇会ご参加の皆様へ　集合場所・時間のご案内】🌸
+    const mark = TROUPE_MARK[troupe] || '🌸';
+    return `${mark}【${dateLabel} ${troupe}組観劇会ご参加の皆様へ　集合場所・時間のご案内】${mark}
 
 第${eventNumber}回【${troupe}組】観劇会${workTitle ? `『${workTitle}』` : ''}にご参加いただき、誠にありがとうございます✨
 

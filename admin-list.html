@@ -144,6 +144,7 @@
 
   .empty-msg, .status-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
   .status-msg.err{ color:var(--rose); }
+  .status-msg.ok{ color:var(--ok); }
 
   .penalty-badge{
     display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700;
@@ -212,6 +213,12 @@
     border-color:var(--gold-soft); color:#fffaf3; font-weight:700;
   }
 
+  .net-score-summary{
+    background:var(--navy-card); border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    max-width:1000px; margin:14px auto 0; margin-left:auto; margin-right:auto;
+  }
+  .net-score-summary-wrap{ padding:0 16px; }
+
   .summary-bar{
     max-width:1000px; margin:16px auto 0; padding:0 16px;
     display:flex; gap:12px; flex-wrap:wrap;
@@ -243,18 +250,23 @@
     #printTitle{ display:block !important; padding:2px 0; }
     #printTitle h1{ color:#000; font-size:15px; margin:0; }
     .summary-bar{ margin:0 auto 6px; gap:8px; }
-    .summary-item{ border-color:#999; background:#fff; padding:6px 8px; }
+    .summary-item{ border-color:#999; background:#fff !important; padding:6px 8px; }
     .summary-num{ font-size:16px; }
     .summary-label{ font-size:9px; }
     .summary-num, .summary-label{ color:#000 !important; }
     table{ border-color:#999 !important; width:100%; min-width:0 !important; table-layout:fixed; }
-    th{ background:#eee !important; color:#000 !important; font-size:9.5px; padding:4px 5px; }
+    th{ background:#fff !important; color:#000 !important; font-size:9.5px; padding:4px 5px; border-bottom:1px solid #000 !important; }
     td{ color:#000 !important; border-color:#ccc !important; font-size:9.5px; padding:4px 5px; white-space:normal; word-break:break-word; }
-    .badge{ border:1px solid #999; padding:1px 6px; font-size:9px; }
+    .badge{ background:#fff !important; border:1px solid #999; color:#000 !important; padding:1px 6px; font-size:9px; }
     .table-wrap{ overflow:visible; padding:0; }
     .print-hide{ display:none !important; }
-    .name-btn{ text-decoration:none; font-size:9.5px; }
-    .mark-circle{ width:16px; height:16px; font-size:9px; }
+    .name-btn{ text-decoration:none; font-size:9.5px; color:#000 !important; }
+    .mark-circle{ width:16px; height:16px; font-size:9px; background:#fff !important; border-color:#999 !important; color:#000 !important; }
+    .mini-badge{ background:#fff !important; color:#000 !important; border:1px solid #999 !important; }
+    .submit-count{ background:#fff !important; color:#000 !important; border:1px solid #999 !important; box-shadow:none !important; animation:none !important; }
+    .net-score-summary{ background:#fff !important; border:1px solid #999 !important; color:#000 !important; }
+    .net-score-summary td, .net-score-summary th{ color:#000 !important; }
+    tr.row-accepted td, tr.row-declined td{ background:#fff !important; }
   }
 
   #authGate{
@@ -393,6 +405,40 @@
   <div class="summary-item"><span class="summary-num" id="sumMeals">0</span><span class="summary-label">食事参加者数</span></div>
 </div>
 
+<div class="net-score-summary-wrap">
+<table class="net-score-summary" id="decidedBreakdownTable" style="width:100%;border-collapse:collapse;font-size:13px;">
+  <thead>
+    <tr>
+      <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);"></th>
+      <th style="text-align:center;padding:6px 8px;border-bottom:1px solid var(--line);">1名参加</th>
+      <th style="text-align:center;padding:6px 8px;border-bottom:1px solid var(--line);">2名参加</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:6px 8px;border-bottom:1px solid var(--line);">食事あり</td>
+      <td style="text-align:center;padding:6px 8px;border-bottom:1px solid var(--line);" id="mealYes1">0組</td>
+      <td style="text-align:center;padding:6px 8px;border-bottom:1px solid var(--line);" id="mealYes2">0組</td>
+    </tr>
+    <tr>
+      <td style="padding:6px 8px;">食事なし</td>
+      <td style="text-align:center;padding:6px 8px;" id="mealNo1">0組</td>
+      <td style="text-align:center;padding:6px 8px;" id="mealNo2">0組</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="net-score-summary-wrap">
+  <div class="net-score-summary" style="padding:16px;margin-top:14px;">
+    <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:var(--rose);">🚨 緊急連絡メール(公演中止・台風等)</p>
+    <p style="margin:0 0 10px;font-size:12px;color:var(--muted);" id="emergencyHeaderPreview">先に公演を選んでください</p>
+    <textarea id="emergencyBody" placeholder="例:本日の観劇会は、台風接近のため中止とさせていただきます。詳細は追ってご連絡いたします。" style="width:100%;min-height:120px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
+    <button type="button" id="emergencySendBtn" style="margin-top:10px;background:var(--rose);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">緊急連絡メールを送信(参加決定者のみ)</button>
+    <p class="status-msg" id="emergencyStatus" style="padding:8px 0 0;text-align:left;"></p>
+  </div>
+</div>
+
 <div class="toolbar">
   <select id="eventSelect"><option>読み込み中…</option></select>
   <select id="statusFilter">
@@ -413,14 +459,11 @@
     <thead>
       <tr>
         <th class="narrow-col">操作</th>
-        <th class="print-hide sortable narrow-col" data-sort="recent"><span class="mark-circle header-circle" title="申込回数">申</span> <span class="sort-arrow" data-arrow="recent"></span></th>
-        <th class="print-hide narrow-col"><span class="mark-circle header-circle warn" title="ペナルティ回数">ペ</span></th>
         <th>氏名</th>
         <th class="sortable" data-sort="count">枚数 <span class="sort-arrow" data-arrow="count"></span></th>
         <th>お食事</th>
         <th class="print-hide">ペナルティ入力</th>
         <th class="sortable" data-sort="grade">回生 <span class="sort-arrow" data-arrow="grade"></span></th>
-        <th>同伴者</th>
         <th>座席希望</th>
         <th class="sortable" data-sort="applied">申込日時 <span class="sort-arrow" data-arrow="applied"></span></th>
         <th>状態</th>
@@ -438,9 +481,13 @@
 </div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
 <script>
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
+  const EMAILJS_SERVICE_ID = "service_qpuxvaj";
+  const EMAILJS_GENERIC_TEMPLATE_ID = "template_khkmzni";
 
   function getSb(){
     if(!window.supabase){
@@ -482,7 +529,7 @@
     return new Promise((resolve, reject)=>{
       const start = Date.now();
       const check = ()=>{
-        if(window.supabase) resolve();
+        if(window.supabase && window.emailjs) resolve();
         else if(Date.now() - start > timeoutMs) reject(new Error('ライブラリの読み込みがタイムアウトしました'));
         else setTimeout(check, 150);
       };
@@ -493,7 +540,7 @@
   async function loadEvents(){
     const { data, error } = await sb
       .from('events')
-      .select('id, title, event_number, troupe, event_date, show_time')
+      .select('id, title, event_number, troupe, event_date, show_time, work_title')
       .order('event_date', { ascending: false });
     if(error) throw error;
     events = data || [];
@@ -624,6 +671,20 @@
     document.getElementById('sumApplicants').textContent = applicants;
     document.getElementById('sumTickets').textContent = tickets;
     document.getElementById('sumMeals').textContent = meals;
+
+    // 参加決定者のみ、食事有無×人数(1名/2名)で組数を集計
+    const decided = currentRows.filter(r => r.status === '参加決定');
+    let mealYes1 = 0, mealYes2 = 0, mealNo1 = 0, mealNo2 = 0;
+    decided.forEach(r=>{
+      const count = Number(r.answers?.participant_count) || 1;
+      const hasMeal = r.answers?.meal === 'ご参加';
+      if(hasMeal){ if(count >= 2) mealYes2++; else mealYes1++; }
+      else{ if(count >= 2) mealNo2++; else mealNo1++; }
+    });
+    document.getElementById('mealYes1').textContent = `${mealYes1}組`;
+    document.getElementById('mealYes2').textContent = `${mealYes2}組`;
+    document.getElementById('mealNo1').textContent = `${mealNo1}組`;
+    document.getElementById('mealNo2').textContent = `${mealNo2}組`;
   }
 
   let sortState = { key: null, dir: 1 };
@@ -683,8 +744,8 @@
       const tr = document.createElement('tr');
       const status = r.status || '審査中';
       const points = p.penalty_points || 0;
-      const recentCount = recentCounts[p.id] ?? '-';
-      const submitCount = 1 + (changeLogsMap[p.id]?.length || 0);
+      const recentCount = recentCounts[p.id];
+      const netScore = (recentCount === undefined || recentCount === null) ? '-' : (recentCount - points);
       const rowId = r.id;
       if(status === '参加決定') tr.classList.add('row-accepted');
       if(status === 'お断り') tr.classList.add('row-declined');
@@ -694,11 +755,9 @@
           <button class="accept" title="参加決定にする" data-id="${r.id}" data-status="参加決定" ${status==='参加決定' ? 'disabled' : ''}>✓</button>
           <button class="decline" title="お断りにする" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>✕</button>
         </td>
-        <td class="print-hide narrow-col"><span class="mini-badge">${recentCount}</span></td>
-        <td class="print-hide narrow-col"><span class="mini-badge ${points > 0 ? 'warn' : ''}">${points}</span></td>
         <td class="name">
           <button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button>
-          <button class="submit-count ${submitCount > 1 ? 'multi' : ''}" data-detail="${rowId}" title="送信回数(タップで変更履歴を表示)">${submitCount}</button>
+          <button class="submit-count ${netScore !== '-' && netScore <= 0 ? 'multi' : ''}" data-detail="${rowId}" title="直近7回の参加数−ペナルティ(タップで変更履歴を表示)">${netScore}</button>
         </td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
         <td>${a.meal === 'ご参加'
@@ -706,7 +765,6 @@
               : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
         <td class="print-hide"><button class="penalty-badge" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠</button></td>
         <td>${escapeHtml(a.grade || '')}</td>
-        <td>${a.participant_count === '2' ? 'あり' : 'なし'}</td>
         <td>${a.seat_pref === '連席希望'
               ? '<span class="mark-circle seat-together" title="連席希望">連</span>'
               : a.seat_pref === '抽選'
@@ -727,7 +785,7 @@
       detailTr.id = `detail-${rowId}`;
       detailTr.style.display = 'none';
       detailTr.innerHTML = `
-        <td colspan="12">
+        <td colspan="9">
           <div class="detail-box">
             <span><b>メール:</b> ${escapeHtml(p.email || a.email || '')}</span>
             <span><b>携帯:</b> ${escapeHtml(p.phone || a.emergency_phone || '')}</span>
@@ -867,6 +925,93 @@
 
   let currentEventId = null;
 
+  function updateEmergencyHeaderPreview(){
+    const ev = events.find(e => e.id === currentEventId);
+    const preview = document.getElementById('emergencyHeaderPreview');
+    if(!ev){ preview.textContent = '先に公演を選んでください'; return; }
+    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+    preview.textContent = `件名・書き出し:「${title}にご参加ありがとうございます」`;
+  }
+
+  async function sendEmergencyEmail(){
+    const statusEl = document.getElementById('emergencyStatus');
+    statusEl.className = 'status-msg'; statusEl.textContent = '';
+
+    const ev = events.find(e => e.id === currentEventId);
+    if(!ev){
+      statusEl.classList.add('err');
+      statusEl.textContent = '先に公演を選んでください。';
+      return;
+    }
+    const body = document.getElementById('emergencyBody').value.trim();
+    if(!body){
+      statusEl.classList.add('err');
+      statusEl.textContent = '緊急連絡事項を入力してください。';
+      return;
+    }
+
+    const decided = currentRows.filter(r => r.status === '参加決定' && r.answers?.email);
+    const recipients = [];
+    const seen = new Set();
+    decided.forEach(r=>{
+      const email = r.answers.email.trim();
+      if(!seen.has(email)){
+        seen.add(email);
+        recipients.push({ email, name: r.answers.full_name || r.participants?.name || 'ご参加者' });
+      }
+    });
+
+    if(recipients.length === 0){
+      statusEl.classList.add('err');
+      statusEl.textContent = '参加決定の方でメールアドレスが登録されている人が見つかりませんでした。';
+      return;
+    }
+
+    if(!confirm(`参加決定者 ${recipients.length}名に緊急連絡メールを送信します。よろしいですか？`)) return;
+
+    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+    const subject = `【緊急連絡】${title}にご参加ありがとうございます`;
+
+    const btn = document.getElementById('emergencySendBtn');
+    btn.disabled = true;
+    let successCount = 0;
+    const failedNames = [];
+
+    for(let i = 0; i < recipients.length; i++){
+      const r = recipients[i];
+      statusEl.className = 'status-msg';
+      statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
+      const message =
+`${r.name}様
+
+${title}にご参加ありがとうございます。
+
+【緊急連絡事項】
+${body}
+
+小林タカラヅカ倶楽部`;
+      try{
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+          email: r.email, subject, message
+        });
+        successCount++;
+      }catch(err){
+        console.warn('送信失敗:', r.email, err);
+        failedNames.push(r.name);
+      }
+    }
+
+    statusEl.className = 'status-msg';
+    if(failedNames.length === 0){
+      statusEl.classList.add('ok');
+      statusEl.textContent = `送信完了:${successCount}名に送信しました。`;
+    } else {
+      statusEl.classList.add('err');
+      statusEl.textContent = `送信完了:${successCount}名成功 / ${failedNames.length}名失敗(${failedNames.join('、')})`;
+    }
+    btn.disabled = false;
+  }
+
   async function startApp(){
     const statusMsg = document.getElementById('statusMsg');
     try{
@@ -876,12 +1021,14 @@
         currentEventId = sel.value;
         await loadRegistrations(currentEventId);
         await loadAgencyInfo(currentEventId);
+        updateEmergencyHeaderPreview();
       }
       sel.addEventListener('change', ()=>{
         currentEventId = sel.value;
         updatePrintTitle();
         loadRegistrations(currentEventId);
         loadAgencyInfo(currentEventId);
+        updateEmergencyHeaderPreview();
       });
       document.getElementById('refreshBtn').addEventListener('click', ()=>{
         if(currentEventId){
@@ -897,6 +1044,7 @@
         window.print();
       });
       document.getElementById('changeBtn').addEventListener('click', openChangeModal);
+      document.getElementById('emergencySendBtn').addEventListener('click', sendEmergencyEmail);
       document.querySelectorAll('th.sortable').forEach(th=>{
         th.addEventListener('click', ()=>{
           const key = th.getAttribute('data-sort');
@@ -921,6 +1069,7 @@
     try{
       await waitForLib(10000);
       sb = getSb();
+      try { window.emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
       const { data: { session } } = await sb.auth.getSession();
       if(session){
         document.getElementById('authGate').style.display = 'none';
