@@ -988,6 +988,66 @@
       }
     }).join('') + '<tr class="print-spacer-row"><td colspan="6"></td></tr>';
 
+    // 印刷時、最後の行がページの端で消えないよう、実際の行の高さを測って
+    // 手動で改ページ位置を決める（beforeprintイベント内で呼び出す＝この時点で
+    // 印刷用CSSが有効になっているため、正しい高さが取得できる）。
+    function paginatePrintTable(){
+      try{
+        const printBody = document.getElementById('printOnlyBody');
+        if(!printBody) return;
+        const printRows = Array.from(printBody.querySelectorAll('tr'))
+          .filter(tr => !tr.classList.contains('print-spacer-row'));
+        if(printRows.length === 0) return;
+
+        // 前回印刷時の改ページ指定をリセット
+        printRows.forEach(tr=>{
+          tr.style.breakBefore = '';
+          tr.style.pageBreakBefore = '';
+        });
+
+        const MM_TO_PX = 96 / 25.4;
+        const PAGE_HEIGHT_MM = 297;     // A4縦
+        const MARGIN_TOP_MM = 10;
+        const MARGIN_BOTTOM_MM = 14;    // @page の下余白と合わせる
+        const SAFETY_PX = 8;            // 端数吸収の安全マージン
+
+        const contentHeightPx = (PAGE_HEIGHT_MM - MARGIN_TOP_MM - MARGIN_BOTTOM_MM) * MM_TO_PX;
+
+        const titleEl = document.getElementById('printTitle');
+        const theadEl = document.querySelector('#printOnlyTable thead');
+        const firstRow = printRows[0];
+        if(!titleEl || !theadEl || !firstRow) return;
+
+        const titleTop = titleEl.getBoundingClientRect().top;
+        const firstRowTop = firstRow.getBoundingClientRect().top;
+        const headerHeightPx = firstRowTop - titleTop; // 1ページ目だけにある見出し・集計欄の高さ
+        const theadHeightPx = theadEl.getBoundingClientRect().height; // 各ページで繰り返す表ヘッダー
+
+        let pageBudget = contentHeightPx - headerHeightPx - SAFETY_PX;
+        const laterPageBudget = contentHeightPx - theadHeightPx - SAFETY_PX;
+        let used = 0;
+
+        printRows.forEach((tr, i)=>{
+          const h = tr.getBoundingClientRect().height;
+          if(i === 0){
+            used = h;
+            return;
+          }
+          if(used + h > pageBudget){
+            tr.style.breakBefore = 'page';
+            tr.style.pageBreakBefore = 'always';
+            used = h;
+            pageBudget = laterPageBudget;
+          }else{
+            used += h;
+          }
+        });
+      }catch(e){
+        console.warn('印刷ページ割り計算に失敗しました:', e);
+      }
+    }
+    window.paginatePrintTable = paginatePrintTable;
+
     tbody.querySelectorAll('.name-btn, .submit-count').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const row = document.getElementById(`detail-${btn.getAttribute('data-detail')}`);
@@ -1231,7 +1291,11 @@ ${body}
       });
       document.getElementById('printBtn').addEventListener('click', ()=>{
         updatePrintTitle();
+        if(window.paginatePrintTable) window.paginatePrintTable();
         window.print();
+      });
+      window.addEventListener('beforeprint', ()=>{
+        if(window.paginatePrintTable) window.paginatePrintTable();
       });
       document.getElementById('changeBtn').addEventListener('click', openChangeModal);
       document.getElementById('emergencySendBtn').addEventListener('click', sendEmergencyEmail);
