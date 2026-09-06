@@ -429,25 +429,6 @@ document.getElementById("saveJenneBtn").addEventListener("click", async ()=>{
     showStatus(statusEl, "お名前を入力してください", true);
     return;
   }
-  {
-    const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
-    const panel = document.getElementById("debugPanel");
-    panel.style.display = "block";
-    logDebug("[保存前チェック] session存在: " + Boolean(sessionData?.session)
-      + " / user: " + (sessionData?.session?.user?.email || "なし")
-      + " / エラー: " + (sessionErr ? sessionErr.message : "なし"));
-    const at = sessionData?.session?.access_token;
-    if(at){
-      try{
-        const payload = JSON.parse(atob(at.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
-        logDebug("[トークン内容] role=" + payload.role + " / sub=" + payload.sub + " / exp=" + new Date(payload.exp*1000).toLocaleString("ja-JP"));
-      }catch(e){
-        logDebug("[トークン内容] デコード失敗: " + e.message);
-      }
-    } else {
-      logDebug("[トークン内容] access_tokenがsession内に存在しません");
-    }
-  }
   try{
     let photoUrl = null;
     if(pendingPhotoFile){
