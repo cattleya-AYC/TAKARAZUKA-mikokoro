@@ -333,12 +333,14 @@
         if(error) throw error;
         statusMsg.classList.add('ok');
         statusMsg.textContent = '修正内容を保存しました。';
+        await syncCapacityToEvent(payload, statusMsg);
         exitEditMode();
       } else {
         const { error } = await sb.from('agency_confirmations').insert(payload);
         if(error) throw error;
         statusMsg.classList.add('ok');
         statusMsg.textContent = '登録が完了しました。';
+        await syncCapacityToEvent(payload, statusMsg);
         form.reset();
         form.querySelectorAll('.toggle-opt.checked').forEach(el => el.classList.remove('checked'));
       }
@@ -351,6 +353,32 @@
       submitBtn.textContent = editingId ? '修正登録する' : 'この内容で登録する';
     }
   });
+
+  // 確定枚数を、同じ組・開催日のeventsの「定員」に自動反映する
+  async function syncCapacityToEvent(payload, statusMsg){
+    try{
+      const { data: matched, error: findErr } = await sb
+        .from('events')
+        .select('id, capacity')
+        .eq('troupe', payload.troupe)
+        .eq('event_date', payload.event_date)
+        .eq('show_time', payload.show_time);
+      if(findErr) throw findErr;
+
+      if(!matched || matched.length === 0){
+        statusMsg.textContent += '(該当する観劇会が見つからず、定員は更新されていません)';
+        return;
+      }
+
+      for(const ev of matched){
+        await sb.from('events').update({ capacity: payload.confirmed_count }).eq('id', ev.id);
+      }
+      statusMsg.textContent += `(観劇会の定員も${payload.confirmed_count}人に自動更新しました)`;
+    }catch(err){
+      console.error('定員の自動更新に失敗:', err);
+      statusMsg.textContent += '(定員の自動更新に失敗しました。admin-new-event.htmlで手動確認してください)';
+    }
+  }
 
   async function startApp(){
     try{
