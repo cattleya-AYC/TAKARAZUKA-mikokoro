@@ -210,6 +210,14 @@ input[type=text],textarea{
             </div>
           </div>
 
+          <div class="field">
+            <label>メールアドレス <span class="required">必須</span></label>
+            <input type="text" id="email" placeholder="例：mari@example.com" required>
+            <div class="help" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6">
+              差し入れをお渡しした後のご報告メールをお送りしますので、必ずご記入ください。
+            </div>
+          </div>
+
           <div class="amount-preview">当日お預かりする協力金：<b id="amountText">200円</b></div>
 
           <button class="submit" type="submit" id="submitBtn">この内容で申し込む</button>
@@ -361,6 +369,7 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   const nameDisplayEl = document.querySelector('input[name="nameDisplay"]:checked');
   const name = document.getElementById("name").value.trim();
   const period = document.getElementById("period").value.trim();
+  const email = document.getElementById("email").value.trim();
   const hasCompanion = document.getElementById("hasCompanion").checked;
   const companionName = document.getElementById("companionName").value.trim();
   const companionNameDisplayEl = document.querySelector('input[name="companionNameDisplay"]:checked');
@@ -373,6 +382,11 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   if(!nameDisplayEl || !name || !period){
     statusEl.className = "status err";
     statusEl.textContent = "必須項目をすべてご入力ください。";
+    return;
+  }
+  if(!email){
+    statusEl.className = "status err";
+    statusEl.textContent = "メールアドレスをご入力ください。";
     return;
   }
   if(hasCompanion && (!companionName || !companionNameDisplayEl)){
@@ -389,6 +403,7 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
       name,
       name_display: nameDisplayEl.value,
       period,
+      email: email || null,
       has_companion: hasCompanion,
       companion_name: hasCompanion ? companionName : null,
       companion_name_display: hasCompanion ? companionNameDisplayEl.value : null
