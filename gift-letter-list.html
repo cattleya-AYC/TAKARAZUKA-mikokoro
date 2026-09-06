@@ -49,6 +49,27 @@ th{background:#f5f9f2;color:#556b4c}
 .badge.none{background:#f3e8e2;color:#725b51}
 .empty{color:var(--muted);padding:16px;text-align:center}
 button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;background:#f3e8e2;color:#725b51}
+.jenne-group{margin-bottom:22px}
+.jenne-group-head{
+  display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;
+  margin-bottom:8px;
+}
+.jenne-group-head .name{font-family:"Yu Mincho","Hiragino Mincho ProN",serif;font-size:19px;color:var(--green-dark)}
+.jenne-group-head .stats{font-size:13px;color:var(--muted)}
+.jenne-group-head .stats b{color:var(--green-dark);font-size:15px}
+.companion-row td{color:var(--muted)}
+.companion-tag{color:var(--green-dark);font-weight:700;margin-right:4px}
+.print-check-col{display:none;width:34px}
+.print-check-box{
+  display:inline-block;width:18px;height:18px;border:1.5px solid #999;border-radius:4px;vertical-align:middle;
+}
+@media print{
+  body{background:#fff}
+  .controls, .info-row, header p, #printBtn, #csvBtn{display:none !important}
+  .panel{box-shadow:none;border:none}
+  .print-check-col{display:table-cell !important}
+  .no-print{display:none !important}
+}
 </style>
 </head>
 <body>
@@ -66,6 +87,7 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
           <select id="eventSelect"><option value="">読み込み中...</option></select>
         </div>
         <button id="csvBtn">CSV出力</button>
+        <button id="printBtn">印刷する</button>
       </div>
 
       <div class="info-row">
@@ -76,16 +98,7 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
         <div class="info-card"><div class="label">金銭回収担当</div><div class="value" id="dutyPartnerValue">-</div></div>
       </div>
 
-      <div class="jenne-summary" id="jenneSummary"></div>
-
-      <div style="overflow-x:auto">
-        <table>
-          <thead>
-            <tr><th>差し入れ先</th><th>お名前</th><th>回生</th><th>外装記名</th><th>同伴者</th><th>同伴者記名</th><th>送信日時</th></tr>
-          </thead>
-          <tbody id="listBody"><tr><td colspan="7" class="empty">読み込み中...</td></tr></tbody>
-        </table>
-      </div>
+      <div id="jenneGroups"></div>
     </main>
   </div>
 </div>
@@ -97,7 +110,7 @@ const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
 
 if(!window.supabase){
-  document.getElementById("listBody").innerHTML = `<tr><td colspan="7" class="empty">読み込みエラー：ページを再読み込みしてください</td></tr>`;
+  document.getElementById("jenneGroups").innerHTML = `<div class="empty">読み込みエラー：ページを再読み込みしてください</div>`;
   throw new Error("supabase-js failed to load");
 }
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -189,8 +202,8 @@ async function loadDutyStaff(eventId){
 }
 
 async function loadSubmissions(eventId){
-  const body = document.getElementById("listBody");
-  body.innerHTML = `<tr><td colspan="7" class="empty">読み込み中...</td></tr>`;
+  const body = document.getElementById("jenneGroups");
+  body.innerHTML = `<div class="empty">読み込み中...</div>`;
   try{
     let query = supabase
       .from("gift_letter_submissions")
@@ -203,7 +216,7 @@ async function loadSubmissions(eventId){
     render();
   }catch(err){
     console.error(err);
-    body.innerHTML = `<tr><td colspan="7" class="empty">読み込みエラー</td></tr>`;
+    body.innerHTML = `<div class="empty">読み込みエラー</div>`;
   }
 }
 
@@ -212,52 +225,68 @@ function peopleCount(r){
 }
 
 function render(){
-  const body = document.getElementById("listBody");
-  if(currentRows.length===0){
-    body.innerHTML = `<tr><td colspan="7" class="empty">まだ申し込みがありません</td></tr>`;
-  } else {
-    body.innerHTML = currentRows.map(r=>{
-      const jenneName = r.jennes ? `${r.jennes.name}さん` : "―";
-      return `
-      <tr>
-        <td>${jenneName}</td>
-        <td>${r.name}</td>
-        <td>${r.period || ""}</td>
-        <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
-        <td>${r.has_companion ? (r.companion_name || "あり") : "―"}</td>
-        <td>${r.has_companion ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display||""}</span>` : "―"}</td>
-        <td>${new Date(r.created_at).toLocaleString("ja-JP")}</td>
-      </tr>`;
-    }).join("");
-  }
-
+  const container = document.getElementById("jenneGroups");
   const totalPeople = currentRows.reduce((sum,r)=>sum + peopleCount(r), 0);
   document.getElementById("countValue").textContent = currentRows.length + "件";
   document.getElementById("peopleValue").textContent = totalPeople + "名";
   document.getElementById("totalAmountValue").textContent = (totalPeople * 200).toLocaleString("ja-JP") + "円";
 
-  // ジェンヌ別の内訳(花組など複数人いる回向け)
-  const byJenne = {};
+  if(currentRows.length===0){
+    container.innerHTML = `<div class="empty">まだ申し込みがありません</div>`;
+    return;
+  }
+
+  // 差し入れ先(ジェンヌ)ごとにグループ化
+  const groups = {};
+  const order = [];
   currentRows.forEach(r=>{
     const key = r.jennes ? r.jennes.name : "未設定";
-    if(!byJenne[key]) byJenne[key] = { count:0, people:0 };
-    byJenne[key].count += 1;
-    byJenne[key].people += peopleCount(r);
+    if(!groups[key]){ groups[key] = []; order.push(key); }
+    groups[key].push(r);
   });
-  const jenneNames = Object.keys(byJenne);
-  const summaryBox = document.getElementById("jenneSummary");
-  if(jenneNames.length <= 1){
-    summaryBox.innerHTML = "";
-  } else {
-    summaryBox.innerHTML = jenneNames.map(name=>{
-      const v = byJenne[name];
-      return `<div class="jenne-summary-card">
-        <span class="name">${name}さん</span>
-        <span class="nums">${v.count}件 ／ ${v.people}名 ／ <b>${(v.people*200).toLocaleString("ja-JP")}円</b></span>
-      </div>`;
+
+  container.innerHTML = order.map(name=>{
+    const rows = groups[name];
+    const people = rows.reduce((sum,r)=>sum + peopleCount(r), 0);
+    const rowsHtml = rows.map(r=>{
+      const mainRow = `
+      <tr>
+        <td class="print-check-col"><span class="print-check-box"></span></td>
+        <td>${r.period || ""}</td>
+        <td>${r.name}</td>
+        <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
+      </tr>`;
+      const companionRow = r.has_companion ? `
+      <tr class="companion-row">
+        <td class="print-check-col"><span class="print-check-box"></span></td>
+        <td>${r.period || ""}</td>
+        <td><span class="companion-tag">⭕️同</span>${r.companion_name || ""}</td>
+        <td>${r.companion_name_display ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display}</span>` : ""}</td>
+      </tr>` : "";
+      return mainRow + companionRow;
     }).join("");
-  }
+
+    return `
+    <div class="jenne-group">
+      <div class="jenne-group-head">
+        <span class="name">差し入れ先：${name}さん</span>
+        <span class="stats">人数：<b>${people}名</b>　合計金額：<b>${(people*200).toLocaleString("ja-JP")}円</b></span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr><th class="print-check-col"></th><th>回生</th><th>お名前</th><th>外装記名</th></tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join("");
 }
+
+document.getElementById("printBtn").addEventListener("click", ()=>{
+  window.print();
+});
 
 document.getElementById("csvBtn").addEventListener("click", ()=>{
   const rows = [["差し入れ先","お名前","回生","外装記名","同伴者","同伴者記名","送信日時"]];
