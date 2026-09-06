@@ -113,6 +113,11 @@
   let currentEvent = null;
   let rows = []; // {id, task_type_id, task_name, time_label, required_count, assigned_staff, note, fixed_staff, is_group_task, sort_order, _isNew}
   const DUTY_TASK_NAME = '楽屋口・お菓子当番';
+  let isDirty = false;
+  function markDirty(){ isDirty = true; }
+  window.addEventListener('beforeunload', (e)=>{
+    if(isDirty){ e.preventDefault(); e.returnValue = ''; }
+  });
 
   // --- 認証 ---
   async function doLogin(){
@@ -184,10 +189,15 @@
       existing.required_count = names.length;
       existing.from_duty = true;
     } else {
+      const is11 = currentEvent.show_time === '11:00';
       rows.unshift({
         id:null, task_type_id:null, task_name: DUTY_TASK_NAME,
-        time_label:'幕間', required_count: names.length,
-        assigned_staff: names, note:'差し入れ・お菓子を楽屋口へ届ける当番です(jenne-gift-form.htmlで設定)。開演前に間に合わない場合は幕間に対応。時刻は実際のタイミングに合わせて調整してください。',
+        time_label: is11 ? '幕間' : '12:35に移動',
+        required_count: names.length,
+        assigned_staff: names,
+        note: is11
+          ? '差し入れ・お菓子を楽屋口へ届ける当番です(jenne-gift-form.htmlで設定)。11時公演は開演にギリギリのため、間に合わない場合は幕間に対応してください。'
+          : '差し入れ・お菓子を楽屋口へ届ける当番です(jenne-gift-form.htmlで設定)。同じ時間帯に「食事なしの参加者へチケット渡し(インフォ前)」があるため、担当が重ならないようご注意ください。',
         fixed_staff:null, is_group_task:false, from_duty:true, sort_order:-10, _isNew:true
       });
     }
@@ -197,6 +207,10 @@
     const sel = document.getElementById('eventSelect');
     const eventId = sel.value;
     if(!eventId) return;
+    if(isDirty && currentEvent && eventId !== currentEvent.id){
+      const ok = confirm('保存していない変更があります。保存せずに別の回に切り替えますか？(変更内容は失われます)');
+      if(!ok){ sel.value = currentEvent.id; return; }
+    }
     const opt = sel.options[sel.selectedIndex];
     currentEvent = { id: eventId, show_time: opt.dataset.showTime };
     await loadExistingRows();
@@ -229,6 +243,7 @@
         rows = [];
       }
       await syncDutyRow();
+      isDirty = false;
     } catch(e){
       console.error(e);
       setStatus('読み込み中にエラーが発生しました: ' + e.message);
@@ -258,6 +273,7 @@
         sort_order: t.sort_order, _isNew:true
       }));
       await syncDutyRow();
+      markDirty();
     } catch(e){
       console.error(e);
       setStatus('読み込み中にエラーが発生しました: ' + e.message);
@@ -269,6 +285,7 @@
   }
 
   function addCustomRow(){
+    markDirty();
     rows.push({
       id:null, task_type_id:null, task_name:'新しい仕事', time_label:'',
       required_count:1, assigned_staff:[], note:'', fixed_staff:null,
@@ -279,6 +296,7 @@
 
   function removeRow(idx){
     if(!confirm('この行を削除しますか？')) return;
+    markDirty();
     rows.splice(idx,1);
     renderRows();
   }
@@ -314,16 +332,16 @@
 
       div.innerHTML = `
         <div class="row-head">
-          <input type="text" class="task-input" value="${escapeHtml(row.task_name||'')}" placeholder="仕事名" onchange="rows[${idx}].task_name=this.value">
+          <input type="text" class="task-input" value="${escapeHtml(row.task_name||'')}" placeholder="仕事名" onchange="rows[${idx}].task_name=this.value; markDirty();">
           ${badge}
         </div>
         <div class="count-row">
-          <input type="text" class="time-input" value="${escapeHtml(row.time_label||'')}" placeholder="時刻" onchange="rows[${idx}].time_label=this.value">
+          <input type="text" class="time-input" value="${escapeHtml(row.time_label||'')}" placeholder="時刻" onchange="rows[${idx}].time_label=this.value; markDirty();">
           <label style="margin:0;white-space:nowrap;">必要人数</label>
-          <input type="number" min="0" max="6" class="req-count" value="${row.required_count}" style="width:44px !important;flex-shrink:0;flex-grow:0;text-align:center;padding:8px 2px;" onchange="rows[${idx}].required_count=parseInt(this.value)||0; renderRows();">
+          <input type="number" min="0" max="6" class="req-count" value="${row.required_count}" style="width:44px !important;flex-shrink:0;flex-grow:0;text-align:center;padding:8px 2px;" onchange="rows[${idx}].required_count=parseInt(this.value)||0; markDirty(); renderRows();">
         </div>
         ${staffHtml}
-        <textarea class="note-input" placeholder="補足メモ・作業内容の指示(スタッフ画面にそのまま表示されます)" onchange="rows[${idx}].note=this.value">${escapeHtml(row.note||'')}</textarea>
+        <textarea class="note-input" placeholder="補足メモ・作業内容の指示(スタッフ画面にそのまま表示されます)" onchange="rows[${idx}].note=this.value; markDirty();">${escapeHtml(row.note||'')}</textarea>
         <div class="row-actions">
           <button class="btn-danger" onclick="removeRow(${idx})">削除</button>
         </div>
@@ -333,6 +351,7 @@
   }
 
   function toggleStaff(idx, name, checked){
+    markDirty();
     const row = rows[idx];
     if(checked){
       if(!row.assigned_staff.includes(name)) row.assigned_staff.push(name);
@@ -365,6 +384,7 @@
   async function autoAssignRow(idx){
     const row = rows[idx];
     if(row.fixed_staff || row.from_duty) return;
+    markDirty();
     const usedAtThisTime = rows
       .filter((r,i)=>i!==idx && r.time_label && r.time_label===row.time_label)
       .flatMap(r=>r.assigned_staff||[]);
@@ -421,6 +441,7 @@
     }));
     const { error: insErr } = await sb.from('event_staff_assignments').insert(payload);
     if(insErr){ setStatus('保存に失敗しました: ' + insErr.message); return; }
+    isDirty = false;
     setStatus('保存しました！');
     await loadExistingRows();
   }
