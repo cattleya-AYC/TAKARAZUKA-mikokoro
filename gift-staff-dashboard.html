@@ -104,7 +104,9 @@ th{background:#faf8f5;color:var(--muted);font-size:12px}
           <div class="info-card"><div class="label">申込件数</div><div class="value" id="countValue">-</div></div>
           <div class="info-card"><div class="label">協力人数（同伴者含む）</div><div class="value" id="peopleValue">-</div></div>
           <div class="info-card"><div class="label">合計金額</div><div class="value" id="totalAmountValue">-</div></div>
-          <div class="info-card"><div class="label">楽屋口届け担当者</div><div class="value" id="dutyStaffValue" style="font-size:17px">-</div></div>
+          <div class="info-card"><div class="label">お菓子購入担当者</div><div class="value" id="dutyStaffValue" style="font-size:17px">-</div></div>
+          <div class="info-card"><div class="label">金銭回収担当</div><div class="value" id="dutyPartnerValue" style="font-size:17px">-</div></div>
+          <div class="info-card" style="grid-column:1/-1"><div class="label">楽屋口届け担当者(2名)</div><div class="value" id="dutyBothValue" style="font-size:17px">-</div></div>
         </div>
         <div id="jenneGroups"></div>
       </div>
@@ -341,7 +343,9 @@ async function loadJenneNameForCard(){
 
 async function loadDutyStaff(){
   const el = document.getElementById("dutyStaffValue");
-  if(!currentEventId){ el.textContent = "-"; return; }
+  const partnerEl = document.getElementById("dutyPartnerValue");
+  const bothEl = document.getElementById("dutyBothValue");
+  if(!currentEventId){ el.textContent = "-"; partnerEl.textContent = "-"; bothEl.textContent = "-"; return; }
   try{
     const { data, error } = await supabase
       .from("event_duty")
@@ -349,11 +353,12 @@ async function loadDutyStaff(){
       .eq("event_id", currentEventId)
       .maybeSingle();
     if(error) throw error;
-    if(data?.duty_staff && data?.duty_partner){
-      el.textContent = `${data.duty_staff}・${data.duty_partner}`;
-    } else {
-      el.textContent = data?.duty_staff || "未設定";
-    }
+    el.textContent = data?.duty_staff || "未設定";
+    partnerEl.textContent = data?.duty_partner || "未設定";
+    bothEl.textContent = (data?.duty_staff && data?.duty_partner)
+      ? `${data.duty_staff}・${data.duty_partner}`
+      : (data?.duty_staff || data?.duty_partner || "未設定");
+
     // 担当者のお名前欄に自動で反映(未入力の場合のみ)
     const staffNameInput = document.getElementById("staffName");
     if(data?.duty_staff && !staffNameInput.value.trim()){
@@ -362,6 +367,8 @@ async function loadDutyStaff(){
   }catch(err){
     console.error(err);
     el.textContent = "-";
+    partnerEl.textContent = "-";
+    bothEl.textContent = "-";
   }
 }
 
