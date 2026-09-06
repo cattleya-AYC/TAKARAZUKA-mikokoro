@@ -107,10 +107,60 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
 .empty{color:var(--muted);font-size:13.5px;padding:8px 2px}
 .search{width:100%;padding:11px 12px;border:1px solid #ddcabe;border-radius:10px;font:inherit;margin-bottom:12px}
 .config-note{font-size:11.5px;color:#b08f80;line-height:1.6;padding:10px 12px;background:#fff7f2;border-radius:10px;margin-bottom:14px}
+#authGate{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#authGate .box{
+  max-width:340px;width:100%;
+  background:var(--paper);border:1px solid var(--rose);
+  border-radius:18px;padding:28px 24px;
+  box-shadow:0 16px 42px rgba(77,51,38,.11);
+}
+#authGate .title{
+  text-align:center;margin-bottom:18px;
+  font-family:"Yu Mincho","Hiragino Mincho ProN",serif;
+  font-size:18px;color:var(--rose-dark);
+}
+#authGate label{display:block;margin-bottom:14px}
+#authGate .lbl{font-size:13px;color:var(--muted);font-weight:700;display:block;margin-bottom:6px}
+#authGate input{
+  width:100%;padding:11px 13px;border:1px solid #ddcabe;border-radius:10px;
+  background:#fff;color:var(--ink);font-size:15px;font-family:inherit;
+}
+#authGate button{
+  width:100%;padding:13px;border:0;border-radius:12px;margin-top:6px;
+  background:linear-gradient(#e49a9d,#cc7477);color:#fff;font-weight:700;font-size:15px;
+  cursor:pointer;font-family:inherit;
+}
+#authGate .err{text-align:center;font-size:12.5px;color:#a34848;margin-top:12px;display:none}
+#logoutBtn{
+  position:fixed;top:10px;right:10px;z-index:1000;padding:6px 12px;
+  border:1px solid var(--rose-dark);border-radius:20px;background:#fff;color:var(--rose-dark);
+  font-size:11px;font-weight:700;cursor:pointer;display:none;
+}
 @media(max-width:620px){.grid2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<div id="authGate">
+  <form class="box" id="loginForm">
+    <div class="title">管理者ログイン</div>
+    <label>
+      <span class="lbl">メールアドレス</span>
+      <input type="email" id="loginEmail" required autocomplete="username">
+    </label>
+    <label>
+      <span class="lbl">パスワード</span>
+      <input type="password" id="loginPassword" required autocomplete="current-password">
+    </label>
+    <button type="submit" id="loginBtn">ログイン</button>
+    <p class="err" id="loginError"></p>
+  </form>
+</div>
+<button id="logoutBtn" type="button">ログアウト</button>
+
 <div class="wrap">
   <div class="panel">
     <header>
@@ -176,7 +226,7 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
   </div>
 </div>
 
-<div id="debugPanel" style="position:fixed;left:0;right:0;bottom:0;max-height:32vh;overflow-y:auto;background:#241d18;color:#9be89b;font:11px/1.6 monospace;padding:8px 10px;z-index:999;white-space:pre-wrap;"></div>
+<div id="debugPanel" style="display:none;position:fixed;left:0;right:0;bottom:0;max-height:32vh;overflow-y:auto;background:#241d18;color:#9be89b;font:11px/1.6 monospace;padding:8px 10px;z-index:999;white-space:pre-wrap;"></div>
 
 <!-- 外部CDNへの依存をやめ、ライブラリ本体を同じサイトに置いて読み込みます -->
 <script src="./supabase-js.min.js"></script>
@@ -433,6 +483,40 @@ document.getElementById("confirmGiftBtn").addEventListener("click", async ()=>{
   }
 });
 
+async function startApp(){
+  configWarningIfNeeded();
+  await loadEvents();
+  await loadJennes();
+  logDebug("⑨ init完了(全て終了)");
+}
+
+document.getElementById("loginForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const errEl = document.getElementById("loginError");
+  const btn = document.getElementById("loginBtn");
+  errEl.style.display = "none";
+  btn.disabled = true; btn.textContent = "ログインしています…";
+  try{
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+    document.getElementById("authGate").style.display = "none";
+    document.getElementById("logoutBtn").style.display = "inline-block";
+    await startApp();
+  }catch(err){
+    errEl.textContent = "ログインに失敗しました。メールアドレスとパスワードをご確認ください。";
+    errEl.style.display = "block";
+  }finally{
+    btn.disabled = false; btn.textContent = "ログイン";
+  }
+});
+
+document.getElementById("logoutBtn").addEventListener("click", async ()=>{
+  await supabase.auth.signOut();
+  location.reload();
+});
+
 (async function init(){
   logDebug("① スクリプト開始 / init開始");
   if(!window.supabase){
@@ -444,10 +528,15 @@ document.getElementById("confirmGiftBtn").addEventListener("click", async ()=>{
   logDebug("② supabase-js: OK(自サイトから読み込み)");
   supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   logDebug("③ createClient 完了");
-  configWarningIfNeeded();
-  await loadEvents();
-  await loadJennes();
-  logDebug("⑨ init完了(全て終了)");
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if(session){
+    document.getElementById("authGate").style.display = "none";
+    document.getElementById("logoutBtn").style.display = "inline-block";
+    await startApp();
+  } else {
+    document.getElementById("authGate").style.display = "flex";
+  }
 })();
 </script>
 </body>
