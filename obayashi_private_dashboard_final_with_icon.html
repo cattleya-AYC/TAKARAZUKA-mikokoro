@@ -141,6 +141,9 @@ h1{
 
 <div class="separator">◆ ◇ ◆</div>
 <div class="flow-title">差し入れ・お手紙</div>
+<div id="giftDeadlineBanner" style="margin:0 6px 12px;padding:12px 14px;border-radius:14px;background:#fff3e0;border:1px solid #f0d9b5;font-size:12.5px;color:#7a5a2e;line-height:1.7">
+  読み込み中...
+</div>
 <section class="steps">
 <a class="step" href="https://takarazuka-mikokoro.vercel.app/jenne-gift-form.html">
   <div class="num">🎁</div><div><h2>ジェンヌ差し入れ登録</h2>
@@ -152,10 +155,20 @@ h1{
   <p>参加者に配布する「差し入れ・お手紙 ご協力のお願い」フォームを、実際に会員が見る見た目で確認します。</p>
   <span class="tip">送信前に見た目を確認</span></div><div class="arrow">›</div>
 </a>
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/admin-list.html">
+  <div class="num">📨</div><div><h2>差し入れ協力のご案内メール</h2>
+  <p>参加者へ「差し入れ・お手紙ご協力のお願い」フォームのURLを一斉送信します（申込者一覧ページの機能です）。</p>
+  <span class="tip">これから協力をお願いする案内</span></div><div class="arrow">›</div>
+</a>
 <a class="step" href="https://takarazuka-mikokoro.vercel.app/gift-letter-list.html">
   <div class="num">📋</div><div><h2>差し入れ申込集計</h2>
   <p>申込件数・記名希望の内訳・合計金額・お菓子担当を確認します。のし印刷前と当日の集金時に使用します。</p>
   <span class="tip">のし印刷前・当日の集金時</span></div><div class="arrow">›</div>
+</a>
+<a class="step" href="https://takarazuka-mikokoro.vercel.app/gift-letter-list.html">
+  <div class="num">💌</div><div><h2>差し入れ完了・御礼メール</h2>
+  <p>写真（のし付き差し入れ・お菓子の中身・領収書）から文面を自動作成し、協力してくれた方だけに御礼メールを送ります。</p>
+  <span class="tip">お渡し後に送信</span></div><div class="arrow">›</div>
 </a>
 <a class="step" href="https://takarazuka-mikokoro.vercel.app/nashi-print.html">
   <div class="num">🎀</div><div><h2>のし紙 背景登録・印刷</h2>
@@ -226,5 +239,46 @@ h1{
 
 <div class="footer">上から順番に進めれば、観劇会運営の一連の作業を確認できます。</div>
 </main>
+<!-- 差し入れフォーム作成期日の自動表示 -->
+<script src="./supabase-js.min.js"></script>
+<script>
+(async function(){
+  try{
+    const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
+    if(!window.supabase) throw new Error("supabase-js未読み込み");
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const today = new Date().toISOString().slice(0,10);
+    const { data, error } = await supabase
+      .from("events")
+      .select("id, event_number, troupe, event_date")
+      .gte("event_date", today)
+      .order("event_date", { ascending:true })
+      .limit(1);
+    if(error) throw error;
+
+    const banner = document.getElementById("giftDeadlineBanner");
+    if(!data || data.length===0){
+      banner.textContent = "直近の開催予定が見つかりませんでした。";
+      return;
+    }
+    const ev = data[0];
+    const eventDate = new Date(ev.event_date + "T00:00:00");
+    const deadline = new Date(eventDate);
+    deadline.setDate(deadline.getDate() - 15);
+    const sendDate = new Date(eventDate);
+    sendDate.setDate(sendDate.getDate() - 14);
+
+    const fmt = d => `${d.getMonth()+1}/${d.getDate()}`;
+    banner.innerHTML =
+      `⏰ 次回（第${ev.event_number ?? "?"}回 ${ev.troupe ?? ""}組・${fmt(eventDate)}開催）の差し入れフォームは<strong>${fmt(deadline)}まで</strong>に準備完了を（${fmt(sendDate)}に案内メール自動送信予定）`;
+  }catch(err){
+    console.error(err);
+    const banner = document.getElementById("giftDeadlineBanner");
+    if(banner) banner.textContent = "締切情報の取得に失敗しました。";
+  }
+})();
+</script>
 </body>
 </html>
