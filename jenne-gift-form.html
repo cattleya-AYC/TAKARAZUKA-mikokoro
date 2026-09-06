@@ -176,7 +176,7 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
   </div>
 </div>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ==============================================================
    設定：ご自身のSupabaseプロジェクトのURLとanonキーに置き換えてください
@@ -190,6 +190,11 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
    jennes/event_gifts への書き込み(登録・確定)は、staff_rolesでadmin権限を持つ
    アカウントでログイン中のブラウザからのみ行えます(他の管理画面と同じ方式)。 */
 
+if(!window.supabase){
+  document.getElementById("eventSelect").innerHTML = `<option value="">読み込み失敗：supabase-jsが読み込めていません</option>`;
+  document.getElementById("jenneList").innerHTML = `<div class="empty">supabase-jsライブラリの読み込みに失敗しました。ページを再読み込みしてください。</div>`;
+  throw new Error("supabase-js failed to load");
+}
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let jennes = [];
