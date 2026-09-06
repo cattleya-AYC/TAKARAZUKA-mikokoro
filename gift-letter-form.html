@@ -400,7 +400,7 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   }catch(err){
     console.error(err);
     statusEl.className = "status err";
-    statusEl.textContent = "送信に失敗しました。時間をおいて再度お試しください。";
+    statusEl.textContent = "送信に失敗しました：" + (err?.message || JSON.stringify(err));
     submitBtn.disabled = false;
   }
 });
