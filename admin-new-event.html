@@ -89,10 +89,11 @@
   }
   label.field{ display:block; margin-bottom:16px; }
   .lbl{ font-size:13px; margin-bottom:7px; display:block; color:var(--gold-soft); font-weight:700; }
-  input[type=text], input[type=number], input[type=date], select{
+  input[type=text], input[type=number], input[type=date], select, textarea{
     width:100%; background:var(--navy-card-2); border:1px solid var(--line);
     color:var(--cream); border-radius:8px; padding:11px 13px; font-size:15px; font-family:inherit;
   }
+  textarea{ resize:vertical; }
   input[type=date]{
     -webkit-appearance:none; appearance:none;
     height:44px; line-height:1.2; box-sizing:border-box;
@@ -294,6 +295,11 @@
       <img id="preview" class="preview">
     </label>
 
+    <label class="field">
+      <span class="lbl">お食事会の場所・ご予算 案内文(任意)</span>
+      <textarea name="meal_notice_override" id="mealNoticeInput" rows="2" placeholder="空欄の場合は「お食事会の場所・ご予算につきましては、後日あらためてご連絡いたします。」と自動表示されます"></textarea>
+    </label>
+
     <button type="button" id="submitBtn">この内容で登録する</button>
     <p class="status" id="statusMsg"></p>
   </div>
@@ -404,6 +410,7 @@
     document.getElementById('seatTypeSelect').value = ev.seat_type || 'S席';
     document.getElementById('capacityInput').value = ev.capacity ?? '';
     document.getElementById('basePriceInput').value = ev.base_price ?? '';
+    document.getElementById('mealNoticeInput').value = ev.meal_notice_override || '';
 
     // 手動入力済みの日付を自動上書きしないよう、開催日変更時の自動計算は
     // このあとユーザーが開催日を変えた時だけ働く（recalcScheduleは呼ぶが値は上のセットが優先）
@@ -591,7 +598,8 @@
         seat_type: fd.get('seat_type'),
         capacity: Number(fd.get('capacity')),
         base_price: Number(fd.get('base_price')),
-        poster_image_url: posterUrl
+        poster_image_url: posterUrl,
+        meal_notice_override: fd.get('meal_notice_override') ? fd.get('meal_notice_override').trim() : null
       };
 
       if(editingEventId){

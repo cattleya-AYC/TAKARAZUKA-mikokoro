@@ -198,6 +198,21 @@
             done: !!(progress && progress.done)
           });
         });
+
+        // 申込締切の翌日に、可否連絡タスクを追加(実際のapplication_deadlineを使用)
+        if(ev.application_deadline){
+          const contactDue = addDays(new Date(ev.application_deadline), 1);
+          const contactProgress = progressMap[`${ev.id}_contact`];
+          allTasks.push({
+            eventId: ev.id,
+            eventLabel,
+            taskKey: 'contact',
+            taskName: '申込者へ可否連絡(LINE/メール)',
+            due: contactDue,
+            isAuto: false,
+            done: !!(contactProgress && contactProgress.done)
+          });
+        }
       });
 
       render();

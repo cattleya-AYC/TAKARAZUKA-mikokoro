@@ -358,7 +358,7 @@
     <ul>
       <li>お申込み後のキャンセルはできません。</li>
       <li>チケットの転売は固く禁止です。</li>
-      <li>参加可否は締切後1週間以内に公式LINEにてご連絡します。</li>
+      <li>参加可否は締切後1週間以内に公式LINE、またはメールにてご連絡します。</li>
       <li>チケット代は指定口座へのお振込みとなります(後日ご案内)。</li>
     </ul>
   </div>
@@ -398,7 +398,7 @@
           <label class="toggle-opt"><input type="radio" name="meal" value="ご参加" required>出席</label>
           <label class="toggle-opt"><input type="radio" name="meal" value="食事は欠席">欠席</label>
         </div>
-        <p class="notice-box small" style="margin-top:10px; margin-bottom:0;">お食事会の場所・ご予算につきましては、後日あらためてご連絡いたします。</p>
+        <p class="notice-box small" id="mealPlaceNotice" style="margin-top:10px; margin-bottom:0;">お食事会の場所・ご予算につきましては、後日あらためてご連絡いたします。</p>
       </label>
 
       <label class="field">
@@ -770,6 +770,12 @@
     } else {
       mealNotice.textContent = '食事会の開催タイミングは追ってご案内いたします。';
     }
+
+    // 場所・ご予算の案内文(まりさんが個別に入力していればそちらを優先。無ければ自動の文言)
+    document.getElementById('mealPlaceNotice').textContent =
+      currentEvent.meal_notice_override && currentEvent.meal_notice_override.trim()
+        ? currentEvent.meal_notice_override
+        : 'お食事会の場所・ご予算につきましては、後日あらためてご連絡いたします。';
 
     document.getElementById('mainContent').style.display = 'block';
   }

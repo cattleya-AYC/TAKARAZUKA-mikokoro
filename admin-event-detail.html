@@ -175,7 +175,7 @@
   </div>
 
   <div class="panel print-hide">
-    <div class="panel-title">LINE案内文(自動生成)</div>
+    <div class="panel-title">LINE案内文(自動生成)｜募集開始のお知らせ用</div>
     <textarea id="lineText" readonly></textarea>
     <button class="copy-btn" id="copyBtn">📋 コピーする</button>
     <p class="copy-status" id="copyStatus"></p>
@@ -277,10 +277,12 @@
     const giftInviteDeadline = addDays(eventDate, -7);
     const giftReport = addDays(eventDate, 2);
     const hpUpload = addDays(eventDate, 3);
+    const contactDue = addDays(deadline, 1);
 
     const items = [
       { label:'募集開始', date:start },
       { label:'観劇会申込締切(参加者決定)', date:deadline },
+      { label:'申込者へ可否連絡(LINE/メール)', date:contactDue },
       { label:'食事フォーム入力開始', date:mealStart },
       { label:'食事メニュー申込締切', date:mealDeadline },
       { label:'振込案内開始', date:payStart },
@@ -328,7 +330,7 @@ ${start.getMonth()+1}月${start.getDate()}日9時から開始いたします✨
 
 締め切りは${deadline.getMonth()+1}月${deadline.getDate()}日
 
-ご参加を希望される方は、画面下のメニューの申込フォームから入力してください
+ご参加を希望される方は、トーク画面下部の「メニュー」ボタンから、申込フォームを開いて入力してください
 
 
 華やかな舞台を、
