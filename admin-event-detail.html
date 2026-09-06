@@ -212,10 +212,14 @@
   async function loadEvents(){
     const { data, error } = await sb
       .from('events')
-      .select('*')
-      .order('event_date', { ascending: false });
+      .select('*');
     if(error) throw error;
-    events = data || [];
+
+    // 今日以降は開催日が近い順(昇順)、それより後ろに過去の回を新しい順で並べる
+    const today = new Date().toISOString().slice(0,10);
+    const upcoming = (data || []).filter(e=>e.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+    const past = (data || []).filter(e=>e.event_date < today).sort((a,b)=>b.event_date.localeCompare(a.event_date));
+    events = upcoming.concat(past);
 
     const sel = document.getElementById('eventSelect');
     sel.innerHTML = '';
@@ -229,6 +233,9 @@
       opt.textContent = `第${ev.event_number ?? '?'}回 ${ev.troupe ?? ''}組(${formatDateJp(ev.event_date)})` + (ev.work_title ? `『${ev.work_title}』` : '');
       sel.appendChild(opt);
     });
+
+    // 一番上(=直近未来、無ければ最新の過去回)をデフォルト選択に
+    sel.value = events[0].id;
   }
 
   function renderInfo(ev){

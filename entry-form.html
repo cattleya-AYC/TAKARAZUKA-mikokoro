@@ -593,6 +593,18 @@
       return true;
     }
 
+    // 申込フォーム本体のプレビュー(締切日が今日以降で最も近い回を表示。募集開始前でも表示する)
+    if(mode === 'main' || mode === 'form' || mode === 'open'){
+      const nowIso = new Date().toISOString();
+      const { data } = await sb
+        .from('events')
+        .select('*')
+        .gte('application_deadline', nowIso)
+        .order('application_deadline', { ascending: true })
+        .limit(1);
+      if(data && data.length > 0){ renderOpenEvent(data[0]); return true; }
+    }
+
     return false;
   }
 
