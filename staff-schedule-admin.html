@@ -102,6 +102,25 @@
     <button class="btn-sub" onclick="autoAssignAll()">🔀 まだ未割当の分を自動割り当て</button>
     <button class="btn-main" onclick="saveAll()">保存する</button>
   </div>
+
+  <div style="text-align:center;color:var(--muted);margin:26px 0 10px;font-size:13px;">◆ ◇ ◆</div>
+  <div class="panel">
+    <h2 style="font-family:'Shippori Mincho',serif;font-size:16px;text-align:center;margin:0 0 4px;color:var(--gold-soft);">持ち物リスト</h2>
+    <p class="sub" style="margin-top:0;">誰が何を持ってくるかの一覧です。</p>
+    <div class="btn-row">
+      <button class="btn-sub" onclick="loadBelongingsTemplate()">持ち物リストを読み込む</button>
+    </div>
+  </div>
+
+  <div id="belongingsArea"></div>
+
+  <div class="panel" style="text-align:center;">
+    <button class="btn-sub" onclick="addBelongingRow()">＋ 持ち物を追加</button>
+  </div>
+
+  <div class="top-actions">
+    <button class="btn-main" onclick="saveBelongings()">持ち物リストを保存する</button>
+  </div>
 </div>
 
 <script>
@@ -116,7 +135,7 @@
   let isDirty = false;
   function markDirty(){ isDirty = true; }
   window.addEventListener('beforeunload', (e)=>{
-    if(isDirty){ e.preventDefault(); e.returnValue = ''; }
+    if(isDirty || belongingsDirty){ e.preventDefault(); e.returnValue = ''; }
   });
 
   // --- 認証 ---
@@ -207,19 +226,34 @@
     const sel = document.getElementById('eventSelect');
     const eventId = sel.value;
     if(!eventId) return;
-    if(isDirty && currentEvent && eventId !== currentEvent.id){
+    if((isDirty || belongingsDirty) && currentEvent && eventId !== currentEvent.id){
       const ok = confirm('保存していない変更があります。保存せずに別の回に切り替えますか？(変更内容は失われます)');
       if(!ok){ sel.value = currentEvent.id; return; }
     }
     const opt = sel.options[sel.selectedIndex];
     currentEvent = { id: eventId, show_time: opt.dataset.showTime };
     await loadExistingRows();
+    await loadExistingBelongings();
   }
 
 
   function setStatus(msg){
     document.getElementById('statusMsg').textContent = msg;
     setTimeout(()=>{ if(document.getElementById('statusMsg').textContent===msg) document.getElementById('statusMsg').textContent=''; }, 4000);
+  }
+
+  // 固定担当の名前を常に配列で返す
+  function getFixedArr(row){
+    if(!row.fixed_staff) return [];
+    return Array.isArray(row.fixed_staff) ? row.fixed_staff : [row.fixed_staff];
+  }
+  function isFullyFixedRow(row){
+    const arr = getFixedArr(row);
+    return !row.is_group_task && arr.length > 0 && arr.length >= row.required_count;
+  }
+  function isPartialFixedRow(row){
+    const arr = getFixedArr(row);
+    return arr.length > 0 && !isFullyFixedRow(row);
   }
 
   // --- 既存の割り当て読み込み ---
@@ -232,13 +266,27 @@
         .order('sort_order', { ascending: true });
       if(error){ setStatus('割り当ての取得に失敗しました: ' + error.message); return; }
       if(data.length){
-        rows = data.map(r=>({
-          id: r.id, task_type_id: r.task_type_id, task_name: r.task_name,
-          time_label: r.time_label, required_count: r.required_count,
-          assigned_staff: r.assigned_staff || [], note: r.note,
-          fixed_staff: null, is_group_task: false, from_duty: r.task_name === DUTY_TASK_NAME,
-          sort_order: r.sort_order, _isNew:false
-        }));
+        const typeIds = [...new Set(data.map(r=>r.task_type_id).filter(Boolean))];
+        let typeMap = {};
+        if(typeIds.length){
+          const { data: types } = await sb.from('task_types').select('id, fixed_staff, is_group_task, is_duty').in('id', typeIds);
+          (types||[]).forEach(t=>{ typeMap[t.id] = t; });
+        }
+        const needsDuty = Object.values(typeMap).some(t=>t.is_duty);
+        const dutyNames = needsDuty ? await fetchDutyNames() : [];
+        rows = data.map(r=>{
+          const t = r.task_type_id ? typeMap[r.task_type_id] : null;
+          return {
+            id: r.id, task_type_id: r.task_type_id, task_name: r.task_name,
+            time_label: r.time_label, required_count: r.required_count,
+            assigned_staff: r.assigned_staff || [], note: r.note,
+            fixed_staff: t ? (t.is_duty ? dutyNames : t.fixed_staff) : null,
+            is_group_task: t ? t.is_group_task : false,
+            is_duty_linked: t ? !!t.is_duty : false,
+            from_duty: r.task_name === DUTY_TASK_NAME,
+            sort_order: r.sort_order, _isNew:false
+          };
+        });
       } else {
         rows = [];
       }
@@ -265,13 +313,19 @@
         .or(`show_time_pattern.eq.${currentEvent.show_time},show_time_pattern.is.null`)
         .order('sort_order', { ascending: true });
       if(error){ setStatus('テンプレートの取得に失敗しました: ' + error.message); return; }
-      rows = data.map(t=>({
-        id: null, task_type_id: t.id, task_name: t.name,
-        time_label: t.default_time_label, required_count: t.default_required_count,
-        assigned_staff: t.fixed_staff ? [t.fixed_staff] : [], note: t.note,
-        fixed_staff: t.fixed_staff, is_group_task: t.is_group_task,
-        sort_order: t.sort_order, _isNew:true
-      }));
+      const needsDuty = data.some(t=>t.is_duty);
+      const dutyNames = needsDuty ? await fetchDutyNames() : [];
+      rows = data.map(t=>{
+        const fixedArr = t.is_duty ? dutyNames : t.fixed_staff;
+        return {
+          id: null, task_type_id: t.id, task_name: t.name,
+          time_label: t.default_time_label, required_count: t.default_required_count,
+          assigned_staff: fixedArr ? (Array.isArray(fixedArr) ? fixedArr.slice() : [fixedArr]) : [],
+          note: t.note,
+          fixed_staff: fixedArr, is_group_task: t.is_group_task, is_duty_linked: !!t.is_duty,
+          sort_order: t.sort_order, _isNew:true
+        };
+      });
       await syncDutyRow();
       markDirty();
     } catch(e){
@@ -306,25 +360,37 @@
     const area = document.getElementById('rowsArea');
     area.innerHTML = '';
     rows.forEach((row, idx)=>{
+      const fixedArr = getFixedArr(row);
+      const fullyFixed = isFullyFixedRow(row);
+      const partialFixed = isPartialFixedRow(row);
+
       const div = document.createElement('div');
-      div.className = 'row-card' + (row.fixed_staff ? ' fixed' : '') + (row.is_group_task ? ' group' : '') + (row.from_duty ? ' fixed' : '');
+      div.className = 'row-card' + (fullyFixed ? ' fixed' : '') + (row.is_group_task ? ' group' : '') + (row.from_duty ? ' fixed' : '');
       let badge = '';
       if(row.from_duty) badge = `<span class="badge fixed">🎁当番(自動反映)</span>`;
-      else if(row.fixed_staff) badge = `<span class="badge fixed">固定:${row.fixed_staff}</span>`;
+      else if(row.is_duty_linked && fullyFixed) badge = `<span class="badge fixed">🎁当番と連動:${fixedArr.join('・')}</span>`;
+      else if(fullyFixed) badge = `<span class="badge fixed">固定:${fixedArr.join('・')}</span>`;
+      else if(row.is_duty_linked && partialFixed) badge = `<span class="badge fixed">🎁当番と連動+ローテ</span>`;
+      else if(partialFixed) badge = `<span class="badge fixed">🔒${fixedArr.join('・')}固定+ローテ</span>`;
       else if(row.is_group_task) badge = `<span class="badge group">全員</span>`;
 
       let staffHtml = '';
       if(row.from_duty){
         staffHtml = `<div class="staff-check">` + row.assigned_staff.map(n=>`<span class="badge fixed">${escapeHtml(n)}</span>`).join('') + `</div>
         <p class="row-note">jenne-gift-form.htmlの当番設定と連動しています。ここでは名前を変更できません(時刻・メモは編集可)。</p>`;
-      } else if(row.fixed_staff){
-        staffHtml = `<p class="row-note">固定担当のため自動割り当ての対象外です。</p>`;
+      } else if(fullyFixed){
+        staffHtml = row.is_duty_linked
+          ? `<p class="row-note">楽屋口・お菓子当番(${fixedArr.join('・')})と自動連動しています。ここでは名前を変更できません。</p>`
+          : `<p class="row-note">固定担当のため自動割り当ての対象外です。</p>`;
       } else {
         staffHtml = `<div class="staff-check">` + STAFF_LIST.map(name=>{
-          const checked = row.assigned_staff.includes(name) ? 'checked' : '';
-          return `<label><input type="checkbox" ${checked} onchange="toggleStaff(${idx},'${name}',this.checked)">${name}</label>`;
+          const isFixedMember = fixedArr.includes(name);
+          const checked = (row.assigned_staff.includes(name) || isFixedMember) ? 'checked' : '';
+          const disabled = isFixedMember ? 'disabled' : '';
+          return `<label><input type="checkbox" ${checked} ${disabled} onchange="toggleStaff(${idx},'${name}',this.checked)">${name}${isFixedMember?'🔒':''}</label>`;
         }).join('') + `</div>
         ${row.is_group_task ? '<p class="row-note">🔀を押すと、同じ時刻に他の仕事へ入っていない人を自動で全員セットします。</p>' : ''}
+        ${partialFixed ? `<p class="row-note">🔒${fixedArr.join('・')}は固定です。残り${Math.max(0,row.required_count-fixedArr.length)}人分だけ自動割り当て/手動選択できます。</p>` : ''}
         <div class="row-actions">
           <button class="btn-sub" onclick="autoAssignRow(${idx})">🔀 この行だけ自動割り当て</button>
         </div>`;
@@ -351,8 +417,9 @@
   }
 
   function toggleStaff(idx, name, checked){
-    markDirty();
     const row = rows[idx];
+    if(getFixedArr(row).includes(name)) return; // 固定メンバーは変更不可
+    markDirty();
     if(checked){
       if(!row.assigned_staff.includes(name)) row.assigned_staff.push(name);
     } else {
@@ -383,7 +450,8 @@
 
   async function autoAssignRow(idx){
     const row = rows[idx];
-    if(row.fixed_staff || row.from_duty) return;
+    if(row.from_duty || isFullyFixedRow(row)) return;
+    const fixedArr = getFixedArr(row);
     markDirty();
     const usedAtThisTime = rows
       .filter((r,i)=>i!==idx && r.time_label && r.time_label===row.time_label)
@@ -397,21 +465,23 @@
     }
 
     const counts = await getTaskCounts(row.task_name);
-    const candidates = STAFF_LIST.slice().sort((a,b)=>{
+    const pool = STAFF_LIST.filter(name => !fixedArr.includes(name));
+    const candidates = pool.sort((a,b)=>{
       const aBusy = usedAtThisTime.includes(a) ? 1 : 0;
       const bBusy = usedAtThisTime.includes(b) ? 1 : 0;
       if(aBusy !== bBusy) return aBusy - bBusy;
       if(counts[a] !== counts[b]) return counts[a]-counts[b];
       return Math.random()-0.5;
     });
-    row.assigned_staff = candidates.slice(0, row.required_count);
+    const remainingSlots = Math.max(0, row.required_count - fixedArr.length);
+    row.assigned_staff = fixedArr.concat(candidates.slice(0, remainingSlots));
     renderRows();
   }
 
   async function autoAssignAll(){
     for(let i=0;i<rows.length;i++){
       const row = rows[i];
-      if(row.fixed_staff || row.from_duty) continue;
+      if(row.from_duty || isFullyFixedRow(row)) continue;
       if(row.assigned_staff && row.assigned_staff.length >= row.required_count) continue; // 既に割当済みはスキップ
       await autoAssignRow(i);
     }
@@ -444,6 +514,154 @@
     isDirty = false;
     setStatus('保存しました！');
     await loadExistingRows();
+  }
+
+  // ================= 持ち物リスト =================
+  let belongings = []; // {id, belonging_type_id, item_name, assigned_staff, note, fixed_staff, is_all, is_duty, sort_order, _isNew}
+  let belongingsDirty = false;
+
+  async function loadExistingBelongings(){
+    try{
+      const { data, error } = await sb
+        .from('event_belongings')
+        .select('*')
+        .eq('event_id', currentEvent.id)
+        .order('sort_order', { ascending: true });
+      if(error){ renderBelongings(); return; }
+      belongings = (data||[]).map(b=>({
+        id: b.id, belonging_type_id: b.belonging_type_id, item_name: b.item_name,
+        assigned_staff: b.assigned_staff || [], note: b.note,
+        fixed_staff:null, is_all:false, is_duty:false,
+        sort_order: b.sort_order, _isNew:false
+      }));
+      belongingsDirty = false;
+    } catch(e){
+      console.error(e);
+    } finally {
+      renderBelongings();
+    }
+  }
+
+  async function loadBelongingsTemplate(){
+    if(belongings.length){
+      if(!confirm('すでに持ち物リストがあります。テンプレートで上書きしますか？(保存前なら元に戻せます)')) return;
+    }
+    try{
+      const { data, error } = await sb
+        .from('belonging_types')
+        .select('*')
+        .eq('active', true)
+        .order('sort_order', { ascending: true });
+      if(error){ setStatus('持ち物テンプレートの取得に失敗しました: ' + error.message); return; }
+
+      let dutyNames = [];
+      if(data.some(b=>b.is_duty)) dutyNames = await fetchDutyNames();
+
+      belongings = data.map(b=>{
+        let assigned = [];
+        if(b.is_all) assigned = STAFF_LIST.slice();
+        else if(b.is_duty) assigned = dutyNames;
+        else if(b.fixed_staff) assigned = b.fixed_staff;
+        return {
+          id:null, belonging_type_id:b.id, item_name:b.name,
+          assigned_staff: assigned, note: b.note,
+          fixed_staff: b.fixed_staff, is_all: b.is_all, is_duty: b.is_duty,
+          sort_order: b.sort_order, _isNew:true
+        };
+      });
+      belongingsDirty = true;
+    } catch(e){
+      console.error(e);
+      setStatus('読み込み中にエラーが発生しました: ' + e.message);
+      return;
+    } finally {
+      renderBelongings();
+    }
+    setStatus('持ち物リストのテンプレートを読み込みました。保存を押すまで確定しません。');
+  }
+
+  function addBelongingRow(){
+    belongingsDirty = true;
+    belongings.push({
+      id:null, belonging_type_id:null, item_name:'新しい持ち物', assigned_staff:[], note:'',
+      fixed_staff:null, is_all:false, is_duty:false,
+      sort_order:(belongings.length?Math.max(...belongings.map(b=>b.sort_order||0))+10:10), _isNew:true
+    });
+    renderBelongings();
+  }
+
+  function removeBelongingRow(idx){
+    if(!confirm('この持ち物を削除しますか？')) return;
+    belongingsDirty = true;
+    belongings.splice(idx,1);
+    renderBelongings();
+  }
+
+  function toggleBelongingStaff(idx, name, checked){
+    belongingsDirty = true;
+    const b = belongings[idx];
+    if(checked){
+      if(!b.assigned_staff.includes(name)) b.assigned_staff.push(name);
+    } else {
+      b.assigned_staff = b.assigned_staff.filter(n=>n!==name);
+    }
+  }
+
+  function renderBelongings(){
+    const area = document.getElementById('belongingsArea');
+    if(!area) return;
+    area.innerHTML = '';
+    belongings.forEach((b, idx)=>{
+      const div = document.createElement('div');
+      div.className = 'row-card' + (b.is_all || b.is_duty || b.fixed_staff ? ' fixed' : '');
+      let badge = '';
+      if(b.is_all) badge = `<span class="badge fixed">全員</span>`;
+      else if(b.is_duty) badge = `<span class="badge fixed">🎁当番と連動</span>`;
+      else if(b.fixed_staff) badge = `<span class="badge fixed">固定</span>`;
+
+      const staffHtml = `<div class="staff-check">` + STAFF_LIST.map(name=>{
+        const checked = b.assigned_staff.includes(name) ? 'checked' : '';
+        return `<label><input type="checkbox" ${checked} onchange="toggleBelongingStaff(${idx},'${name}',this.checked)">${name}</label>`;
+      }).join('') + `</div>`;
+
+      div.innerHTML = `
+        <div class="row-head">
+          <input type="text" class="task-input" value="${escapeHtml(b.item_name||'')}" placeholder="持ち物名" onchange="belongings[${idx}].item_name=this.value; belongingsDirty=true;">
+          ${badge}
+        </div>
+        ${staffHtml}
+        <textarea class="note-input" placeholder="補足メモ(スタッフ画面にそのまま表示されます)" onchange="belongings[${idx}].note=this.value; belongingsDirty=true;">${escapeHtml(b.note||'')}</textarea>
+        <div class="row-actions">
+          <button class="btn-danger" onclick="removeBelongingRow(${idx})">削除</button>
+        </div>
+      `;
+      area.appendChild(div);
+    });
+  }
+
+  async function saveBelongings(){
+    if(!currentEvent){ setStatus('観劇会が選択されていません'); return; }
+    const { error: delErr } = await sb
+      .from('event_belongings')
+      .delete()
+      .eq('event_id', currentEvent.id);
+    if(delErr){ setStatus('持ち物リストの保存に失敗しました(削除時): ' + delErr.message); return; }
+
+    if(belongings.length === 0){ setStatus('保存しました(持ち物リストなし)'); belongingsDirty=false; return; }
+
+    const payload = belongings.map(b=>({
+      event_id: currentEvent.id,
+      belonging_type_id: b.belonging_type_id,
+      item_name: b.item_name,
+      assigned_staff: b.assigned_staff,
+      note: b.note,
+      sort_order: b.sort_order || 0
+    }));
+    const { error: insErr } = await sb.from('event_belongings').insert(payload);
+    if(insErr){ setStatus('持ち物リストの保存に失敗しました: ' + insErr.message); return; }
+    belongingsDirty = false;
+    setStatus('持ち物リストを保存しました！');
+    await loadExistingBelongings();
   }
 </script>
 </body>
