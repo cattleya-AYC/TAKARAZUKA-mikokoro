@@ -65,8 +65,13 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
   box-shadow:0 6px 18px rgba(0,0,0,.12);
 }
 .a4 img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.name-overlay{
+.name-overlay-wrap{
   position:absolute;
+  left:0; right:0;
+  display:flex;
+  justify-content:center;
+}
+.name-overlay{
   writing-mode:vertical-rl;
   text-orientation:mixed;
   font-family:"Yuji Syuku",serif;
@@ -186,26 +191,25 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
         <div class="adjust-grid">
           <div>
             <label>上からの位置（%）</label>
-            <input type="number" id="posTop" value="42" min="0" max="90">
-          </div>
-          <div>
-            <label>右からの位置（%）</label>
-            <input type="number" id="posRight" value="6" min="0" max="90">
-          </div>
-          <div>
-            <label>名前欄の高さ（%）</label>
-            <input type="number" id="posHeight" value="48" min="10" max="95">
+            <input type="number" id="posTop" value="55" min="0" max="90">
           </div>
           <div>
             <label>文字サイズ（px）</label>
-            <input type="number" id="fontSize" value="22" min="10" max="48">
+            <input type="number" id="fontSize" value="8" min="4" max="48">
+          </div>
+          <div>
+            <label>名前欄の高さ（%）<br><span style="font-weight:400;color:var(--muted);font-size:11px">1列に入る人数の目安。狭いと列（横）が増えます</span></label>
+            <input type="number" id="posHeight" value="48" min="10" max="95">
           </div>
         </div>
+        <p class="sub" style="margin-top:-4px">左右は自動で中央寄せされます。</p>
 
         <div class="preview-outer">
           <div class="a4 landscape" id="printArea">
             <img class="bg" id="previewBg" src="" alt="">
-            <div class="name-overlay" id="nameOverlay"></div>
+            <div class="name-overlay-wrap" id="nameOverlayWrap">
+              <div class="name-overlay" id="nameOverlay"></div>
+            </div>
           </div>
         </div>
 
@@ -312,10 +316,9 @@ function renderGallery(){
       document.getElementById("previewBg").src = selectedBgUrl;
       const b = backgrounds.find(x=>x.id===selectedBgId);
       if(b){
-        document.getElementById("posTop").value = b.overlay_top ?? 42;
-        document.getElementById("posRight").value = b.overlay_right ?? 6;
+        document.getElementById("posTop").value = b.overlay_top ?? 55;
         document.getElementById("posHeight").value = b.overlay_height ?? 48;
-        document.getElementById("fontSize").value = b.overlay_font_size ?? 22;
+        document.getElementById("fontSize").value = b.overlay_font_size ?? 8;
         applyOverlayPosition();
       }
       renderGallery();
@@ -397,13 +400,13 @@ async function loadNames(){
 document.getElementById("refreshNamesBtn").addEventListener("click", loadNames);
 
 function applyOverlayPosition(){
+  const wrap = document.getElementById("nameOverlayWrap");
   const overlay = document.getElementById("nameOverlay");
-  overlay.style.top = document.getElementById("posTop").value + "%";
-  overlay.style.right = document.getElementById("posRight").value + "%";
-  overlay.style.height = document.getElementById("posHeight").value + "%";
+  wrap.style.top = document.getElementById("posTop").value + "%";
+  wrap.style.height = document.getElementById("posHeight").value + "%";
   overlay.style.fontSize = document.getElementById("fontSize").value + "px";
 }
-["posTop","posRight","posHeight","fontSize"].forEach(id=>{
+["posTop","posHeight","fontSize"].forEach(id=>{
   document.getElementById(id).addEventListener("input", applyOverlayPosition);
 });
 
@@ -432,7 +435,6 @@ document.getElementById("saveOverlayBtn").addEventListener("click", async ()=>{
   try{
     const { error } = await supabase.from("nashi_backgrounds").update({
       overlay_top: Number(document.getElementById("posTop").value),
-      overlay_right: Number(document.getElementById("posRight").value),
       overlay_height: Number(document.getElementById("posHeight").value),
       overlay_font_size: Number(document.getElementById("fontSize").value)
     }).eq("id", selectedBgId);
