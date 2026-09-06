@@ -220,7 +220,7 @@ input[type=text],textarea{
 <script src="./supabase-js.min.js"></script>
 <script>
 const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
 
 if(!window.supabase){
   document.getElementById("jenneList").innerHTML = "読み込みエラー：ページを再読み込みしてください";
@@ -400,7 +400,7 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   }catch(err){
     console.error(err);
     statusEl.className = "status err";
-    statusEl.textContent = "送信に失敗しました：" + (err?.message || JSON.stringify(err));
+    statusEl.textContent = "送信に失敗しました。時間をおいて再度お試しください。";
     submitBtn.disabled = false;
   }
 });
