@@ -112,6 +112,7 @@
 
   let currentEvent = null;
   let rows = []; // {id, task_type_id, task_name, time_label, required_count, assigned_staff, note, fixed_staff, is_group_task, sort_order, _isNew}
+  const DUTY_TASK_NAME = '楽屋口・お菓子当番';
 
   // --- 認証 ---
   async function doLogin(){
@@ -209,25 +210,31 @@
 
   // --- 既存の割り当て読み込み ---
   async function loadExistingRows(){
-    const { data, error } = await sb
-      .from('event_staff_assignments')
-      .select('*')
-      .eq('event_id', currentEvent.id)
-      .order('sort_order', { ascending: true });
-    if(error){ setStatus('割り当ての取得に失敗しました'); return; }
-    if(data.length){
-      rows = data.map(r=>({
-        id: r.id, task_type_id: r.task_type_id, task_name: r.task_name,
-        time_label: r.time_label, required_count: r.required_count,
-        assigned_staff: r.assigned_staff || [], note: r.note,
-        fixed_staff: null, is_group_task: false, from_duty: r.task_name === DUTY_TASK_NAME,
-        sort_order: r.sort_order, _isNew:false
-      }));
-    } else {
-      rows = [];
+    try{
+      const { data, error } = await sb
+        .from('event_staff_assignments')
+        .select('*')
+        .eq('event_id', currentEvent.id)
+        .order('sort_order', { ascending: true });
+      if(error){ setStatus('割り当ての取得に失敗しました: ' + error.message); return; }
+      if(data.length){
+        rows = data.map(r=>({
+          id: r.id, task_type_id: r.task_type_id, task_name: r.task_name,
+          time_label: r.time_label, required_count: r.required_count,
+          assigned_staff: r.assigned_staff || [], note: r.note,
+          fixed_staff: null, is_group_task: false, from_duty: r.task_name === DUTY_TASK_NAME,
+          sort_order: r.sort_order, _isNew:false
+        }));
+      } else {
+        rows = [];
+      }
+      await syncDutyRow();
+    } catch(e){
+      console.error(e);
+      setStatus('読み込み中にエラーが発生しました: ' + e.message);
+    } finally {
+      renderRows();
     }
-    await syncDutyRow();
-    renderRows();
   }
 
   // --- テンプレート読み込み(既存データが無い場合のみ) ---
@@ -235,22 +242,29 @@
     if(rows.length){
       if(!confirm('すでにこの回のスケジュールがあります。テンプレートで上書きしますか？(保存前なら元に戻せます)')) return;
     }
-    const { data, error } = await sb
-      .from('task_types')
-      .select('*')
-      .eq('active', true)
-      .or(`show_time_pattern.eq.${currentEvent.show_time},show_time_pattern.is.null`)
-      .order('sort_order', { ascending: true });
-    if(error){ setStatus('テンプレートの取得に失敗しました'); return; }
-    rows = data.map(t=>({
-      id: null, task_type_id: t.id, task_name: t.name,
-      time_label: t.default_time_label, required_count: t.default_required_count,
-      assigned_staff: t.fixed_staff ? [t.fixed_staff] : [], note: t.note,
-      fixed_staff: t.fixed_staff, is_group_task: t.is_group_task,
-      sort_order: t.sort_order, _isNew:true
-    }));
-    await syncDutyRow();
-    renderRows();
+    try{
+      const { data, error } = await sb
+        .from('task_types')
+        .select('*')
+        .eq('active', true)
+        .or(`show_time_pattern.eq.${currentEvent.show_time},show_time_pattern.is.null`)
+        .order('sort_order', { ascending: true });
+      if(error){ setStatus('テンプレートの取得に失敗しました: ' + error.message); return; }
+      rows = data.map(t=>({
+        id: null, task_type_id: t.id, task_name: t.name,
+        time_label: t.default_time_label, required_count: t.default_required_count,
+        assigned_staff: t.fixed_staff ? [t.fixed_staff] : [], note: t.note,
+        fixed_staff: t.fixed_staff, is_group_task: t.is_group_task,
+        sort_order: t.sort_order, _isNew:true
+      }));
+      await syncDutyRow();
+    } catch(e){
+      console.error(e);
+      setStatus('読み込み中にエラーが発生しました: ' + e.message);
+      return;
+    } finally {
+      renderRows();
+    }
     setStatus('テンプレートを読み込みました。保存を押すまで確定しません。');
   }
 
