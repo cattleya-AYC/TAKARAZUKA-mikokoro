@@ -98,6 +98,11 @@
     <button class="btn-sub" onclick="addCustomRow()">＋ 仕事を追加</button>
   </div>
 
+  <div class="panel">
+    <h2 style="font-family:'Shippori Mincho',serif;font-size:15px;text-align:center;margin:0 0 10px;color:var(--gold-soft);">🔢 担当回数(固定担当・テーブルリーダーは除く)</h2>
+    <div id="staffTally" style="display:flex;flex-direction:column;gap:6px;"></div>
+  </div>
+
   <div class="top-actions">
     <button class="btn-sub" onclick="autoAssignAll()">🔀 まだ未割当の分を自動割り当て</button>
     <button class="btn-main" onclick="saveAll()">保存する</button>
@@ -127,7 +132,7 @@
   const SUPABASE_URL = 'https://uyhqnyrnhdjpgrceitgh.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const STAFF_LIST = ['原田','太田','伊庭','岩本','西中','水無瀬'];
+  const STAFF_LIST = ['原田','水無瀬','西中','伊庭','岩本','太田'];
 
   let currentEvent = null;
   let rows = []; // {id, task_type_id, task_name, time_label, required_count, assigned_staff, note, fixed_staff, is_group_task, sort_order, _isNew}
@@ -414,6 +419,26 @@
       `;
       area.appendChild(div);
     });
+    renderStaffTally();
+  }
+
+  function renderStaffTally(){
+    const area = document.getElementById('staffTally');
+    if(!area) return;
+    const counts = {}; STAFF_LIST.forEach(s=>counts[s]=0);
+    rows.forEach(row=>{
+      if(row.task_name && row.task_name.includes('テーブルリーダー')) return; // 進行担当は除外
+      const fully = isFullyFixedRow(row);
+      if(fully && !row.is_duty_linked && !row.from_duty) return; // 固定担当(伊庭・岩本など、当番系以外)は除外
+      (row.assigned_staff||[]).forEach(name=>{
+        if(counts[name] !== undefined) counts[name]++;
+      });
+    });
+    area.innerHTML = STAFF_LIST.map(name=>
+      `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:14px;">
+        <span>${name}</span><span style="font-weight:700;color:var(--rose);">${counts[name]}件</span>
+      </div>`
+    ).join('');
   }
 
   function toggleStaff(idx, name, checked){
@@ -597,14 +622,9 @@
     renderBelongings();
   }
 
-  function toggleBelongingStaff(idx, name, checked){
+  function updateBelongingNames(idx, text){
     belongingsDirty = true;
-    const b = belongings[idx];
-    if(checked){
-      if(!b.assigned_staff.includes(name)) b.assigned_staff.push(name);
-    } else {
-      b.assigned_staff = b.assigned_staff.filter(n=>n!==name);
-    }
+    belongings[idx].assigned_staff = text.split(/[、,\s]+/).map(s=>s.trim()).filter(Boolean);
   }
 
   function renderBelongings(){
@@ -613,23 +633,21 @@
     area.innerHTML = '';
     belongings.forEach((b, idx)=>{
       const div = document.createElement('div');
-      div.className = 'row-card' + (b.is_all || b.is_duty || b.fixed_staff ? ' fixed' : '');
+      div.className = 'row-card fixed';
       let badge = '';
       if(b.is_all) badge = `<span class="badge fixed">全員</span>`;
       else if(b.is_duty) badge = `<span class="badge fixed">🎁当番と連動</span>`;
-      else if(b.fixed_staff) badge = `<span class="badge fixed">固定</span>`;
+      else badge = `<span class="badge fixed">固定</span>`;
 
-      const staffHtml = `<div class="staff-check">` + STAFF_LIST.map(name=>{
-        const checked = b.assigned_staff.includes(name) ? 'checked' : '';
-        return `<label><input type="checkbox" ${checked} onchange="toggleBelongingStaff(${idx},'${name}',this.checked)">${name}</label>`;
-      }).join('') + `</div>`;
+      const namesText = (b.assigned_staff||[]).join('、');
 
       div.innerHTML = `
         <div class="row-head">
           <input type="text" class="task-input" value="${escapeHtml(b.item_name||'')}" placeholder="持ち物名" onchange="belongings[${idx}].item_name=this.value; belongingsDirty=true;">
           ${badge}
         </div>
-        ${staffHtml}
+        <input type="text" value="${escapeHtml(namesText)}" placeholder="担当者名(読点区切り)" ${b.is_duty?'disabled':''} onchange="updateBelongingNames(${idx}, this.value)" style="margin-bottom:8px;">
+        ${b.is_duty ? '<p class="row-note">jenne-gift-form.htmlの当番設定と連動しています。ここでは名前を変更できません。</p>' : ''}
         <textarea class="note-input" placeholder="補足メモ(スタッフ画面にそのまま表示されます)" onchange="belongings[${idx}].note=this.value; belongingsDirty=true;">${escapeHtml(b.note||'')}</textarea>
         <div class="row-actions">
           <button class="btn-danger" onclick="removeBelongingRow(${idx})">削除</button>

@@ -48,6 +48,9 @@
   <p class="sub">その日の仕事分担です。時間になったら動いてください。</p>
   <select id="eventSelect"></select>
   <div id="timeline" class="timeline"><p class="loading">読み込み中…</p></div>
+
+  <h1 style="font-size:17px;margin-top:30px;">🎒 持ち物リスト</h1>
+  <div id="belongings" class="timeline"><p class="loading">読み込み中…</p></div>
 </div>
 
 <script>
@@ -75,8 +78,54 @@
     const today = new Date().toISOString().slice(0,10);
     const upcoming = data.filter(ev=>ev.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
     sel.value = upcoming.length ? upcoming[0].id : data[0].id;
-    sel.addEventListener('change', ()=>loadSchedule(sel.value));
+    sel.addEventListener('change', ()=>{ loadSchedule(sel.value); loadBelongings(sel.value); });
     await loadSchedule(sel.value);
+    await loadBelongings(sel.value);
+  }
+
+  const STAFF_ORDER = ['原田','水無瀬','西中','伊庭','岩本','太田'];
+
+  async function loadBelongings(eventId){
+    const area = document.getElementById('belongings');
+    area.innerHTML = '<p class="loading">読み込み中…</p>';
+    const { data, error } = await sb
+      .from('event_belongings')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('sort_order', { ascending: true });
+    if(error){
+      area.innerHTML = '<p class="empty">読み込みに失敗しました。</p>';
+      return;
+    }
+    if(!data.length){
+      area.innerHTML = '<p class="empty">持ち物リストはまだ公開されていません。</p>';
+      return;
+    }
+    // 名前ごとに持ち物をまとめる
+    const byPerson = {};
+    STAFF_ORDER.forEach(n=>byPerson[n]=[]);
+    const everyoneItems = [];
+    data.forEach(row=>{
+      const names = row.assigned_staff || [];
+      if(!names.length){
+        everyoneItems.push(row.item_name);
+      } else {
+        names.forEach(n=>{
+          if(!byPerson[n]) byPerson[n] = [];
+          byPerson[n].push(row.item_name);
+        });
+      }
+    });
+    let html = '';
+    if(everyoneItems.length){
+      html += `<div class="item"><div class="task">全員</div><div class="note">${everyoneItems.map(escapeHtml).join('、')}</div></div>`;
+    }
+    STAFF_ORDER.forEach(name=>{
+      if(byPerson[name] && byPerson[name].length){
+        html += `<div class="item"><div class="task">${escapeHtml(name)}</div><div class="note">${byPerson[name].map(escapeHtml).join('、')}</div></div>`;
+      }
+    });
+    area.innerHTML = html || '<p class="empty">持ち物リストはまだ公開されていません。</p>';
   }
 
   async function loadSchedule(eventId){
