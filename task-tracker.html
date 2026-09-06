@@ -59,11 +59,17 @@
   .task-check.done{ background:var(--ok); border-color:var(--ok); }
   .task-body{ flex:1; }
   .task-event{ font-size:11px; color:var(--gold-soft); font-weight:700; }
-  .task-name{ font-size:15px; font-weight:700; margin-top:2px; }
+  .task-name{ font-size:15px; font-weight:700; margin-top:2px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .task-row.done .task-name{ text-decoration:line-through; }
+  .auto-badge{
+    display:inline-block; font-size:10px; font-weight:700; letter-spacing:.04em;
+    background:var(--gold-soft); color:#fff; border-radius:999px; padding:2px 8px;
+    text-decoration:none; vertical-align:middle;
+  }
   .task-due{ font-size:11.5px; color:var(--muted); margin-top:4px; }
   .task-row.overdue .task-due{ color:var(--warn-text-strong); font-weight:700; }
   .task-row.soon .task-due{ color:var(--warn-text); font-weight:700; }
+  .task-due.auto-due{ color:var(--gold-soft); font-weight:700; }
 
   .empty-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
 
@@ -121,14 +127,17 @@
   let allTasks = [];
 
   const TASK_DEFS = [
-    { key:'form',    name:'募集フォーム作成',           offset:-59 },
-    { key:'line',    name:'LINE告知予約',               offset:-59 },
-    { key:'adjust',  name:'申込状況確認・人数調整',      offset:-51 },
-    { key:'mealform',name:'食事フォーム作成・LINE案内送信', offset:-49 },
-    { key:'mealchk', name:'食事集計チェック(未入力催促)', offset:-42 },
-    { key:'billing', name:'個別請求書をLINEで送る',      offset:-40 },
-    { key:'payment', name:'入金確認',                    offset:-30 },
-    { key:'namecard',name:'名刺・席札作成',              offset:-3 },
+    { key:'form',        name:'募集フォーム作成',              offset:-59 },
+    { key:'line',        name:'LINE告知予約',                  offset:-59 },
+    { key:'adjust',      name:'申込状況確認・人数調整',         offset:-51 },
+    { key:'giftform',    name:'差し入れフォーム作成',           offset:-15 },
+    { key:'giftstart',   name:'差し入れ募集開始',               offset:-14, isAuto:true },
+    { key:'mealform',    name:'食事フォーム作成・LINE案内送信', offset:-49 },
+    { key:'mealchk',     name:'食事集計チェック(未入力催促)',   offset:-42 },
+    { key:'billing',     name:'個別請求書をLINEで送る',         offset:-40 },
+    { key:'payment',     name:'入金確認',                       offset:-30 },
+    { key:'giftsummary', name:'差し入れ集計',                   offset:-3 },
+    { key:'namecard',    name:'名刺・席札作成',                 offset:-3 },
   ];
 
   function addDays(base, diff){ const d = new Date(base.getTime()); d.setDate(d.getDate()+diff); return d; }
@@ -185,6 +194,7 @@
             taskKey: def.key,
             taskName: def.name,
             due,
+            isAuto: !!def.isAuto,
             done: !!(progress && progress.done)
           });
         });
@@ -223,14 +233,18 @@
         if(diff < 0) cls = 'overdue';
         else if(diff <= 3) cls = 'soon';
       }
-      const dueLabel = diff === 0 ? '本日期限' : (diff < 0 ? `${Math.abs(diff)}日超過` : `あと${diff}日`);
+      const manualDueLabel = diff === 0 ? '本日期限' : (diff < 0 ? `${Math.abs(diff)}日超過` : `あと${diff}日`);
+      const dueText = t.isAuto
+        ? `${fmtDateJp(t.due)} 自動送信`
+        : `${fmtDateJp(t.due)}目安・${manualDueLabel}`;
+      const dueClass = t.isAuto && !cls ? 'auto-due' : '';
       return `
         <div class="task-row ${cls} ${t.done ? 'done' : ''}" data-event="${t.eventId}" data-key="${t.taskKey}">
           <div class="task-check ${t.done ? 'done' : ''}">${t.done ? '✓' : ''}</div>
           <div class="task-body">
             <div class="task-event">${t.eventLabel}</div>
-            <div class="task-name">${t.taskName}</div>
-            <div class="task-due">${fmtDateJp(t.due)}目安・${dueLabel}</div>
+            <div class="task-name">${t.taskName}${t.isAuto ? '<span class="auto-badge">自動</span>' : ''}</div>
+            <div class="task-due ${dueClass}">${dueText}</div>
           </div>
         </div>
       `;
