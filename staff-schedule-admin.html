@@ -36,8 +36,15 @@
   .row-card.group{border-color:var(--muted);opacity:.85;}
   .row-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
   .row-head .task-input{flex:1;min-width:0;}
-  .time-input{width:140px;margin-bottom:8px;}
-  .count-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .count-row{display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+  .time-input{width:100px;flex-shrink:0;}
+  .count-row .req-count{width:56px;}
+  input[type=number]::-webkit-inner-spin-button{margin-left:2px;}
+  textarea.note-input{
+    width:100%;background:var(--card2);border:1px solid var(--line);color:var(--cream);
+    border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;line-height:1.6;
+    resize:vertical;min-height:44px;margin-top:6px;
+  }
   .badge{font-size:10.5px;font-weight:700;border-radius:10px;padding:2px 8px;flex-shrink:0;}
   .badge.fixed{background:var(--rose);color:#fff;}
   .badge.group{background:var(--muted);color:#fff;}
@@ -152,6 +159,39 @@
     await onEventChange();
   }
 
+  async function fetchDutyNames(){
+    const { data } = await sb
+      .from('event_duty')
+      .select('duty_staff, duty_partner')
+      .eq('event_id', currentEvent.id)
+      .maybeSingle();
+    if(!data) return [];
+    return [data.duty_staff, data.duty_partner].filter(Boolean);
+  }
+
+  // 当番の名前を最新のevent_dutyに同期する。既存行があれば人数・名前だけ更新し、
+  // 時刻やメモの手動編集は保持する。無ければ新規に追加する。
+  async function syncDutyRow(){
+    const names = await fetchDutyNames();
+    if(!names.length){
+      rows = rows.filter(r=>r.task_name !== DUTY_TASK_NAME);
+      return;
+    }
+    const existing = rows.find(r=>r.task_name === DUTY_TASK_NAME);
+    if(existing){
+      existing.assigned_staff = names;
+      existing.required_count = names.length;
+      existing.from_duty = true;
+    } else {
+      rows.unshift({
+        id:null, task_type_id:null, task_name: DUTY_TASK_NAME,
+        time_label:'幕間(開演前に間に合わない場合)', required_count: names.length,
+        assigned_staff: names, note:'差し入れ・お菓子を楽屋口へ届ける当番です(jenne-gift-form.htmlで設定)。時刻は実際のタイミングに合わせて調整してください。',
+        fixed_staff:null, is_group_task:false, from_duty:true, sort_order:-10, _isNew:true
+      });
+    }
+  }
+
   async function onEventChange(){
     const sel = document.getElementById('eventSelect');
     const eventId = sel.value;
@@ -160,6 +200,7 @@
     currentEvent = { id: eventId, show_time: opt.dataset.showTime };
     await loadExistingRows();
   }
+
 
   function setStatus(msg){
     document.getElementById('statusMsg').textContent = msg;
@@ -179,11 +220,13 @@
         id: r.id, task_type_id: r.task_type_id, task_name: r.task_name,
         time_label: r.time_label, required_count: r.required_count,
         assigned_staff: r.assigned_staff || [], note: r.note,
-        fixed_staff: null, is_group_task: false, sort_order: r.sort_order, _isNew:false
+        fixed_staff: null, is_group_task: false, from_duty: r.task_name === DUTY_TASK_NAME,
+        sort_order: r.sort_order, _isNew:false
       }));
     } else {
       rows = [];
     }
+    await syncDutyRow();
     renderRows();
   }
 
@@ -206,6 +249,7 @@
       fixed_staff: t.fixed_staff, is_group_task: t.is_group_task,
       sort_order: t.sort_order, _isNew:true
     }));
+    await syncDutyRow();
     renderRows();
     setStatus('テンプレートを読み込みました。保存を押すまで確定しません。');
   }
@@ -231,13 +275,17 @@
     area.innerHTML = '';
     rows.forEach((row, idx)=>{
       const div = document.createElement('div');
-      div.className = 'row-card' + (row.fixed_staff ? ' fixed' : '') + (row.is_group_task ? ' group' : '');
+      div.className = 'row-card' + (row.fixed_staff ? ' fixed' : '') + (row.is_group_task ? ' group' : '') + (row.from_duty ? ' fixed' : '');
       let badge = '';
-      if(row.fixed_staff) badge = `<span class="badge fixed">固定:${row.fixed_staff}</span>`;
+      if(row.from_duty) badge = `<span class="badge fixed">🎁当番(自動反映)</span>`;
+      else if(row.fixed_staff) badge = `<span class="badge fixed">固定:${row.fixed_staff}</span>`;
       else if(row.is_group_task) badge = `<span class="badge group">全員</span>`;
 
       let staffHtml = '';
-      if(row.fixed_staff){
+      if(row.from_duty){
+        staffHtml = `<div class="staff-check">` + row.assigned_staff.map(n=>`<span class="badge fixed">${escapeHtml(n)}</span>`).join('') + `</div>
+        <p class="row-note">jenne-gift-form.htmlの当番設定と連動しています。ここでは名前を変更できません(時刻・メモは編集可)。</p>`;
+      } else if(row.fixed_staff){
         staffHtml = `<p class="row-note">固定担当のため自動割り当ての対象外です。</p>`;
       } else {
         staffHtml = `<div class="staff-check">` + STAFF_LIST.map(name=>{
@@ -255,13 +303,13 @@
           <input type="text" class="task-input" value="${escapeHtml(row.task_name||'')}" placeholder="仕事名" onchange="rows[${idx}].task_name=this.value">
           ${badge}
         </div>
-        <input type="text" class="time-input" value="${escapeHtml(row.time_label||'')}" placeholder="時刻" onchange="rows[${idx}].time_label=this.value">
         <div class="count-row">
+          <input type="text" class="time-input" value="${escapeHtml(row.time_label||'')}" placeholder="時刻" onchange="rows[${idx}].time_label=this.value">
           <label style="margin:0;white-space:nowrap;">必要人数</label>
-          <input type="number" min="0" class="req-count" value="${row.required_count}" onchange="rows[${idx}].required_count=parseInt(this.value)||0; renderRows();">
+          <input type="number" min="0" class="req-count" value="${row.required_count}" style="width:48px;flex-shrink:0;text-align:center;padding:8px 4px;" onchange="rows[${idx}].required_count=parseInt(this.value)||0; renderRows();">
         </div>
         ${staffHtml}
-        <input type="text" placeholder="補足メモ(スタッフ画面にそのまま表示されます)" value="${escapeHtml(row.note||'')}" onchange="rows[${idx}].note=this.value" style="margin-top:6px;">
+        <textarea class="note-input" placeholder="補足メモ・作業内容の指示(スタッフ画面にそのまま表示されます)" onchange="rows[${idx}].note=this.value">${escapeHtml(row.note||'')}</textarea>
         <div class="row-actions">
           <button class="btn-danger" onclick="removeRow(${idx})">削除</button>
         </div>
@@ -302,7 +350,7 @@
 
   async function autoAssignRow(idx){
     const row = rows[idx];
-    if(row.fixed_staff) return;
+    if(row.fixed_staff || row.from_duty) return;
     const usedAtThisTime = rows
       .filter((r,i)=>i!==idx && r.time_label && r.time_label===row.time_label)
       .flatMap(r=>r.assigned_staff||[]);
@@ -329,7 +377,7 @@
   async function autoAssignAll(){
     for(let i=0;i<rows.length;i++){
       const row = rows[i];
-      if(row.fixed_staff) continue;
+      if(row.fixed_staff || row.from_duty) continue;
       if(row.assigned_staff && row.assigned_staff.length >= row.required_count) continue; // 既に割当済みはスキップ
       await autoAssignRow(i);
     }
