@@ -166,7 +166,7 @@ button.secondary{background:#f3e8e2;color:#725b51;border:0;border-radius:12px;pa
   </div>
 </div>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ==============================================================
    設定：ご自身のSupabaseプロジェクトのURLとanonキーに置き換えてください
@@ -186,6 +186,10 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
    手動で直す欄からその場で書き換えて出力に使えます。
 */
 
+if(!window.supabase){
+  document.getElementById("eventSelect").innerHTML = `<option value="">読み込み失敗：supabase-jsが読み込めていません</option>`;
+  throw new Error("supabase-js failed to load");
+}
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const AUTO_FIELD_DEFS = [
