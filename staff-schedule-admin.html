@@ -37,7 +37,7 @@
   .row-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
   .row-head .task-input{flex:1;min-width:0;}
   .count-row{display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
-  .time-input{width:84px;flex-shrink:0;}
+  .time-input{width:70px;flex-shrink:0;padding:8px 6px;text-align:center;}
   .count-row .req-count{width:56px;}
   input[type=number]::-webkit-inner-spin-button{margin-left:2px;}
   textarea.note-input{
@@ -186,8 +186,8 @@
     } else {
       rows.unshift({
         id:null, task_type_id:null, task_name: DUTY_TASK_NAME,
-        time_label:'幕間(開演前に間に合わない場合)', required_count: names.length,
-        assigned_staff: names, note:'差し入れ・お菓子を楽屋口へ届ける当番です(jenne-gift-form.htmlで設定)。時刻は実際のタイミングに合わせて調整してください。',
+        time_label:'幕間', required_count: names.length,
+        assigned_staff: names, note:'差し入れ・お菓子を楽屋口へ届ける当番です(jenne-gift-form.htmlで設定)。開演前に間に合わない場合は幕間に対応。時刻は実際のタイミングに合わせて調整してください。',
         fixed_staff:null, is_group_task:false, from_duty:true, sort_order:-10, _isNew:true
       });
     }
