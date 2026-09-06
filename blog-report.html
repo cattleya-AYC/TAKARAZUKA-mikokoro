@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>観劇会報告 資料作成</title>
+<style>
+:root{
+  --bg:#f7f1eb;
+  --paper:#fffdf9;
+  --ink:#49362d;
+  --muted:#8b776d;
+  --rose:#d8888c;
+  --rose-dark:#c96f73;
+  --rose-soft:#f7e6e2;
+  --gold:#c9a56b;
+  --line:#ead9cf;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(232,180,178,.17),transparent 25%),
+    radial-gradient(circle at 90% 0%,rgba(201,165,107,.12),transparent 25%),
+    var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+}
+.wrap{max-width:920px;margin:24px auto;padding:0 14px 48px}
+.panel{
+  background:var(--paper);
+  border:1px solid #efe1d8;
+  border-radius:24px;
+  box-shadow:0 16px 42px rgba(77,51,38,.11);
+  overflow:hidden;
+}
+header{
+  padding:30px 24px 24px;
+  background:linear-gradient(180deg,#fff,#fff9f6);
+  border-bottom:1px solid var(--line);
+}
+header .kicker{
+  font-family:"Yu Mincho","Hiragino Mincho ProN",serif;
+  color:var(--gold);
+  letter-spacing:.16em;
+  font-size:13px;
+  margin-bottom:5px;
+}
+header h1{
+  margin:0 0 7px;
+  font-family:"Yu Mincho","Hiragino Mincho ProN",serif;
+  font-size:30px;
+}
+header p{margin:0;color:var(--muted);font-size:14px;line-height:1.7}
+main{padding:20px}
+.section{
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:16px;
+  background:#fff;
+}
+.section h2{margin:0 0 6px;font-size:18px;color:#8c5d5f}
+.section .sub{margin:0 0 14px;font-size:12.5px;color:var(--muted);line-height:1.6}
+label{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+input[type=text],select,textarea{
+  width:100%;padding:12px;border:1px solid #ddcabe;border-radius:11px;
+  background:#fff;color:var(--ink);font:inherit;
+}
+textarea{min-height:88px;resize:vertical;line-height:1.7}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{margin-bottom:14px}
+.auto-row{
+  display:grid;grid-template-columns:110px 1fr auto;gap:10px;align-items:center;
+  padding:10px 0;border-top:1px solid #f0e2da;
+}
+.auto-row:first-of-type{border-top:0}
+.auto-label{font-size:13px;color:var(--muted)}
+.auto-value{font-size:15px;line-height:1.6;white-space:pre-wrap}
+.auto-value.empty{color:#c2a998;font-size:13px}
+.edit-toggle{
+  border:0;background:#f3e8e2;color:#725b51;border-radius:8px;
+  padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap;
+}
+.auto-edit-input{width:100%;padding:8px;border:1px solid #ddcabe;border-radius:8px;font:inherit}
+.actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+button.primary{background:linear-gradient(#e49a9d,#cc7477);color:#fff;border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
+button.secondary{background:#f3e8e2;color:#725b51;border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer}
+.output-box{
+  background:#fffaf7;border:1px solid var(--line);border-radius:14px;
+  padding:16px;white-space:pre-wrap;font-size:14.5px;line-height:1.9;min-height:120px;
+}
+.copy-row{display:flex;justify-content:flex-end;margin-top:10px;gap:10px}
+.status{margin-top:10px;padding:10px 14px;border-radius:10px;font-size:13.5px;display:none}
+.status.ok{display:block;background:#f8eee9;color:#7a5648}
+.status.err{display:block;background:#fbe6e6;color:#a34848}
+.config-note{font-size:11.5px;color:#b08f80;line-height:1.6;padding:10px 12px;background:#fff7f2;border-radius:10px;margin-bottom:14px}
+@media(max-width:620px){
+  .grid2{grid-template-columns:1fr}
+  .auto-row{grid-template-columns:1fr;gap:4px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <header>
+      <div class="kicker">EVENT REPORT BUILDER</div>
+      <h1>観劇会報告 資料作成</h1>
+      <p>公演翌日に、その回の情報をまとめてWIXブログ用の箇条書きを作るページです。自動項目はSupabaseから取得し、必要な部分だけ自由入力してください。最後に「まとめる」を押すとコピペ用のテキストになります。</p>
+    </header>
+
+    <main>
+      <div class="config-note" id="configNote"></div>
+
+      <section class="section">
+        <h2>① 対象の観劇会</h2>
+        <p class="sub">報告したい回を選んでください（通常は前日開催の直近の回です）。</p>
+        <select id="eventSelect"><option value="">読み込み中...</option></select>
+
+        <div class="field" style="margin-top:14px">
+          <label>ご自身のお申込み名（食事メニューの自動取得に使用）</label>
+          <input type="text" id="myName" placeholder="例：西中 真里">
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>② 自動項目</h2>
+        <p class="sub">Supabaseの登録内容から自動で取得します。内容が違う・空欄の場合は右の「手動で直す」から書き換えられます（保存はされず、この画面の出力にのみ反映されます）。</p>
+        <div id="autoFields"></div>
+      </section>
+
+      <section class="section">
+        <h2>③ 自由入力</h2>
+        <div class="field">
+          <label>食事追加情報欄</label>
+          <textarea id="mealNote" placeholder="例：デザートが特別に付いていました 等"></textarea>
+        </div>
+        <div class="field">
+          <label>座席</label>
+          <input type="text" id="seat" placeholder="例：1階 12列 20番">
+        </div>
+        <div class="field">
+          <label>作品感想・芝居ラン</label>
+          <textarea id="playImpression" placeholder="お芝居の感想を自由にご記入ください"></textarea>
+        </div>
+        <div class="field">
+          <label>ショー欄</label>
+          <textarea id="showImpression" placeholder="ショーの感想を自由にご記入ください"></textarea>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button class="primary" type="button" id="buildBtn">箇条書きにまとめる</button>
+      </div>
+
+      <section class="section" style="margin-top:16px">
+        <h2>④ 出力（コピペ用）</h2>
+        <div class="output-box" id="outputBox">「箇条書きにまとめる」を押すとここに表示されます。</div>
+        <div class="copy-row">
+          <button class="secondary" type="button" id="copyBtn">コピーする</button>
+        </div>
+        <div class="status" id="copyStatus"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+/* ==============================================================
+   設定：ご自身のSupabaseプロジェクトのURLとanonキーに置き換えてください
+   ============================================================== */
+const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
+
+/* このページが参照するテーブル（実際のSupabase構成に合わせています）
+   events            : id, event_number, troupe(1文字), event_date, show_time, work_title
+   meal_settings     : event_id(PK), restaurant_name, meeting_time, meeting_place
+   meal_menus        : event_id, name, price          ← 食事場所は決まっていても、メニューが未定の回は空欄になります
+   meal_orders       : id, event_id, representative_name
+   meal_order_items  : meal_order_id, person_no, menu_name, drink
+   event_gifts       : event_id, jenne_id
+   jennes            : id, name, period
+   構造が違う/データが無い場合はその項目だけ自動取得に失敗し「空欄」になりますが、
+   手動で直す欄からその場で書き換えて出力に使えます。
+*/
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const AUTO_FIELD_DEFS = [
+  { key:"eventName",  label:"観劇会" },
+  { key:"eventDate",  label:"日時" },
+  { key:"mealPlace",  label:"食事場所" },
+  { key:"menu",       label:"メニュー" },
+  { key:"gift",       label:"差し入れ" },
+  { key:"upcoming",   label:"今後の予定" },
+];
+
+let autoValues = {};   // 自動取得された値
+let overrides = {};    // 手動で上書きした値
+let events = [];
+
+function configWarningIfNeeded(){
+  const note = document.getElementById("configNote");
+  if(SUPABASE_ANON_KEY === "YOUR_ANON_KEY_HERE"){
+    note.style.display = "block";
+    note.textContent = "※ このページはまだSupabaseのanonキーが設定されていません。ファイル内の SUPABASE_ANON_KEY を書き換えてから使ってください。";
+  } else {
+    note.style.display = "none";
+  }
+}
+
+function eventLabel(e){
+  const troupeLabel = e.troupe ? `${e.troupe}組` : "";
+  const workLabel = e.work_title ? `「${e.work_title}」` : "";
+  return `第${e.event_number ?? "?"}回 ${troupeLabel}${workLabel}公演`;
+}
+
+function fmtDate(dateStr, showTime){
+  if(!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  const week = ["日","月","火","水","木","金","土"][d.getDay()];
+  let s = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日(${week})`;
+  if(showTime) s += ` ${showTime}公演`;
+  return s;
+}
+
+async function loadEvents(){
+  const sel = document.getElementById("eventSelect");
+  try{
+    const { data, error } = await supabase
+      .from("events")
+      .select("id, event_number, troupe, event_date, show_time, work_title")
+      .order("event_date", { ascending:false })
+      .limit(30);
+    if(error) throw error;
+    events = data || [];
+    if(events.length===0){
+      sel.innerHTML = `<option value="">開催回が見つかりません</option>`;
+      return;
+    }
+    sel.innerHTML = events.map(e=>{
+      const label = eventLabel(e) + (e.event_date?`（${fmtDate(e.event_date,false)}）`:"");
+      return `<option value="${e.id}">${label}</option>`;
+    }).join("");
+    // 直近の「過去」開催回をデフォルト選択（今日以前で最新のもの）
+    const today = new Date().toISOString().slice(0,10);
+    const past = events.find(e=>e.event_date && e.event_date <= today) || events[0];
+    sel.value = past.id;
+    await loadAutoFields(past.id);
+  }catch(err){
+    sel.innerHTML = `<option value="">読み込みエラー（events テーブルを確認してください）</option>`;
+    console.error(err);
+    renderAutoFields();
+  }
+}
+
+document.getElementById("eventSelect").addEventListener("change", async e=>{
+  overrides = {};
+  await loadAutoFields(e.target.value);
+});
+
+document.getElementById("myName").addEventListener("change", async ()=>{
+  const eventId = document.getElementById("eventSelect").value;
+  if(eventId) await loadAutoFields(eventId);
+});
+
+async function loadAutoFields(eventId){
+  autoValues = { eventName:"", eventDate:"", mealPlace:"", menu:"", gift:"", upcoming:"" };
+  const ev = events.find(e=>e.id===eventId);
+
+  if(ev){
+    autoValues.eventName = eventLabel(ev) + "観劇会";
+    autoValues.eventDate = fmtDate(ev.event_date, ev.show_time);
+  }
+
+  // 食事場所（meal_settingsに1回1件、店名未定/食事会自体が無い回は空欄）
+  try{
+    const { data, error } = await supabase.from("meal_settings").select("restaurant_name").eq("event_id", eventId).maybeSingle();
+    if(!error && data) autoValues.mealPlace = data.restaurant_name || "";
+  }catch(e){ /* 構造が違う場合は空欄のまま */ }
+
+  // メニュー（自分の申込名で検索）
+  const myName = document.getElementById("myName").value.trim().replace(/\s/g,"");
+  if(myName){
+    try{
+      const { data: orders, error: oErr } = await supabase
+        .from("meal_orders")
+        .select("id, representative_name")
+        .eq("event_id", eventId);
+      if(!oErr && orders){
+        const mine = orders.find(o => (o.representative_name||"").replace(/\s/g,"") === myName);
+        if(mine){
+          const { data: items, error: iErr } = await supabase
+            .from("meal_order_items")
+            .select("menu_name, drink, person_no")
+            .eq("meal_order_id", mine.id)
+            .eq("person_no", 1);
+          if(!iErr && items && items[0]){
+            autoValues.menu = [items[0].menu_name, items[0].drink].filter(Boolean).join("／");
+          }
+        }
+      }
+    }catch(e){ /* 構造が違う場合は空欄のまま */ }
+  }
+
+  // 差し入れ
+  try{
+    const { data, error } = await supabase
+      .from("event_gifts")
+      .select("jenne_id, jennes(name, period)")
+      .eq("event_id", eventId)
+      .limit(1);
+    if(!error && data && data[0] && data[0].jennes){
+      const j = data[0].jennes;
+      autoValues.gift = [j.period, j.name ? j.name+"さん" : ""].filter(Boolean).join(" ");
+    }
+  }catch(e){ /* 構造が違う場合は空欄のまま */ }
+
+  // 今後の予定
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const { data, error } = await supabase
+      .from("events")
+      .select("event_number, troupe, event_date, work_title")
+      .gt("event_date", today)
+      .order("event_date", { ascending:true })
+      .limit(5);
+    if(!error && data && data.length>0){
+      autoValues.upcoming = data.map(e=>
+        `${eventLabel(e)}（${fmtDate(e.event_date,false)}）`
+      ).join("\n");
+    }
+  }catch(e){ /* 構造が違う場合は空欄のまま */ }
+
+  renderAutoFields();
+}
+
+function renderAutoFields(){
+  const box = document.getElementById("autoFields");
+  box.innerHTML = AUTO_FIELD_DEFS.map(f=>{
+    const val = overrides[f.key] !== undefined ? overrides[f.key] : autoValues[f.key];
+    const isEditing = overrides.__editing === f.key;
+    if(isEditing){
+      const isMultiline = f.key === "upcoming";
+      return `
+        <div class="auto-row">
+          <div class="auto-label">${f.label}</div>
+          ${isMultiline
+            ? `<textarea class="auto-edit-input" id="editInput_${f.key}" rows="3">${val||""}</textarea>`
+            : `<input class="auto-edit-input" id="editInput_${f.key}" type="text" value="${(val||"").replace(/"/g,'&quot;')}">`}
+          <button class="edit-toggle" data-save="${f.key}">保存</button>
+        </div>`;
+    }
+    return `
+      <div class="auto-row">
+        <div class="auto-label">${f.label}</div>
+        <div class="auto-value ${val?'':'empty'}">${val || "（未取得・空欄）"}</div>
+        <button class="edit-toggle" data-edit="${f.key}">手動で直す</button>
+      </div>`;
+  }).join("");
+
+  box.querySelectorAll("[data-edit]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      overrides.__editing = btn.dataset.edit;
+      renderAutoFields();
+      const input = document.getElementById("editInput_"+btn.dataset.edit);
+      if(input) input.focus();
+    });
+  });
+  box.querySelectorAll("[data-save]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const key = btn.dataset.save;
+      const input = document.getElementById("editInput_"+key);
+      overrides[key] = input.value;
+      delete overrides.__editing;
+      renderAutoFields();
+    });
+  });
+}
+
+function getValue(key){
+  return overrides[key] !== undefined ? overrides[key] : (autoValues[key] || "");
+}
+
+document.getElementById("buildBtn").addEventListener("click", ()=>{
+  const lines = [];
+  lines.push(`・観劇会　${getValue("eventName") || "（未入力）"}`);
+  lines.push(`・日時　${getValue("eventDate") || "（未入力）"}`);
+  lines.push(`・食事場所　${getValue("mealPlace") || "（未入力）"}`);
+  lines.push(`・メニュー　${getValue("menu") || "（未入力）"}`);
+
+  const mealNote = document.getElementById("mealNote").value.trim();
+  if(mealNote) lines.push(`・食事追加情報　${mealNote}`);
+
+  const seat = document.getElementById("seat").value.trim();
+  lines.push(`・座席　${seat || "（未入力）"}`);
+
+  const play = document.getElementById("playImpression").value.trim();
+  lines.push(`・作品感想・芝居ラン`);
+  lines.push(play ? indent(play) : "　（未入力）");
+
+  const show = document.getElementById("showImpression").value.trim();
+  lines.push(`・ショー`);
+  lines.push(show ? indent(show) : "　（未入力）");
+
+  lines.push(`・差し入れ　${getValue("gift") || "（未入力）"}`);
+
+  lines.push(`・今後の予定`);
+  const upcoming = getValue("upcoming");
+  lines.push(upcoming ? indent(upcoming) : "　（未定）");
+
+  document.getElementById("outputBox").textContent = lines.join("\n");
+});
+
+function indent(text){
+  return text.split("\n").map(l=>"　"+l).join("\n");
+}
+
+document.getElementById("copyBtn").addEventListener("click", async ()=>{
+  const text = document.getElementById("outputBox").textContent;
+  const statusEl = document.getElementById("copyStatus");
+  try{
+    await navigator.clipboard.writeText(text);
+    showStatus(statusEl, "コピーしました。", false);
+  }catch(e){
+    showStatus(statusEl, "コピーに失敗しました。テキストを選択して手動でコピーしてください。", true);
+  }
+});
+
+function showStatus(el, msg, isError){
+  el.textContent = msg;
+  el.className = "status " + (isError ? "err" : "ok");
+  setTimeout(()=>{ el.style.display="none"; }, 3000);
+}
+
+(async function init(){
+  configWarningIfNeeded();
+  renderAutoFields();
+  await loadEvents();
+})();
+</script>
+</body>
+</html>
