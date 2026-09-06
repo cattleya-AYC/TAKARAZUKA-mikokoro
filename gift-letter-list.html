@@ -50,6 +50,8 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
         <div class="info-card"><div class="label">申込件数</div><div class="value" id="countValue">-</div></div>
         <div class="info-card"><div class="label">記名希望</div><div class="value" id="namedValue">-</div></div>
         <div class="info-card"><div class="label">記名不要</div><div class="value" id="unnamedValue">-</div></div>
+        <div class="info-card"><div class="label">合計金額（200円×件数）</div><div class="value" id="totalAmountValue">-</div></div>
+        <div class="info-card"><div class="label">お菓子担当（当番）</div><div class="value" id="dutyStaffValue">-</div></div>
       </div>
 
       <div style="overflow-x:auto">
@@ -97,11 +99,30 @@ async function loadEvents(){
   }).join("");
   sel.value = data[0].id;
   await loadSubmissions(data[0].id);
+  await loadDutyStaff(data[0].id);
 }
 
 document.getElementById("eventSelect").addEventListener("change", e=>{
   loadSubmissions(e.target.value || null);
+  loadDutyStaff(e.target.value || null);
 });
+
+async function loadDutyStaff(eventId){
+  const el = document.getElementById("dutyStaffValue");
+  if(!eventId){ el.textContent = "-"; return; }
+  try{
+    const { data, error } = await supabase
+      .from("event_gifts")
+      .select("duty_staff")
+      .eq("event_id", eventId)
+      .limit(1);
+    if(error) throw error;
+    el.textContent = (data && data[0] && data[0].duty_staff) ? data[0].duty_staff : "未設定";
+  }catch(err){
+    console.error(err);
+    el.textContent = "-";
+  }
+}
 
 async function loadSubmissions(eventId){
   const body = document.getElementById("listBody");
@@ -136,6 +157,7 @@ function render(){
   document.getElementById("countValue").textContent = currentRows.length + "件";
   document.getElementById("namedValue").textContent = currentRows.filter(r=>r.name_display==="記載する").length + "件";
   document.getElementById("unnamedValue").textContent = currentRows.filter(r=>r.name_display==="記名不要").length + "件";
+  document.getElementById("totalAmountValue").textContent = (currentRows.length * 200).toLocaleString("ja-JP") + "円";
 }
 
 document.getElementById("csvBtn").addEventListener("click", ()=>{

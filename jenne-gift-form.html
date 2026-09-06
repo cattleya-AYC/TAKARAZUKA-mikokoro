@@ -217,6 +217,18 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
       <section class="section">
         <h2>④ 今回の観劇会に紐づけて確定</h2>
         <p class="sub">①で選んだ観劇会に対して「今回の差し入れ相手はこの方」として記録します。観劇会報告ページの「差し入れ」欄に自動で反映されます。</p>
+        <div class="field">
+          <label>お菓子担当（当番）</label>
+          <select id="dutyStaffSelect">
+            <option value="">選択してください</option>
+            <option value="水無瀬">水無瀬</option>
+            <option value="原田">原田</option>
+            <option value="西中">西中</option>
+            <option value="伊庭">伊庭</option>
+            <option value="岩本">岩本</option>
+            <option value="太田">太田</option>
+          </select>
+        </div>
         <div class="actions" style="justify-content:flex-start">
           <button class="primary" type="button" id="confirmGiftBtn">この方を今回の差し入れとして確定</button>
         </div>
@@ -308,6 +320,7 @@ async function loadEvents(){
     }).join("");
     currentEventId = data[0].id;
     sel.value = currentEventId;
+    await loadExistingGiftForEvent(currentEventId);
   }catch(err){
     logDebug("⑥ events取得 エラー: " + (err.message || err));
     sel.innerHTML = `<option value="">読み込みエラー（events テーブルを確認してください）</option>`;
@@ -315,8 +328,34 @@ async function loadEvents(){
   }
 }
 
-document.getElementById("eventSelect").addEventListener("change", e=>{
+async function loadExistingGiftForEvent(eventId){
+  const dutySelect = document.getElementById("dutyStaffSelect");
+  dutySelect.value = "";
+  selectedJenneId = null;
+  if(!eventId) return;
+  try{
+    const { data, error } = await supabase
+      .from("event_gifts")
+      .select("jenne_id, duty_staff")
+      .eq("event_id", eventId)
+      .limit(1);
+    if(error) throw error;
+    if(data && data[0]){
+      if(data[0].duty_staff) dutySelect.value = data[0].duty_staff;
+      if(data[0].jenne_id){
+        selectedJenneId = data[0].jenne_id;
+        selectJenne(selectedJenneId);
+      }
+    }
+    renderJenneList(currentFilteredList());
+  }catch(err){
+    console.error(err);
+  }
+}
+
+document.getElementById("eventSelect").addEventListener("change", async e=>{
   currentEventId = e.target.value || null;
+  await loadExistingGiftForEvent(currentEventId);
 });
 
 async function loadJennes(){
@@ -460,6 +499,7 @@ document.getElementById("saveJenneBtn").addEventListener("click", async ()=>{
 
 document.getElementById("confirmGiftBtn").addEventListener("click", async ()=>{
   const statusEl = document.getElementById("giftStatus");
+  const dutyStaff = document.getElementById("dutyStaffSelect").value;
   if(!currentEventId){
     showStatus(statusEl, "対象の観劇会を選択してください", true);
     return;
@@ -473,7 +513,8 @@ document.getElementById("confirmGiftBtn").addEventListener("click", async ()=>{
     await supabase.from("event_gifts").delete().eq("event_id", currentEventId);
     const { error } = await supabase.from("event_gifts").insert({
       event_id: currentEventId,
-      jenne_id: selectedJenneId
+      jenne_id: selectedJenneId,
+      duty_staff: dutyStaff || null
     });
     if(error) throw error;
     showStatus(statusEl, "今回の差し入れとして確定しました。観劇会報告ページに自動反映されます。", false);
@@ -485,8 +526,8 @@ document.getElementById("confirmGiftBtn").addEventListener("click", async ()=>{
 
 async function startApp(){
   configWarningIfNeeded();
-  await loadEvents();
   await loadJennes();
+  await loadEvents();
   logDebug("⑨ init完了(全て終了)");
 }
 
