@@ -107,9 +107,15 @@ async function loadEvents(){
     const label = `第${e.event_number ?? "?"}回 ${troupeLabel}${workLabel}公演`;
     return `<option value="${e.id}">${label}</option>`;
   }).join("");
-  sel.value = data[0].id;
-  await loadSubmissions(data[0].id);
-  await loadDutyStaff(data[0].id);
+
+  // 今日から一番近い未来の回をデフォルトに(無ければ最新の過去回)
+  const today = new Date().toISOString().slice(0,10);
+  const upcoming = data.filter(e=>e.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+  const defaultEvent = upcoming[0] || data[0];
+
+  sel.value = defaultEvent.id;
+  await loadSubmissions(defaultEvent.id);
+  await loadDutyStaff(defaultEvent.id);
 }
 
 document.getElementById("eventSelect").addEventListener("change", e=>{
