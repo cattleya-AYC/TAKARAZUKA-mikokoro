@@ -103,32 +103,10 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
 .a4.size-b5{max-width:337px;aspect-ratio:176/250}
 .a4.landscape{aspect-ratio:297/210;max-width:560px}
 .a4.landscape.size-b5{aspect-ratio:250/176;max-width:450px}
-
-#printClone{display:none}
-@media print{
-  body > *:not(#printClone){display:none !important}
-  html, body{margin:0 !important; padding:0 !important; background:#fff !important}
-  #printClone{
-    display:block !important;
-    position:fixed; inset:0; margin:0; padding:0;
-    width:210mm; height:297mm; overflow:hidden;
-  }
-  #printClone.size-b5{ width:176mm; height:250mm; }
-  #printClone.landscape{ width:297mm; height:210mm; }
-  #printClone.landscape.size-b5{ width:250mm; height:176mm; }
-  #printClone img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-  #printClone .name-overlay-wrap{position:absolute;left:0;right:0;display:flex;justify-content:center}
-  #printClone .name-overlay{
-    writing-mode:vertical-rl;text-orientation:mixed;font-family:"Yuji Syuku",serif;
-    color:#3a2a20;white-space:pre-line;letter-spacing:.08em;
-  }
-}
 </style>
-<style id="printPageSize">@page{ size:A4; margin:0; }</style>
 
 </head>
 <body>
-<div id="printClone"></div>
 <div class="wrap">
   <div class="panel">
     <header>
@@ -149,19 +127,8 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
       </div>
 
       <div class="section">
-        <h2>③ 用紙サイズ・位置を選んで印刷</h2>
-        <p class="sub">背景を選ぶと、まりさんが設定した位置が自動で入りますが、必要ならここで微調整できます（この調整は保存されず、印刷のたびにリセットされます）。</p>
-        <div class="field" style="margin-bottom:12px">
-          <label>用紙サイズ</label>
-          <div class="row" style="gap:8px">
-            <label style="flex:1;display:block">
-              <input type="radio" name="paperSize" value="A4" checked style="width:auto;margin-right:6px">A4
-            </label>
-            <label style="flex:1;display:block">
-              <input type="radio" name="paperSize" value="B5" style="width:auto;margin-right:6px">B5
-            </label>
-          </div>
-        </div>
+        <h2>③ 位置を確認して画像を保存</h2>
+        <p class="sub">背景を選ぶと、まりさんが設定した位置が自動で入ります。ずれている場合はここで微調整できます（保存はされません）。用紙はA4横向き固定です。</p>
         <div class="adjust-grid">
           <div>
             <label>上からの位置（%）</label>
@@ -171,12 +138,7 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
             <label>文字サイズ（px）</label>
             <input type="number" id="fontSize" value="8" min="4" max="48">
           </div>
-          <div>
-            <label>名前欄の高さ（%）<br><span style="font-weight:400;color:var(--muted);font-size:11px">1列に入る人数の目安。狭いと列（横）が増えます</span></label>
-            <input type="number" id="posHeight" value="48" min="10" max="95">
-          </div>
         </div>
-        <p class="sub" style="margin-top:-4px">左右は自動で中央寄せされます。</p>
 
         <div class="preview-outer">
           <div class="a4 landscape" id="printArea">
@@ -189,7 +151,17 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
 
         <div class="row" style="margin-top:14px;justify-content:flex-end">
           <button class="secondary" type="button" id="refreshNamesBtn" style="flex:0 0 auto">名前を再読み込み</button>
-          <button class="primary" type="button" id="printBtn" style="flex:0 0 auto">この内容で印刷する</button>
+          <button class="primary" type="button" id="exportBtn" style="flex:0 0 auto">この内容を画像として保存</button>
+        </div>
+        <div class="status" id="overlaySaveStatus"></div>
+
+        <canvas id="exportCanvas" style="display:none"></canvas>
+        <div id="exportResult" style="display:none;margin-top:16px;text-align:center">
+          <p class="sub">画像を長押しして「写真に保存」を選ぶか、下のボタンで保存してください。</p>
+          <img id="exportPreviewImg" style="max-width:100%;border-radius:8px;border:1px solid var(--line)">
+          <div style="margin-top:10px">
+            <a id="exportDownloadLink" download="のし紙.jpg" class="primary" style="display:inline-block;text-decoration:none;padding:11px 16px;border-radius:12px">画像をダウンロード</a>
+          </div>
         </div>
       </div>
     </main>
@@ -284,7 +256,6 @@ function renderGallery(){
       document.getElementById("previewBg").src = selectedBgUrl;
       const b = backgrounds.find(x=>x.image_url===selectedBgUrl);
       document.getElementById("posTop").value = b?.overlay_top ?? 55;
-      document.getElementById("posHeight").value = b?.overlay_height ?? 48;
       document.getElementById("fontSize").value = b?.overlay_font_size ?? 8;
       applyOverlayPosition();
       renderGallery();
@@ -332,56 +303,110 @@ function applyOverlayPosition(){
   const wrap = document.getElementById("nameOverlayWrap");
   const overlay = document.getElementById("nameOverlay");
   wrap.style.top = document.getElementById("posTop").value + "%";
-  wrap.style.height = document.getElementById("posHeight").value + "%";
   overlay.style.fontSize = document.getElementById("fontSize").value + "px";
 }
-["posTop","posHeight","fontSize"].forEach(id=>{
+["posTop","fontSize"].forEach(id=>{
   document.getElementById(id).addEventListener("input", applyOverlayPosition);
 });
 
-function applyPaperSize(){
-  const size = document.querySelector('input[name="paperSize"]:checked').value;
-  const isLandscape = true; // のしは常に横長で使うため固定
-  const printArea = document.getElementById("printArea");
-  printArea.classList.toggle("size-b5", size === "B5");
-  printArea.classList.toggle("landscape", isLandscape);
+// A4横向き・高解像度で書き出す(mm換算 297x210 を約7px/mmで)
+const EXPORT_WIDTH = 2079;  // 297mm相当
+const EXPORT_HEIGHT = 1470; // 210mm相当
+const DESIGN_WIDTH = 560;   // 画面プレビューの基準幅(.a4.landscapeのmax-width)
 
-  let w, h;
-  if(size === "B5"){ w = "176mm"; h = "250mm"; } else { w = "210mm"; h = "297mm"; }
-  if(isLandscape){ const t = w; w = h; h = t; }
-  document.getElementById("printPageSize").textContent = `@page{ size:${w} ${h}; margin:0; }`;
-}
-document.querySelectorAll('input[name="paperSize"]').forEach(r=>{
-  r.addEventListener("change", applyPaperSize);
-});
-
-function buildPrintClone(){
-  const printArea = document.getElementById("printArea");
-  const clone = document.getElementById("printClone");
-  clone.className = "";
-  if(printArea.classList.contains("landscape")) clone.classList.add("landscape");
-  if(printArea.classList.contains("size-b5")) clone.classList.add("size-b5");
-  clone.innerHTML = `
-    <img class="bg" src="${document.getElementById("previewBg").src}" alt="">
-    <div class="name-overlay-wrap" style="top:${document.getElementById("posTop").value}%;height:${document.getElementById("posHeight").value}%">
-      <div class="name-overlay" style="font-size:${document.getElementById("fontSize").value}px">${document.getElementById("nameOverlay").textContent}</div>
-    </div>
-  `;
-}
-
-document.getElementById("printBtn").addEventListener("click", ()=>{
+document.getElementById("exportBtn").addEventListener("click", async ()=>{
+  const statusEl = document.getElementById("overlaySaveStatus");
   if(!selectedBgUrl){
-    alert("②で背景画像を選んでください。");
+    showStatus(statusEl, "②で背景画像を選んでください", true);
     return;
   }
-  applyPaperSize();
-  buildPrintClone();
-  window.print();
+  const btn = document.getElementById("exportBtn");
+  btn.disabled = true;
+  btn.textContent = "作成中…";
+  try{
+    await document.fonts.load(`8px "Yuji Syuku"`);
+    await document.fonts.ready;
+
+    const canvas = document.getElementById("exportCanvas");
+    canvas.width = EXPORT_WIDTH;
+    canvas.height = EXPORT_HEIGHT;
+    const ctx = canvas.getContext("2d");
+
+    const img = await loadImage(selectedBgUrl);
+    drawCoverImage(ctx, img, EXPORT_WIDTH, EXPORT_HEIGHT);
+
+    const names = document.getElementById("nameOverlay").textContent.split("\n").filter(Boolean);
+    const scale = EXPORT_WIDTH / DESIGN_WIDTH;
+    const fontPx = Number(document.getElementById("fontSize").value) * scale;
+    const topY = EXPORT_HEIGHT * (Number(document.getElementById("posTop").value) / 100);
+    drawVerticalNames(ctx, names, EXPORT_WIDTH, topY, fontPx);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    document.getElementById("exportPreviewImg").src = dataUrl;
+    document.getElementById("exportDownloadLink").href = dataUrl;
+    document.getElementById("exportResult").style.display = "block";
+    document.getElementById("exportResult").scrollIntoView({ behavior:"smooth", block:"start" });
+    showStatus(statusEl, "画像を作成しました。下に表示されています。", false);
+  }catch(err){
+    console.error(err);
+    showStatus(statusEl, "画像の作成に失敗しました：" + (err.message || err), true);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "この内容を画像として保存";
+  }
 });
+
+function loadImage(url){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = ()=>resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function drawCoverImage(ctx, img, w, h){
+  const imgRatio = img.width / img.height;
+  const boxRatio = w / h;
+  let sx, sy, sw, sh;
+  if(imgRatio > boxRatio){
+    sh = img.height;
+    sw = sh * boxRatio;
+    sx = (img.width - sw) / 2;
+    sy = 0;
+  } else {
+    sw = img.width;
+    sh = sw / boxRatio;
+    sx = 0;
+    sy = (img.height - sh) / 2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+}
+
+// 名前は1人1列(縦書き)。右から左へ列が並び、全体を左右中央寄せする
+function drawVerticalNames(ctx, names, canvasWidth, topY, fontPx){
+  ctx.fillStyle = "#3a2a20";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `${fontPx}px "Yuji Syuku", serif`;
+
+  const colWidth = fontPx * 1.35;
+  const lineHeight = fontPx * 1.15;
+  const totalWidth = names.length * colWidth;
+  const rightEdge = (canvasWidth + totalWidth) / 2;
+
+  names.forEach((name, i)=>{
+    const colCenterX = rightEdge - colWidth * (i + 0.5);
+    const chars = Array.from(name);
+    chars.forEach((ch, j)=>{
+      ctx.fillText(ch, colCenterX, topY + lineHeight * (j + 0.5));
+    });
+  });
+}
 
 async function startApp(){
   applyOverlayPosition();
-  applyPaperSize();
   await loadEvents();
   await loadBackgrounds();
 }

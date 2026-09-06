@@ -109,17 +109,42 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
       <div id="jenneGroups"></div>
 
       <div class="section no-print" id="thanksSection">
-        <h2 style="margin:0 0 6px;font-size:17px;color:var(--green-dark)">🎁 協力者へ御礼メール</h2>
-        <p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.7">
-          メールアドレスを入力してくれた協力者にだけ、差し入れ完了のご報告メールを送ります。
+        <h2 style="margin:0 0 6px;font-size:17px;color:var(--green-dark)">📸 差し入れ完了報告・御礼メール</h2>
+        <p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.7">
+          担当者の方は、差し入れをお渡しした後、下の3枚の写真をアップロードしてください。アップロードすると、お礼メールの文面が自動で作られます。
         </p>
-        <textarea id="thanksBody" rows="4" placeholder="例：おかげさまで、無事にジェンヌさんへお渡しすることができました。ご協力ありがとうございました。" style="width:100%;padding:10px 12px;border:1px solid #d7e2d1;border-radius:10px;font:inherit;line-height:1.7;resize:vertical"></textarea>
-        <div style="margin-top:10px;display:flex;justify-content:flex-end">
-          <button id="thanksSendBtn">御礼メールを送信</button>
+
+        <div style="display:grid;gap:12px;margin-bottom:12px">
+          <div>
+            <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px">📄 購入時の領収書</label>
+            <input type="file" id="photoReceipt" accept="image/*">
+          </div>
+          <div>
+            <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px">🎀 のしをお付けした差し入れのお写真</label>
+            <input type="file" id="photoGift" accept="image/*">
+          </div>
+          <div>
+            <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px">🍬 お菓子の中身のお写真</label>
+            <input type="file" id="photoCandy" accept="image/*">
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end">
+          <button id="photoUploadBtn">写真をアップロードして文面を作成</button>
+        </div>
+        <div class="status" id="photoUploadStatus"></div>
+
+        <div id="thanksPreviewWrap" style="display:none;margin-top:16px">
+          <p style="font-size:13px;color:var(--muted);margin-bottom:6px">プレビュー（このままの内容でメールが届きます）</p>
+          <div id="thanksPreview" style="border:1px solid var(--line);border-radius:12px;padding:14px;background:#fffefb;max-height:420px;overflow-y:auto"></div>
+          <div style="margin-top:10px;display:flex;justify-content:flex-end">
+            <button id="thanksSendBtn">この内容で御礼メールを送信</button>
+          </div>
         </div>
         <div class="status" id="thanksStatus"></div>
       </div>
     </main>
+
   </div>
 </div>
 
@@ -147,6 +172,11 @@ if(!window.supabase){
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentRows = [];
+
+function showStatus(el, msg, isError){
+  el.textContent = msg;
+  el.className = "status " + (isError ? "err" : "ok");
+}
 let eventsData = [];
 
 // 組ごとのテーマカラー
@@ -315,21 +345,246 @@ function render(){
   }).join("");
 }
 
+let generatedEmailHtml = "";
+
+function formatEventDate(dateStr){
+  if(!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+}
+
+async function uploadReportPhoto(file){
+  const ext = file.name.split(".").pop();
+  const path = `gift-report/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from("public photo").upload(path, file, { upsert:true });
+  if(error) throw error;
+  const { data } = supabase.storage.from("public photo").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function buildThanksHtml({ dateStr, workLabel, jenneNames, receiptUrl, giftUrl, candyUrl }){
+  return `
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background-color:#f7f3ed; padding:24px 10px;">
+<tr>
+<td align="center">
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="max-width:650px; background:#ffffff; border:1px solid #e7ddd0; border-radius:12px; overflow:hidden;">
+
+  <!-- ヘッダー -->
+  <tr>
+    <td align="center" style="padding:34px 25px 25px; background-color:#fbf8f3;">
+      <div style="font-size:13px; letter-spacing:3px; color:#a88d69; margin-bottom:12px;">
+        KOBAYASHI TAKARAZUKA CLUB
+      </div>
+
+      <div style="font-size:24px; line-height:1.6; color:#5b4938; font-weight:bold;">
+        ご参加・ご協力<br>
+        心より御礼申し上げます
+      </div>
+
+      <div style="width:60px; height:1px; background:#c9ad84; margin:20px auto 0;"></div>
+    </td>
+  </tr>
+
+  <!-- 本文 -->
+  <tr>
+    <td style="padding:32px 34px 12px; font-size:15px; line-height:2;">
+
+      <p>
+        このたびは、<strong>${dateStr}</strong>開催の
+        <strong>${workLabel}</strong>観劇会にご参加いただき、
+        誠にありがとうございました✨
+      </p>
+
+      <p>
+        皆さまのおかげをもちまして、無事に観劇会を終えることができましたこと、
+        心より御礼申し上げます。
+      </p>
+
+      <p>
+        また、このたびは<strong>${jenneNames}様</strong>への差し入れにも
+        ご賛同、ご協力を賜り、誠にありがとうございました🎁
+      </p>
+
+      <p>
+        皆さまからお預かりいたしましたお気持ちは、
+        心を込めてお品物としてご用意し、
+        ${jenneNames}様へお届けいたしました。
+      </p>
+
+      <p>
+        ささやかではございますが、ご報告を兼ねまして、
+        下記の写真を添付しておりますので、ぜひご覧くださいませ。
+      </p>
+
+    </td>
+  </tr>
+
+  <!-- 写真 -->
+  <tr>
+    <td align="center" style="padding:10px 30px 15px;">
+
+      <div style="font-size:14px; color:#9b805e; margin-bottom:10px;">
+        ❖ 購入時の領収書
+      </div>
+
+      <img src="${receiptUrl}"
+           alt="購入時の領収書"
+           style="width:100%; max-width:520px; height:auto; border-radius:8px; border:1px solid #eee6dc;">
+
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" style="padding:15px 30px;">
+
+      <div style="font-size:14px; color:#9b805e; margin-bottom:10px;">
+        ❖ のしをお付けした差し入れ
+      </div>
+
+      <img src="${giftUrl}"
+           alt="のしをお付けした差し入れ"
+           style="width:100%; max-width:520px; height:auto; border-radius:8px; border:1px solid #eee6dc;">
+
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" style="padding:15px 30px 28px;">
+
+      <div style="font-size:14px; color:#9b805e; margin-bottom:10px;">
+        ❖ お菓子の中身
+      </div>
+
+      <img src="${candyUrl}"
+           alt="お菓子の中身"
+           style="width:100%; max-width:520px; height:auto; border-radius:8px; border:1px solid #eee6dc;">
+
+    </td>
+  </tr>
+
+  <!-- 後半 -->
+  <tr>
+    <td style="padding:5px 34px 30px; font-size:15px; line-height:2;">
+
+      <p>
+        皆さまの温かなお気持ちを、このような形でお届けすることができましたことを、
+        私どもも大変嬉しく思っております。
+        改めまして、皆さまの温かいご協力に深く感謝申し上げます。
+      </p>
+
+      <p>
+        今後も、皆さまに楽しくご参加いただける観劇会や企画を
+        ご案内してまいりたいと思っております。<br>
+        またご一緒できます機会を、心より楽しみにしております🌸
+      </p>
+
+      <p>
+        このたびは、観劇会へのご参加ならびに差し入れへのご協力を賜り、
+        本当にありがとうございました。
+      </p>
+
+      <p>
+        今後ともどうぞよろしくお願い申し上げます。
+      </p>
+
+    </td>
+  </tr>
+
+  <!-- 署名 -->
+  <tr>
+    <td align="center"
+        style="background:#fbf8f3; padding:27px 20px 30px; border-top:1px solid #eee4d8;">
+
+      <div style="font-size:12px; letter-spacing:2px; color:#aa9478; margin-bottom:8px;">
+        KOBAYASHI TAKARAZUKA CLUB
+      </div>
+
+      <div style="font-size:18px; font-weight:bold; color:#5b4938;">
+        小林タカラヅカ倶楽部
+      </div>
+
+    </td>
+  </tr>
+
+</table>
+
+</td>
+</tr>
+</table>`;
+}
+
+document.getElementById("photoUploadBtn").addEventListener("click", async ()=>{
+  const statusEl = document.getElementById("photoUploadStatus");
+  const btn = document.getElementById("photoUploadBtn");
+  const sel = document.getElementById("eventSelect");
+  const eventId = sel.value;
+
+  const receiptFile = document.getElementById("photoReceipt").files?.[0];
+  const giftFile = document.getElementById("photoGift").files?.[0];
+  const candyFile = document.getElementById("photoCandy").files?.[0];
+
+  if(!eventId){
+    showStatus(statusEl, "対象の観劇会を選んでください。", true);
+    return;
+  }
+  if(!receiptFile || !giftFile || !candyFile){
+    showStatus(statusEl, "3枚とも写真を選んでください。", true);
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "アップロード中…";
+  try{
+    const [receiptUrl, giftUrl, candyUrl] = await Promise.all([
+      uploadReportPhoto(receiptFile),
+      uploadReportPhoto(giftFile),
+      uploadReportPhoto(candyFile)
+    ]);
+
+    const { error: upsertErr } = await supabase.from("event_gift_report").upsert({
+      event_id: eventId,
+      receipt_photo_url: receiptUrl,
+      gift_photo_url: giftUrl,
+      candy_photo_url: candyUrl,
+      updated_at: new Date().toISOString()
+    });
+    if(upsertErr) throw upsertErr;
+
+    const ev = eventsData.find(e=>e.id === eventId);
+    const dateStr = formatEventDate(ev?.event_date);
+    const workLabel = ev?.work_title ? `${ev.troupe||""}組「${ev.work_title}」` : `${ev?.troupe||""}組`;
+    const jenneNamesArr = [...new Set(currentRows.map(r=>r.jennes?.name).filter(Boolean))];
+    const jenneNames = jenneNamesArr.length ? jenneNamesArr.join("・") : "ジェンヌさん";
+
+    generatedEmailHtml = buildThanksHtml({ dateStr, workLabel, jenneNames, receiptUrl, giftUrl, candyUrl });
+    document.getElementById("thanksPreview").innerHTML = generatedEmailHtml;
+    document.getElementById("thanksPreviewWrap").style.display = "block";
+    showStatus(statusEl, "文面を作成しました。下のプレビューを確認して送信してください。", false);
+  }catch(err){
+    console.error(err);
+    showStatus(statusEl, "アップロードに失敗しました：" + (err.message || err), true);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "写真をアップロードして文面を作成";
+  }
+});
+
 document.getElementById("thanksSendBtn").addEventListener("click", async ()=>{
   const statusEl = document.getElementById("thanksStatus");
   const btn = document.getElementById("thanksSendBtn");
   statusEl.className = "status"; statusEl.textContent = "";
 
+  if(!generatedEmailHtml){
+    statusEl.className = "status err";
+    statusEl.textContent = "先に写真をアップロードして文面を作成してください。";
+    return;
+  }
   if(!ensureEmailjsInit()){
     statusEl.className = "status err";
     statusEl.textContent = "メール送信ライブラリの読み込みに失敗しました。時間をおいて再度お試しください。";
-    return;
-  }
-
-  const body = document.getElementById("thanksBody").value.trim();
-  if(!body){
-    statusEl.className = "status err";
-    statusEl.textContent = "本文を入力してください。";
     return;
   }
 
@@ -359,19 +614,11 @@ document.getElementById("thanksSendBtn").addEventListener("click", async ()=>{
     const r = recipients[i];
     statusEl.className = "status";
     statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
-    const message =
-`${r.name}様
-
-いつも観劇会の活動にご理解とご協力を賜り、誠にありがとうございます。
-
-${body}
-
-小林タカラヅカ倶楽部`;
     try{
       await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
         email: r.email,
         subject: "【小林タカラヅカ倶楽部】差し入れご協力ありがとうございました",
-        message
+        message: generatedEmailHtml
       });
       successCount++;
     }catch(err){
