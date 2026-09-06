@@ -136,7 +136,7 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
           </div>
           <div>
             <label>文字サイズ（px）</label>
-            <input type="number" id="fontSize" value="8" min="4" max="48">
+            <input type="number" id="fontSize" value="20" min="4" max="60">
           </div>
         </div>
 
@@ -254,7 +254,7 @@ function renderGallery(){
       selectedBgUrl = el.dataset.url;
       const b = backgrounds.find(x=>x.image_url===selectedBgUrl);
       document.getElementById("posTop").value = b?.overlay_top ?? 55;
-      document.getElementById("fontSize").value = b?.overlay_font_size ?? 8;
+      document.getElementById("fontSize").value = b?.overlay_font_size ?? 20;
       try{
         currentBgImage = await loadImage(selectedBgUrl);
       }catch(err){
