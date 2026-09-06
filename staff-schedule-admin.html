@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>当日スケジュール・スタッフ割り当て(管理者用)</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#efeaf2; --card:#fffdf9; --card2:#f4eef7; --gold:#9a86c9; --gold-soft:#6d5aa3;
+    --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35); --muted:#8b84a0;
+    --green:#5c8a5c;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--cream);font-family:'Noto Sans JP',sans-serif;padding:0 0 60px;}
+  h1{font-family:'Shippori Mincho',serif;text-align:center;font-size:20px;padding:24px 16px 4px;margin:0;}
+  .sub{text-align:center;color:var(--muted);font-size:12.5px;margin:0 0 16px;}
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px;}
+  .panel{background:var(--card);border:1px solid var(--gold);border-radius:12px;padding:18px;margin-bottom:16px;}
+  label{display:block;font-size:13px;margin-bottom:6px;color:var(--cream);}
+  select,input[type=text],input[type=number],input[type=password],input[type=email]{
+    width:100%;background:var(--card2);border:1px solid var(--line);color:var(--cream);
+    border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;margin-bottom:12px;
+  }
+  button{
+    font-family:inherit;font-weight:700;font-size:14px;border:none;border-radius:8px;
+    padding:11px 16px;cursor:pointer;
+  }
+  .btn-main{background:var(--gold-soft);color:#fff;}
+  .btn-sub{background:var(--card2);color:var(--gold-soft);border:1px solid var(--gold);}
+  .btn-danger{background:var(--rose);color:#fff;}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+  .row-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px;}
+  .row-card.fixed{border-color:var(--rose);}
+  .row-card.group{border-color:var(--muted);opacity:.85;}
+  .row-top{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .row-top input[type=text]{margin-bottom:0;}
+  .time-input{width:100px;flex-shrink:0;}
+  .task-input{flex:1;}
+  .badge{font-size:10.5px;font-weight:700;border-radius:10px;padding:2px 8px;flex-shrink:0;}
+  .badge.fixed{background:var(--rose);color:#fff;}
+  .badge.group{background:var(--muted);color:#fff;}
+  .staff-check{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+  .staff-check label{
+    display:flex;align-items:center;gap:4px;background:var(--card2);border:1px solid var(--line);
+    border-radius:14px;padding:5px 10px;font-size:12.5px;margin:0;cursor:pointer;
+  }
+  .staff-check input{accent-color:var(--gold-soft);}
+  .row-note{font-size:11.5px;color:var(--muted);margin:4px 0 8px;line-height:1.6;}
+  .row-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;}
+  .row-actions button{font-size:12px;padding:6px 12px;}
+  .count-badge{font-size:11px;color:var(--muted);margin-left:6px;}
+  #loginBox{max-width:340px;margin:60px auto;}
+  #statusMsg{text-align:center;font-size:13px;color:var(--rose);margin:10px 0;}
+  .req-count{width:56px;flex-shrink:0;text-align:center;}
+  .top-actions{position:sticky;bottom:0;background:var(--bg);padding:12px 0;display:flex;gap:8px;}
+  .top-actions button{flex:1;}
+</style>
+</head>
+<body>
+
+<div id="loginBox" class="wrap">
+  <h1>管理者ログイン</h1>
+  <div class="panel">
+    <label>メールアドレス</label>
+    <input type="email" id="loginEmail" autocomplete="username">
+    <label>パスワード</label>
+    <input type="password" id="loginPassword" autocomplete="current-password">
+    <button class="btn-main" style="width:100%" onclick="doLogin()">ログイン</button>
+    <p id="loginMsg" style="color:var(--rose);font-size:12.5px;text-align:center;margin-top:10px;"></p>
+  </div>
+</div>
+
+<div id="mainBox" class="wrap" style="display:none;">
+  <h1>当日スケジュール・スタッフ割り当て</h1>
+  <p class="sub">管理者用。作成した内容はスタッフ表示ページに反映されます。</p>
+
+  <div class="panel">
+    <label>観劇会を選択</label>
+    <select id="eventSelect"></select>
+    <div class="btn-row">
+      <button class="btn-sub" onclick="loadTemplateIfEmpty()">この回のスケジュールを読み込む</button>
+    </div>
+    <p id="statusMsg"></p>
+  </div>
+
+  <div id="rowsArea"></div>
+
+  <div class="panel" style="text-align:center;">
+    <button class="btn-sub" onclick="addCustomRow()">＋ 仕事を追加</button>
+  </div>
+
+  <div class="top-actions">
+    <button class="btn-sub" onclick="autoAssignAll()">🔀 まだ未割当の分を自動割り当て</button>
+    <button class="btn-main" onclick="saveAll()">保存する</button>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://uyhqnyrnhdjpgrceitgh.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const STAFF_LIST = ['原田','太田','伊庭','岩本','西中','水無瀬'];
+
+  let currentEvent = null;
+  let rows = []; // {id, task_type_id, task_name, time_label, required_count, assigned_staff, note, fixed_staff, is_group_task, sort_order, _isNew}
+
+  // --- 認証 ---
+  async function doLogin(){
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){
+      document.getElementById('loginMsg').textContent = 'ログインに失敗しました: ' + error.message;
+      return;
+    }
+    showMain();
+  }
+  async function showMain(){
+    document.getElementById('loginBox').style.display = 'none';
+    document.getElementById('mainBox').style.display = 'block';
+    await loadEvents();
+  }
+  sb.auth.getSession().then(({data})=>{
+    if(data.session) showMain();
+  });
+
+  // --- 観劇会一覧 ---
+  async function loadEvents(){
+    const { data, error } = await sb
+      .from('events')
+      .select('id, event_number, troupe, work_title, event_date, show_time')
+      .order('event_date', { ascending: false });
+    if(error){ setStatus('観劇会一覧の取得に失敗しました'); return; }
+    const sel = document.getElementById('eventSelect');
+    sel.innerHTML = '';
+    data.forEach(ev=>{
+      const opt = document.createElement('option');
+      opt.value = ev.id;
+      opt.textContent = `第${ev.event_number||'?'}回 ${ev.troupe||''}組 ${ev.event_date||''} (${ev.show_time||'?'}公演)`;
+      opt.dataset.showTime = ev.show_time || '';
+      sel.appendChild(opt);
+    });
+    // デフォルト:今日から一番近い未来の回
+    const today = new Date().toISOString().slice(0,10);
+    const upcoming = data.filter(ev=>ev.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+    if(upcoming.length){
+      sel.value = upcoming[0].id;
+    }
+    sel.addEventListener('change', onEventChange);
+    await onEventChange();
+  }
+
+  async function onEventChange(){
+    const sel = document.getElementById('eventSelect');
+    const eventId = sel.value;
+    if(!eventId) return;
+    const opt = sel.options[sel.selectedIndex];
+    currentEvent = { id: eventId, show_time: opt.dataset.showTime };
+    await loadExistingRows();
+  }
+
+  function setStatus(msg){
+    document.getElementById('statusMsg').textContent = msg;
+    setTimeout(()=>{ if(document.getElementById('statusMsg').textContent===msg) document.getElementById('statusMsg').textContent=''; }, 4000);
+  }
+
+  // --- 既存の割り当て読み込み ---
+  async function loadExistingRows(){
+    const { data, error } = await sb
+      .from('event_staff_assignments')
+      .select('*')
+      .eq('event_id', currentEvent.id)
+      .order('sort_order', { ascending: true });
+    if(error){ setStatus('割り当ての取得に失敗しました'); return; }
+    if(data.length){
+      rows = data.map(r=>({
+        id: r.id, task_type_id: r.task_type_id, task_name: r.task_name,
+        time_label: r.time_label, required_count: r.required_count,
+        assigned_staff: r.assigned_staff || [], note: r.note,
+        fixed_staff: null, is_group_task: false, sort_order: r.sort_order, _isNew:false
+      }));
+    } else {
+      rows = [];
+    }
+    renderRows();
+  }
+
+  // --- テンプレート読み込み(既存データが無い場合のみ) ---
+  async function loadTemplateIfEmpty(){
+    if(rows.length){
+      if(!confirm('すでにこの回のスケジュールがあります。テンプレートで上書きしますか？(保存前なら元に戻せます)')) return;
+    }
+    const { data, error } = await sb
+      .from('task_types')
+      .select('*')
+      .eq('active', true)
+      .or(`show_time_pattern.eq.${currentEvent.show_time},show_time_pattern.is.null`)
+      .order('sort_order', { ascending: true });
+    if(error){ setStatus('テンプレートの取得に失敗しました'); return; }
+    rows = data.map(t=>({
+      id: null, task_type_id: t.id, task_name: t.name,
+      time_label: t.default_time_label, required_count: t.default_required_count,
+      assigned_staff: t.fixed_staff ? [t.fixed_staff] : [], note: t.note,
+      fixed_staff: t.fixed_staff, is_group_task: t.is_group_task,
+      sort_order: t.sort_order, _isNew:true
+    }));
+    renderRows();
+    setStatus('テンプレートを読み込みました。保存を押すまで確定しません。');
+  }
+
+  function addCustomRow(){
+    rows.push({
+      id:null, task_type_id:null, task_name:'新しい仕事', time_label:'',
+      required_count:1, assigned_staff:[], note:'', fixed_staff:null,
+      is_group_task:false, sort_order: (rows.length?Math.max(...rows.map(r=>r.sort_order||0))+10:10), _isNew:true
+    });
+    renderRows();
+  }
+
+  function removeRow(idx){
+    if(!confirm('この行を削除しますか？')) return;
+    rows.splice(idx,1);
+    renderRows();
+  }
+
+  // --- 描画 ---
+  function renderRows(){
+    const area = document.getElementById('rowsArea');
+    area.innerHTML = '';
+    rows.forEach((row, idx)=>{
+      const div = document.createElement('div');
+      div.className = 'row-card' + (row.fixed_staff ? ' fixed' : '') + (row.is_group_task ? ' group' : '');
+      let badge = '';
+      if(row.fixed_staff) badge = `<span class="badge fixed">固定:${row.fixed_staff}</span>`;
+      else if(row.is_group_task) badge = `<span class="badge group">全員</span>`;
+
+      let staffHtml = '';
+      if(row.is_group_task){
+        staffHtml = `<p class="row-note">手の空いている人全員で対応してください。</p>`;
+      } else if(row.fixed_staff){
+        staffHtml = `<p class="row-note">固定担当のため自動割り当ての対象外です。</p>`;
+      } else {
+        staffHtml = `<div class="staff-check">` + STAFF_LIST.map(name=>{
+          const checked = row.assigned_staff.includes(name) ? 'checked' : '';
+          return `<label><input type="checkbox" ${checked} onchange="toggleStaff(${idx},'${name}',this.checked)">${name}</label>`;
+        }).join('') + `</div>
+        <div class="row-actions">
+          <button class="btn-sub" onclick="autoAssignRow(${idx})">🔀 この行だけ自動割り当て</button>
+        </div>`;
+      }
+
+      div.innerHTML = `
+        <div class="row-top">
+          <input type="text" class="time-input" value="${escapeHtml(row.time_label||'')}" placeholder="時刻" onchange="rows[${idx}].time_label=this.value">
+          <input type="text" class="task-input" value="${escapeHtml(row.task_name||'')}" placeholder="仕事名" onchange="rows[${idx}].task_name=this.value">
+          ${badge}
+        </div>
+        <div class="row-top">
+          <label style="margin:0;white-space:nowrap;">必要人数</label>
+          <input type="number" min="0" class="req-count" value="${row.required_count}" onchange="rows[${idx}].required_count=parseInt(this.value)||0; renderRows();">
+        </div>
+        ${staffHtml}
+        <input type="text" placeholder="補足メモ(スタッフ画面にそのまま表示されます)" value="${escapeHtml(row.note||'')}" onchange="rows[${idx}].note=this.value" style="margin-top:6px;">
+        <div class="row-actions">
+          <button class="btn-danger" onclick="removeRow(${idx})">削除</button>
+        </div>
+      `;
+      area.appendChild(div);
+    });
+  }
+
+  function toggleStaff(idx, name, checked){
+    const row = rows[idx];
+    if(checked){
+      if(!row.assigned_staff.includes(name)) row.assigned_staff.push(name);
+    } else {
+      row.assigned_staff = row.assigned_staff.filter(n=>n!==name);
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // --- 自動割り当て(公平ローテーション) ---
+  async function getTaskCounts(taskName){
+    const counts = {}; STAFF_LIST.forEach(s=>counts[s]=0);
+    const { data, error } = await sb
+      .from('event_staff_assignments')
+      .select('assigned_staff, event_id')
+      .eq('task_name', taskName)
+      .neq('event_id', currentEvent.id);
+    if(error) return counts;
+    data.forEach(r=>{
+      (r.assigned_staff||[]).forEach(name=>{
+        if(counts[name] !== undefined) counts[name]++;
+      });
+    });
+    return counts;
+  }
+
+  async function autoAssignRow(idx){
+    const row = rows[idx];
+    if(row.fixed_staff || row.is_group_task) return;
+    const counts = await getTaskCounts(row.task_name);
+    const usedAtThisTime = rows
+      .filter((r,i)=>i!==idx && r.time_label && r.time_label===row.time_label)
+      .flatMap(r=>r.assigned_staff||[]);
+    const candidates = STAFF_LIST.slice().sort((a,b)=>{
+      const aBusy = usedAtThisTime.includes(a) ? 1 : 0;
+      const bBusy = usedAtThisTime.includes(b) ? 1 : 0;
+      if(aBusy !== bBusy) return aBusy - bBusy;
+      if(counts[a] !== counts[b]) return counts[a]-counts[b];
+      return Math.random()-0.5;
+    });
+    row.assigned_staff = candidates.slice(0, row.required_count);
+    renderRows();
+  }
+
+  async function autoAssignAll(){
+    for(let i=0;i<rows.length;i++){
+      const row = rows[i];
+      if(row.fixed_staff || row.is_group_task) continue;
+      if(row.assigned_staff && row.assigned_staff.length >= row.required_count) continue; // 既に割当済みはスキップ
+      await autoAssignRow(i);
+    }
+    setStatus('未割当だった分を自動割り当てしました。内容を確認して保存してください。');
+  }
+
+  // --- 保存(既存行を全削除してから再作成) ---
+  async function saveAll(){
+    if(!currentEvent){ setStatus('観劇会が選択されていません'); return; }
+    const { error: delErr } = await sb
+      .from('event_staff_assignments')
+      .delete()
+      .eq('event_id', currentEvent.id);
+    if(delErr){ setStatus('保存に失敗しました(削除時): ' + delErr.message); return; }
+
+    if(rows.length === 0){ setStatus('保存しました(スケジュールなし)'); return; }
+
+    const payload = rows.map(r=>({
+      event_id: currentEvent.id,
+      task_type_id: r.task_type_id,
+      task_name: r.task_name,
+      time_label: r.time_label,
+      required_count: r.required_count,
+      assigned_staff: r.assigned_staff,
+      note: r.note,
+      sort_order: r.sort_order || 0
+    }));
+    const { error: insErr } = await sb.from('event_staff_assignments').insert(payload);
+    if(insErr){ setStatus('保存に失敗しました: ' + insErr.message); return; }
+    setStatus('保存しました！');
+    await loadExistingRows();
+  }
+</script>
+</body>
+</html>

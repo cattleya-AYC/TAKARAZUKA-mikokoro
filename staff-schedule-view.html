@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>当日スケジュール</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#efeaf2; --card:#fffdf9; --card2:#f4eef7; --gold:#9a86c9; --gold-soft:#6d5aa3;
+    --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35); --muted:#8b84a0;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--cream);font-family:'Noto Sans JP',sans-serif;padding:0 0 60px;}
+  .wrap{max-width:480px;margin:0 auto;padding:0 16px;}
+  h1{font-family:'Shippori Mincho',serif;text-align:center;font-size:20px;padding:24px 16px 4px;margin:0;letter-spacing:.05em;}
+  .sub{text-align:center;color:var(--muted);font-size:12.5px;margin:0 0 18px;}
+  select{
+    width:100%;background:var(--card);border:1px solid var(--gold);color:var(--cream);
+    border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;margin-bottom:20px;
+  }
+  .timeline{position:relative;padding-left:0;}
+  .item{
+    background:var(--card);border:1px solid var(--gold);border-radius:12px;
+    padding:14px 16px;margin-bottom:12px;
+  }
+  .item.group{border-color:var(--muted);}
+  .time{
+    font-family:'Shippori Mincho',serif;font-weight:700;color:var(--gold-soft);
+    font-size:14px;margin-bottom:4px;letter-spacing:.03em;
+  }
+  .task{font-weight:700;font-size:15.5px;margin-bottom:6px;color:var(--cream);}
+  .staff-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;}
+  .staff-tag{
+    background:var(--rose);color:#fff;font-size:12.5px;font-weight:700;
+    border-radius:12px;padding:3px 12px;
+  }
+  .staff-tag.group{background:var(--muted);}
+  .note{font-size:12px;color:var(--muted);line-height:1.7;white-space:pre-line;}
+  .empty{text-align:center;color:var(--muted);font-size:13px;padding:40px 0;}
+  .loading{text-align:center;color:var(--muted);font-size:13px;padding:40px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🌸 当日スケジュール 🌸</h1>
+  <p class="sub">その日の仕事分担です。時間になったら動いてください。</p>
+  <select id="eventSelect"></select>
+  <div id="timeline" class="timeline"><p class="loading">読み込み中…</p></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://uyhqnyrnhdjpgrceitgh.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  async function init(){
+    const { data, error } = await sb
+      .from('events')
+      .select('id, event_number, troupe, event_date, show_time')
+      .order('event_date', { ascending: false });
+    if(error || !data || !data.length){
+      document.getElementById('timeline').innerHTML = '<p class="empty">観劇会情報が見つかりませんでした。</p>';
+      return;
+    }
+    const sel = document.getElementById('eventSelect');
+    data.forEach(ev=>{
+      const opt = document.createElement('option');
+      opt.value = ev.id;
+      opt.textContent = `第${ev.event_number||'?'}回 ${ev.troupe||''}組 ${ev.event_date||''} (${ev.show_time||'?'}公演)`;
+      sel.appendChild(opt);
+    });
+    // デフォルト:今日から一番近い未来の回。無ければ直近の過去回。
+    const today = new Date().toISOString().slice(0,10);
+    const upcoming = data.filter(ev=>ev.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+    sel.value = upcoming.length ? upcoming[0].id : data[0].id;
+    sel.addEventListener('change', ()=>loadSchedule(sel.value));
+    await loadSchedule(sel.value);
+  }
+
+  async function loadSchedule(eventId){
+    const timeline = document.getElementById('timeline');
+    timeline.innerHTML = '<p class="loading">読み込み中…</p>';
+    const { data, error } = await sb
+      .from('event_staff_assignments')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('sort_order', { ascending: true });
+    if(error){
+      timeline.innerHTML = '<p class="empty">読み込みに失敗しました。時間をおいて再読み込みしてください。</p>';
+      return;
+    }
+    if(!data.length){
+      timeline.innerHTML = '<p class="empty">この回のスケジュールはまだ公開されていません。</p>';
+      return;
+    }
+    timeline.innerHTML = data.map(row=>{
+      const isGroup = !row.assigned_staff || row.assigned_staff.length === 0;
+      const tags = isGroup
+        ? `<span class="staff-tag group">手の空いている人全員</span>`
+        : row.assigned_staff.map(n=>`<span class="staff-tag">${escapeHtml(n)}</span>`).join('');
+      return `
+        <div class="item ${isGroup?'group':''}">
+          ${row.time_label ? `<div class="time">${escapeHtml(row.time_label)}</div>` : ''}
+          <div class="task">${escapeHtml(row.task_name)}</div>
+          <div class="staff-tags">${tags}</div>
+          ${row.note ? `<div class="note">${escapeHtml(row.note)}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  init();
+</script>
+</body>
+</html>
