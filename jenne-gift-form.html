@@ -176,14 +176,14 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ==============================================================
    設定：ご自身のSupabaseプロジェクトのURLとanonキーに置き換えてください
    （小林タカラヅカ倶楽部の既存プロジェクトと同じものを使う想定です）
    ============================================================== */
 const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
+const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
 
 /* jennes / event_gifts テーブルは作成済みです(migration_jenne_gifts.sqlで実行済み)。
    写真は既存の「public photo」バケット(誰でもアップロード可)を再利用しています。
