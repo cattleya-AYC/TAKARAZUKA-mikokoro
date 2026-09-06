@@ -6,15 +6,15 @@
 <title>差し入れ・お手紙 ご協力のお願い</title>
 <style>
 :root{
-  --bg:#f2f7f0;
+  --bg:#f5f4f1;
   --paper:#fffdf9;
-  --ink:#3f4a3a;
-  --muted:#7c8a76;
-  --green:#8fae7c;
-  --green-dark:#6f9159;
-  --green-soft:#e9f2e4;
+  --ink:#3f3f3a;
+  --muted:#847e76;
+  --green:#a39a8a;
+  --green-dark:#7d7568;
+  --green-soft:#eeece7;
   --gold:#c9a56b;
-  --line:#dfe8da;
+  --line:#e2ded6;
 }
 *{box-sizing:border-box}
 body{
@@ -415,7 +415,7 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
       <div class="done-card">
         <div class="check">✓</div>
         <h2>ご協力ありがとうございました</h2>
-        <p>お申し込みを受け付けました。<br>観劇会当日、チケットお渡しの際に協力金（${amount.toLocaleString("ja-JP")}円）をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
+        <p>お申し込みを受け付けました。<br>観劇会当日、チケットお渡しの際に<br>協力金（${amount.toLocaleString("ja-JP")}円）をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
       </div>`;
   }catch(err){
     console.error(err);
