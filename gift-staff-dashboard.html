@@ -104,7 +104,7 @@ th{background:#faf8f5;color:var(--muted);font-size:12px}
           <div class="info-card"><div class="label">申込件数</div><div class="value" id="countValue">-</div></div>
           <div class="info-card"><div class="label">協力人数（同伴者含む）</div><div class="value" id="peopleValue">-</div></div>
           <div class="info-card"><div class="label">合計金額</div><div class="value" id="totalAmountValue">-</div></div>
-          <div class="info-card"><div class="label">お菓子担当</div><div class="value" id="dutyStaffValue">-</div></div>
+          <div class="info-card"><div class="label">楽屋口届け担当者</div><div class="value" id="dutyStaffValue" style="font-size:17px">-</div></div>
         </div>
         <div id="jenneGroups"></div>
       </div>
@@ -113,6 +113,14 @@ th{background:#faf8f5;color:var(--muted);font-size:12px}
       <div class="section">
         <h2>📸 差し入れ完了報告</h2>
         <p class="sub">差し入れをお渡しした後、担当者の方はここから報告をお願いします。</p>
+
+        <div style="background:#fff8ef;border:1px solid #ecd9b8;border-radius:14px;padding:14px 16px;margin-bottom:18px;font-size:14px;line-height:1.8;color:var(--ink)">
+          ⚠️ <strong>お届け前にお願い</strong><br>
+          お菓子の紙袋に、メッセージカードサイズの紙に<strong>宛名</strong>（〇〇様）と<strong>差し出し人</strong>（小林タカラヅカ倶楽部）を手書きしたものを貼ってお届けください。
+          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #ecd9b8">
+            宛名（漢字の確認用）：<strong id="jenneNameForCard" style="font-size:17px">-</strong>様
+          </div>
+        </div>
 
         <label class="big-label">担当者のお名前</label>
         <input type="text" id="staffName" class="big-input" placeholder="例：原田">
@@ -230,14 +238,14 @@ async function loadEvents(){
   currentEventId = defaultEvent.id;
   sel.value = currentEventId;
   syncEventDisplay();
-  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds()]);
+  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard()]);
 }
 
 document.getElementById("eventSelect").addEventListener("change", async e=>{
   currentEventId = e.target.value || null;
   syncEventDisplay();
   document.getElementById("resultBox").style.display = "none";
-  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds()]);
+  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard()]);
 });
 
 function peopleCount(r){
@@ -314,17 +322,43 @@ function renderSubmissions(){
   }).join("");
 }
 
+async function loadJenneNameForCard(){
+  const el = document.getElementById("jenneNameForCard");
+  if(!currentEventId){ el.textContent = "-"; return; }
+  try{
+    const { data, error } = await supabase
+      .from("event_gifts")
+      .select("jennes(name)")
+      .eq("event_id", currentEventId);
+    if(error) throw error;
+    const names = [...new Set((data||[]).map(r=>r.jennes?.name).filter(Boolean))];
+    el.textContent = names.length ? names.join("・") : "未設定";
+  }catch(err){
+    console.error(err);
+    el.textContent = "-";
+  }
+}
+
 async function loadDutyStaff(){
   const el = document.getElementById("dutyStaffValue");
   if(!currentEventId){ el.textContent = "-"; return; }
   try{
     const { data, error } = await supabase
       .from("event_duty")
-      .select("duty_staff")
+      .select("duty_staff, duty_partner")
       .eq("event_id", currentEventId)
       .maybeSingle();
     if(error) throw error;
-    el.textContent = data?.duty_staff || "未設定";
+    if(data?.duty_staff && data?.duty_partner){
+      el.textContent = `${data.duty_staff}・${data.duty_partner}`;
+    } else {
+      el.textContent = data?.duty_staff || "未設定";
+    }
+    // 担当者のお名前欄に自動で反映(未入力の場合のみ)
+    const staffNameInput = document.getElementById("staffName");
+    if(data?.duty_staff && !staffNameInput.value.trim()){
+      staffNameInput.value = data.duty_staff;
+    }
   }catch(err){
     console.error(err);
     el.textContent = "-";

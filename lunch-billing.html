@@ -246,9 +246,13 @@
       `<option value="${ev.id}">${eventOptionLabel(ev)}</option>`
     ).join('');
 
+    const today = new Date().toISOString().slice(0,10);
+    const upcoming = list.filter(e=>e.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+    const defaultId = (upcoming[0] || list[0]).id;
+
     const chosen = (preferredId && list.some(ev=>ev.id===preferredId))
       ? preferredId
-      : list[0].id;
+      : defaultId;
 
     picker.value = chosen;
     document.getElementById('eventPickerBox').style.display = 'block';

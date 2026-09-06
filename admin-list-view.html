@@ -594,6 +594,12 @@
       opt.textContent = `第${ev.event_number ?? '?'}回 ${ev.troupe ?? ''}組(${formatDateJp(ev.event_date)})`;
       sel.appendChild(opt);
     });
+
+    // 今日から一番近い未来の回をデフォルトに(無ければ最新の過去回)
+    const today = new Date().toISOString().slice(0,10);
+    const upcoming = events.filter(e=>e.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+    const defaultEvent = upcoming[0] || events[0];
+    sel.value = defaultEvent.id;
   }
 
   async function loadAgencyInfo(eventId){
