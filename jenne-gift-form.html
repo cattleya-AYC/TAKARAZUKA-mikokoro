@@ -105,6 +105,16 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
   background:var(--rose-dark);padding:2px 8px;border-radius:999px;
 }
 .empty{color:var(--muted);font-size:13.5px;padding:8px 2px}
+.help{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.6}
+.confirmed-chip{
+  display:flex;align-items:center;gap:8px;justify-content:space-between;
+  border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:8px;background:#fffaf7;
+}
+.confirmed-chip .name{font-size:14px}
+.confirmed-chip .name a{color:var(--rose-dark);text-decoration:none;font-size:11px;margin-left:6px}
+.confirmed-chip button{
+  border:0;background:#f3e8e2;color:#a34848;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;
+}
 .search{width:100%;padding:11px 12px;border:1px solid #ddcabe;border-radius:10px;font:inherit;margin-bottom:12px}
 .config-note{font-size:11.5px;color:#b08f80;line-height:1.6;padding:10px 12px;background:#fff7f2;border-radius:10px;margin-bottom:14px}
 #authGate{
@@ -199,6 +209,11 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
           </div>
         </div>
 
+        <div class="field" style="margin-top:14px">
+          <label>プロフィールURL（任意）</label>
+          <input type="text" id="jenneProfileUrl" placeholder="例：https://kageki.hankyu.co.jp/sp/star/kisumi_seiya.html">
+        </div>
+
         <div class="photo-row">
           <div class="photo-preview" id="photoPreview">写真なし</div>
           <div class="photo-controls">
@@ -216,9 +231,9 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
 
       <section class="section">
         <h2>④ 今回の観劇会に紐づけて確定</h2>
-        <p class="sub">①で選んだ観劇会に対して「今回の差し入れ相手はこの方」として記録します。観劇会報告ページの「差し入れ」欄に自動で反映されます。</p>
+        <p class="sub">①で選んだ観劇会の差し入れ相手として追加します。花組など複数のジェンヌさんへお渡しする回は、②で選んで③このセクションの「追加」を繰り返してください。</p>
         <div class="field">
-          <label>お菓子担当（当番）</label>
+          <label>お菓子担当・楽屋口届け（当番）</label>
           <select id="dutyStaffSelect">
             <option value="">選択してください</option>
             <option value="水無瀬">水無瀬</option>
@@ -228,9 +243,17 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
             <option value="岩本">岩本</option>
             <option value="太田">太田</option>
           </select>
+          <div class="help">当番は観劇会1回につき1人です。変更するとこの回の担当が更新されます。ペアのパートナーが当日の金銭回収担当として自動で決まります。</div>
+          <div class="help" id="dutyPartnerPreview" style="font-weight:700;color:var(--rose-dark)"></div>
         </div>
+
+        <div class="field">
+          <label>この回の差し入れ相手（確定済み）</label>
+          <div id="confirmedGiftList" class="empty">まだ確定していません</div>
+        </div>
+
         <div class="actions" style="justify-content:flex-start">
-          <button class="primary" type="button" id="confirmGiftBtn">この方を今回の差し入れとして確定</button>
+          <button class="primary" type="button" id="confirmGiftBtn">②で選んだ方をこの回の差し入れ先に追加</button>
         </div>
         <div class="status" id="giftStatus"></div>
       </section>
@@ -276,6 +299,22 @@ let jennes = [];
 let selectedJenneId = null;
 let pendingPhotoFile = null;
 let currentEventId = null;
+
+// 楽屋口届け・金銭回収担当のペア(2人1組)
+const DUTY_PAIRS = {
+  "原田":"太田", "太田":"原田",
+  "伊庭":"岩本", "岩本":"伊庭",
+  "西中":"水無瀬", "水無瀬":"西中"
+};
+function getDutyPartner(name){
+  return DUTY_PAIRS[name] || "";
+}
+function updateDutyPartnerPreview(){
+  const staff = document.getElementById("dutyStaffSelect").value;
+  const preview = document.getElementById("dutyPartnerPreview");
+  preview.textContent = staff ? `→ 金銭回収担当（パートナー）：${getDutyPartner(staff)}` : "";
+}
+document.getElementById("dutyStaffSelect").addEventListener("change", updateDutyPartnerPreview);
 
 function showStatus(el, msg, isError){
   el.textContent = msg;
@@ -332,24 +371,54 @@ async function loadExistingGiftForEvent(eventId){
   const dutySelect = document.getElementById("dutyStaffSelect");
   dutySelect.value = "";
   selectedJenneId = null;
-  if(!eventId) return;
+  if(!eventId){
+    document.getElementById("confirmedGiftList").innerHTML = `<div class="empty">まだ確定していません</div>`;
+    return;
+  }
   try{
-    const { data, error } = await supabase
-      .from("event_gifts")
-      .select("jenne_id, duty_staff")
+    const { data: dutyData } = await supabase
+      .from("event_duty")
+      .select("duty_staff")
       .eq("event_id", eventId)
-      .limit(1);
-    if(error) throw error;
-    if(data && data[0]){
-      if(data[0].duty_staff) dutySelect.value = data[0].duty_staff;
-      if(data[0].jenne_id){
-        selectedJenneId = data[0].jenne_id;
-        selectJenne(selectedJenneId);
-      }
-    }
+      .maybeSingle();
+    if(dutyData && dutyData.duty_staff) dutySelect.value = dutyData.duty_staff;
+    updateDutyPartnerPreview();
+
+    await renderConfirmedGiftList(eventId);
     renderJenneList(currentFilteredList());
   }catch(err){
     console.error(err);
+  }
+}
+
+async function renderConfirmedGiftList(eventId){
+  const box = document.getElementById("confirmedGiftList");
+  box.innerHTML = "読み込み中...";
+  try{
+    const { data, error } = await supabase
+      .from("event_gifts")
+      .select("id, jenne_id, jennes(name, period)")
+      .eq("event_id", eventId);
+    if(error) throw error;
+    if(!data || data.length===0){
+      box.innerHTML = `<div class="empty">まだ確定していません</div>`;
+      return;
+    }
+    box.innerHTML = data.map(row=>{
+      const j = row.jennes;
+      const label = j ? `${j.name}${j.period ? "（"+j.period+"）" : ""}` : "（削除済みのジェンヌ）";
+      return `<div class="confirmed-chip"><span class="name">${label}</span><button type="button" data-row-id="${row.id}">削除</button></div>`;
+    }).join("");
+    box.querySelectorAll("button[data-row-id]").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        btn.disabled = true;
+        await supabase.from("event_gifts").delete().eq("id", btn.dataset.rowId);
+        await renderConfirmedGiftList(eventId);
+      });
+    });
+  }catch(err){
+    console.error(err);
+    box.innerHTML = `<div class="empty">読み込みエラー</div>`;
   }
 }
 
@@ -365,7 +434,7 @@ async function loadJennes(){
     const { data, error } = await withTimeout(
       supabase
         .from("jennes")
-        .select("id, name, period, photo_url")
+        .select("id, name, period, photo_url, profile_url")
         .order("name", { ascending:true }),
       8000,
       "jennes取得"
@@ -393,7 +462,7 @@ function renderJenneList(items){
         ? `<img class="jenne-thumb" src="${j.photo_url}" alt="">`
         : `<div class="jenne-thumb" style="display:grid;place-items:center;color:#aaa;font-size:10px">写真なし</div>`}
       <div class="jenne-info">
-        <div class="name">${j.name}</div>
+        <div class="name">${j.name}${j.profile_url ? `<a href="${j.profile_url}" target="_blank" onclick="event.stopPropagation()">プロフィール</a>` : ""}</div>
         <div class="period">${j.period || ""}</div>
       </div>
     </div>
@@ -412,6 +481,7 @@ function selectJenne(id){
   if(!j) return;
   document.getElementById("jenneName").value = j.name || "";
   document.getElementById("jennePeriod").value = j.period || "";
+  document.getElementById("jenneProfileUrl").value = j.profile_url || "";
   pendingPhotoFile = null;
   document.getElementById("photoInput").value = "";
   updatePhotoPreview(j.photo_url);
@@ -445,6 +515,7 @@ document.getElementById("clearBtn").addEventListener("click", ()=>{
   pendingPhotoFile = null;
   document.getElementById("jenneName").value = "";
   document.getElementById("jennePeriod").value = "";
+  document.getElementById("jenneProfileUrl").value = "";
   document.getElementById("photoInput").value = "";
   updatePhotoPreview(null);
   renderJenneList(currentFilteredList());
@@ -464,6 +535,7 @@ document.getElementById("saveJenneBtn").addEventListener("click", async ()=>{
   const statusEl = document.getElementById("jenneStatus");
   const name = document.getElementById("jenneName").value.trim();
   const period = document.getElementById("jennePeriod").value.trim();
+  const profileUrl = document.getElementById("jenneProfileUrl").value.trim();
   if(!name){
     showStatus(statusEl, "お名前を入力してください", true);
     return;
@@ -476,7 +548,7 @@ document.getElementById("saveJenneBtn").addEventListener("click", async ()=>{
       photoUrl = jennes.find(j=>j.id===selectedJenneId)?.photo_url || null;
     }
 
-    const payload = { name, period, updated_at: new Date().toISOString() };
+    const payload = { name, period, profile_url: profileUrl || null, updated_at: new Date().toISOString() };
     if(photoUrl) payload.photo_url = photoUrl;
 
     let result;
@@ -509,15 +581,35 @@ document.getElementById("confirmGiftBtn").addEventListener("click", async ()=>{
     return;
   }
   try{
-    // 同じ回に既存の紐づけがあれば置き換える
-    await supabase.from("event_gifts").delete().eq("event_id", currentEventId);
+    // 当番はこの回に1件だけ保持(upsert)、パートナーは自動計算
+    if(dutyStaff){
+      await supabase.from("event_duty").upsert({
+        event_id: currentEventId,
+        duty_staff: dutyStaff,
+        duty_partner: getDutyPartner(dutyStaff),
+        updated_at: new Date().toISOString()
+      });
+    }
+
+    // 同じジェンヌが既に追加済みなら重複させない
+    const { data: existing } = await supabase
+      .from("event_gifts")
+      .select("id")
+      .eq("event_id", currentEventId)
+      .eq("jenne_id", selectedJenneId)
+      .limit(1);
+    if(existing && existing.length > 0){
+      showStatus(statusEl, "この方はすでに追加済みです。", true);
+      return;
+    }
+
     const { error } = await supabase.from("event_gifts").insert({
       event_id: currentEventId,
-      jenne_id: selectedJenneId,
-      duty_staff: dutyStaff || null
+      jenne_id: selectedJenneId
     });
     if(error) throw error;
-    showStatus(statusEl, "今回の差し入れとして確定しました。観劇会報告ページに自動反映されます。", false);
+    showStatus(statusEl, "追加しました。観劇会報告ページ・配布フォームに自動反映されます。", false);
+    await renderConfirmedGiftList(currentEventId);
   }catch(err){
     console.error(err);
     showStatus(statusEl, "確定に失敗しました：" + (err.message || err), true);

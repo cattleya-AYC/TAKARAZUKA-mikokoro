@@ -53,13 +53,20 @@ main{padding:18px}
 .section p{font-size:14px;line-height:1.9;margin:0 0 8px;color:#4c5847}
 .section p:last-child{margin-bottom:0}
 .section h2{margin:0 0 10px;font-size:16px;color:var(--green-dark)}
-.jenne-box{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-.jenne-photo{width:88px;height:88px;border-radius:14px;object-fit:cover;background:#eee;flex-shrink:0}
-.jenne-photo.placeholder{display:grid;place-items:center;color:#a9b6a3;font-size:11px}
-.jenne-text .name{font-size:19px}
-.jenne-text .period{font-size:13px;color:var(--green-dark)}
+.jenne-pick{
+  display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:13px;
+  padding:12px;margin-bottom:10px;cursor:pointer;position:relative;background:#fff;
+}
+.jenne-pick input{position:absolute;opacity:0;pointer-events:none}
+.jenne-pick input:checked ~ .jenne-photo{border-color:var(--green-dark)}
+.jenne-pick.checked{border-color:var(--green-dark);background:var(--green-soft)}
+.jenne-photo{width:64px;height:64px;border-radius:12px;object-fit:cover;background:#eee;flex-shrink:0;border:2px solid transparent}
+.jenne-photo.placeholder{display:grid;place-items:center;color:#a9b6a3;font-size:10px}
+.jenne-text .name{font-size:16px}
+.jenne-text .name a{font-size:11px;color:var(--green-dark);margin-left:6px;text-decoration:none}
+.jenne-text .period{font-size:12.5px;color:var(--green-dark)}
 .fee-badge{
-  display:inline-block;margin-top:4px;background:var(--green-soft);color:#4d6b3e;
+  display:inline-block;margin-top:8px;background:var(--green-soft);color:#4d6b3e;
   padding:5px 12px;border-radius:999px;font-size:13px;
 }
 label{display:block;font-size:13.5px;color:var(--muted);margin:0 0 6px}
@@ -82,6 +89,18 @@ input[type=text],textarea{
   font-size:11px;color:#fff;background:var(--green-dark);
   padding:2px 8px;border-radius:999px;margin-left:6px;
 }
+.companion-toggle{
+  display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);
+  border-radius:12px;background:#fafdf8;margin-bottom:14px;cursor:pointer;
+}
+.companion-toggle input{width:18px;height:18px;accent-color:var(--green-dark)}
+.companion-toggle span{font-size:14px}
+.companion-block{display:none;border-top:1px dashed #cddcc5;padding-top:14px;margin-top:2px}
+.companion-block.show{display:block}
+.amount-preview{
+  text-align:right;font-size:13.5px;color:var(--muted);margin:-4px 0 14px;
+}
+.amount-preview b{color:var(--green-dark);font-size:16px}
 .submit{
   width:100%;border:0;border-radius:14px;padding:16px;
   background:linear-gradient(#9ec089,#77a161);color:#fff;font:17px inherit;cursor:pointer;
@@ -112,21 +131,16 @@ input[type=text],textarea{
 
     <main>
       <section class="section" id="jenneSection">
-        <h2>今回お渡しするジェンヌさん</h2>
-        <div class="jenne-box" id="jenneBox">
-          <div class="jenne-photo placeholder">写真</div>
-          <div class="jenne-text">
-            <div class="name">読み込み中...</div>
-            <div class="period"></div>
-          </div>
-        </div>
+        <h2>差し入れ先のジェンヌさん</h2>
+        <p id="jenneIntro" style="margin-bottom:10px">読み込み中...</p>
+        <div id="jenneList"></div>
         <div class="fee-badge">協力金 お一人様につき 200円</div>
       </section>
 
       <section class="section">
         <h2>差し入れについて</h2>
         <p>差し入れにつきましては、外装にご協力いただいた方のお名前を記載させていただきます。そのため、お申し込みの際にはフルネームでのお名前のご記入をお願いいたします。</p>
-        <p>お名前を載せずにご協力のみいただける場合は、下の「ご記名について」で「記名不要」をお選びください。</p>
+        <p>お名前を載せずにご協力のみいただける場合は、下の「外装へのお名前について」で「不記載」をお選びください。</p>
         <p>差し入れの費用につきましては、観劇会当日、チケットお渡しの際にお預かりいたします。</p>
       </section>
 
@@ -134,9 +148,9 @@ input[type=text],textarea{
         <h2>お手紙について</h2>
         <div class="envelope-rule">
           お手紙のみご協力いただく方も大歓迎です。お申し込みの必要はございません。<br>
-          観劇当日、集合時間にレストラン前にお持ちください。<br><br>
-          ・封筒の表面には、お渡しするジェンヌさんのお名前を明記してください<br>
-          ・封筒の裏面には、ご自身のフルネームをご記入ください
+          観劇当日、チケットお渡し時間にお持ちください。<br><br>
+          ・封筒の表には、お渡しするジェンヌさんのお名前をお書きください<br>
+          ・封筒の裏面には、ご自身のフルネームをお願いいたします。
         </div>
       </section>
 
@@ -144,17 +158,8 @@ input[type=text],textarea{
         <h2>お申し込み</h2>
         <form id="giftForm">
           <div class="field">
-            <label>ご記名について <span class="required">必須</span></label>
-            <div class="radio-row">
-              <label class="radio-option">
-                <input type="radio" name="nameDisplay" value="記載する" required>
-                <span>お名前をのしに記載します</span>
-              </label>
-              <label class="radio-option">
-                <input type="radio" name="nameDisplay" value="記名不要">
-                <span>記名不要</span>
-              </label>
-            </div>
+            <label>回生 <span class="required">必須</span></label>
+            <input type="text" id="period" placeholder="例：102回生" required>
           </div>
 
           <div class="field">
@@ -163,17 +168,45 @@ input[type=text],textarea{
           </div>
 
           <div class="field">
-            <label>回生 <span class="required">必須</span></label>
-            <input type="text" id="period" placeholder="例：102回生" required>
-            <div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.7">
-              同窓生ではないご同伴の方は、ご友人＝同窓生の回生とお名前をご記入ください。
+            <label>外装へのお名前について <span class="required">必須</span></label>
+            <div class="radio-row">
+              <label class="radio-option">
+                <input type="radio" name="nameDisplay" value="記載" required>
+                <span>記載</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="nameDisplay" value="不記載">
+                <span>不記載</span>
+              </label>
             </div>
           </div>
 
-          <div class="field">
-            <label>ご住所（任意）</label>
-            <textarea id="address" rows="2" placeholder="お手紙のお返事等をご希望の場合のみご記入ください"></textarea>
+          <label class="companion-toggle">
+            <input type="checkbox" id="hasCompanion">
+            <span>ご同伴者の方もご協力いただける場合はチェックしてください</span>
+          </label>
+
+          <div class="companion-block" id="companionBlock">
+            <div class="field">
+              <label>ご同伴者のお名前 <span class="required">必須</span></label>
+              <input type="text" id="companionName" placeholder="例：西中 花子">
+            </div>
+            <div class="field">
+              <label>ご同伴者の外装へのお名前について <span class="required">必須</span></label>
+              <div class="radio-row">
+                <label class="radio-option">
+                  <input type="radio" name="companionNameDisplay" value="記載">
+                  <span>記載</span>
+                </label>
+                <label class="radio-option">
+                  <input type="radio" name="companionNameDisplay" value="不記載">
+                  <span>不記載</span>
+                </label>
+              </div>
+            </div>
           </div>
+
+          <div class="amount-preview">当日お預かりする協力金：<b id="amountText">200円</b></div>
 
           <button class="submit" type="submit" id="submitBtn">この内容で申し込む</button>
           <div class="status" id="formStatus"></div>
@@ -190,12 +223,30 @@ const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
 
 if(!window.supabase){
-  document.getElementById("jenneBox").innerHTML = "読み込みエラー：ページを再読み込みしてください";
+  document.getElementById("jenneList").innerHTML = "読み込みエラー：ページを再読み込みしてください";
   throw new Error("supabase-js failed to load");
 }
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let targetEventId = null;
+let selectedJenneId = null;
+
+// 組ごとのテーマカラー
+const TROUPE_THEMES = {
+  "花": { bg:"#faf1f3", accent:"#c97b8a", accentDark:"#a8586a", accentSoft:"#f6e3e7" },
+  "月": { bg:"#faf6ec", accent:"#c9a568", accentDark:"#9b783f", accentSoft:"#f6ecd6" },
+  "雪": { bg:"#f2f7f0", accent:"#8fae7c", accentDark:"#6f9159", accentSoft:"#e9f2e4" },
+  "星": { bg:"#eef4fa", accent:"#6f96b8", accentDark:"#4d7196", accentSoft:"#dfeaf3" },
+  "宙": { bg:"#f5f0f7", accent:"#9a86c9", accentDark:"#6d5aa3", accentSoft:"#ece3f5" }
+};
+function applyTroupeTheme(troupe){
+  const theme = TROUPE_THEMES[troupe] || TROUPE_THEMES["雪"];
+  const root = document.documentElement.style;
+  root.setProperty("--bg", theme.bg);
+  root.setProperty("--green", theme.accent);
+  root.setProperty("--green-dark", theme.accentDark);
+  root.setProperty("--green-soft", theme.accentSoft);
+}
 
 async function loadTargetEvent(){
   // 直近の(今日以降でもっとも近い、無ければ最新の)観劇会を対象にする
@@ -216,44 +267,86 @@ async function loadTargetEvent(){
         .limit(1);
       data = fallback.data;
     }
-    if(data && data[0]) targetEventId = data[0].id;
-    await loadJenne();
+    if(data && data[0]){
+      targetEventId = data[0].id;
+      applyTroupeTheme(data[0].troupe);
+    }
+    await loadJennes();
   }catch(err){
     console.error(err);
-    document.getElementById("jenneBox").innerHTML = "情報の取得に失敗しました";
+    document.getElementById("jenneIntro").textContent = "情報の取得に失敗しました";
   }
 }
 
-async function loadJenne(){
-  const box = document.getElementById("jenneBox");
+
+async function loadJennes(){
+  const listBox = document.getElementById("jenneList");
+  const intro = document.getElementById("jenneIntro");
   if(!targetEventId){
-    box.innerHTML = "対象の観劇会が見つかりませんでした";
+    intro.textContent = "対象の観劇会が見つかりませんでした";
     return;
   }
   try{
     const { data, error } = await supabase
       .from("event_gifts")
-      .select("jennes(name, period, photo_url)")
-      .eq("event_id", targetEventId)
-      .limit(1);
+      .select("jenne_id, jennes(name, period, photo_url, profile_url)")
+      .eq("event_id", targetEventId);
     if(error) throw error;
-    const j = data && data[0] && data[0].jennes;
-    if(!j){
-      box.innerHTML = `<div class="jenne-text"><div class="name">まだ決まっていません</div></div>`;
+    const rows = (data || []).filter(r => r.jennes);
+    if(rows.length===0){
+      intro.textContent = "まだ決まっていません";
       return;
     }
-    box.innerHTML = `
-      ${j.photo_url
-        ? `<img class="jenne-photo" src="${j.photo_url}" alt="">`
-        : `<div class="jenne-photo placeholder">写真なし</div>`}
-      <div class="jenne-text">
-        <div class="name">${j.name}さん</div>
-        <div class="period">${j.period || ""}</div>
-      </div>`;
+    if(rows.length===1){
+      intro.textContent = "今回は下記の方にお渡しします。";
+    } else {
+      intro.textContent = "今回は複数の方にお渡しします。差し入れ先を1名お選びください。";
+    }
+    listBox.innerHTML = rows.map(r=>{
+      const j = r.jennes;
+      return `
+      <label class="jenne-pick" data-id="${r.jenne_id}">
+        <input type="radio" name="jenneChoice" value="${r.jenne_id}" required>
+        ${j.photo_url
+          ? `<img class="jenne-photo" src="${j.photo_url}" alt="">`
+          : `<div class="jenne-photo placeholder">写真なし</div>`}
+        <div class="jenne-text">
+          <div class="name">${j.name}さん${j.profile_url ? `<a href="${j.profile_url}" target="_blank" onclick="event.stopPropagation()">プロフィール</a>` : ""}</div>
+          <div class="period">${j.period || ""}</div>
+        </div>
+      </label>`;
+    }).join("");
+
+    listBox.querySelectorAll(".jenne-pick").forEach(label=>{
+      label.addEventListener("click", ()=>{
+        listBox.querySelectorAll(".jenne-pick").forEach(l=>l.classList.remove("checked"));
+        label.classList.add("checked");
+        selectedJenneId = label.dataset.id;
+      });
+    });
+
+    if(rows.length===1){
+      const only = listBox.querySelector(".jenne-pick");
+      only.querySelector("input").checked = true;
+      only.classList.add("checked");
+      selectedJenneId = rows[0].jenne_id;
+    }
   }catch(err){
     console.error(err);
-    box.innerHTML = "情報の取得に失敗しました";
+    intro.textContent = "情報の取得に失敗しました";
   }
+}
+
+document.getElementById("hasCompanion").addEventListener("change", (e)=>{
+  document.getElementById("companionBlock").classList.toggle("show", e.target.checked);
+  document.getElementById("companionName").required = e.target.checked;
+  updateAmountPreview();
+});
+
+function updateAmountPreview(){
+  const hasCompanion = document.getElementById("hasCompanion").checked;
+  const amount = hasCompanion ? 400 : 200;
+  document.getElementById("amountText").textContent = amount.toLocaleString("ja-JP") + "円";
 }
 
 document.getElementById("giftForm").addEventListener("submit", async (e)=>{
@@ -263,11 +356,23 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   const nameDisplayEl = document.querySelector('input[name="nameDisplay"]:checked');
   const name = document.getElementById("name").value.trim();
   const period = document.getElementById("period").value.trim();
-  const address = document.getElementById("address").value.trim();
+  const hasCompanion = document.getElementById("hasCompanion").checked;
+  const companionName = document.getElementById("companionName").value.trim();
+  const companionNameDisplayEl = document.querySelector('input[name="companionNameDisplay"]:checked');
 
+  if(!selectedJenneId){
+    statusEl.className = "status err";
+    statusEl.textContent = "差し入れ先のジェンヌさんをお選びください。";
+    return;
+  }
   if(!nameDisplayEl || !name || !period){
     statusEl.className = "status err";
     statusEl.textContent = "必須項目をすべてご入力ください。";
+    return;
+  }
+  if(hasCompanion && (!companionName || !companionNameDisplayEl)){
+    statusEl.className = "status err";
+    statusEl.textContent = "ご同伴者のお名前と外装へのお名前についてをご入力ください。";
     return;
   }
 
@@ -275,18 +380,22 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   try{
     const { error } = await supabase.from("gift_letter_submissions").insert({
       event_id: targetEventId,
+      jenne_id: selectedJenneId,
       name,
       name_display: nameDisplayEl.value,
       period,
-      address: address || null
+      has_companion: hasCompanion,
+      companion_name: hasCompanion ? companionName : null,
+      companion_name_display: hasCompanion ? companionNameDisplayEl.value : null
     });
     if(error) throw error;
 
+    const amount = hasCompanion ? 400 : 200;
     document.getElementById("mainPanel").innerHTML = `
       <div class="done-card">
         <div class="check">✓</div>
         <h2>ご協力ありがとうございました</h2>
-        <p>お申し込みを受け付けました。<br>観劇会当日、チケットお渡しの際に協力金をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
+        <p>お申し込みを受け付けました。<br>観劇会当日、チケットお渡しの際に協力金（${amount.toLocaleString("ja-JP")}円）をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
       </div>`;
   }catch(err){
     console.error(err);
