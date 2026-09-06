@@ -37,12 +37,19 @@
     border:1px solid var(--gold-soft); flex-shrink:0;
   }
 
-  .toolbar{ max-width:640px; margin:14px auto 0; padding:0 16px; display:flex; gap:10px; }
-  select#eventSelect{
-    flex:1; background:var(--navy-card); border:1px solid var(--gold); color:var(--cream);
-    border-radius:8px; padding:11px 13px; font-size:14px; font-family:inherit;
+  .toolbar{ max-width:640px; margin:14px auto 0; padding:0 16px; display:flex; flex-direction:column; gap:10px; }
+  .event-select-wrap{ position:relative; width:100%; }
+  .event-select-display{
+    background:var(--navy-card); border:1px solid var(--gold); color:var(--cream);
+    border-radius:8px; padding:11px 34px 11px 13px; font-size:14px; font-family:inherit;
+    line-height:1.5; white-space:normal; word-break:break-word; min-height:20px;
+  }
+  .event-select-display::after{ content:"▾"; position:absolute; right:13px; top:11px; color:var(--gold-soft); }
+  .event-select-wrap select{
+    position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer;
   }
   .print-btn{
+    align-self:flex-end;
     background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
     border:1px solid var(--gold-soft); color:#fffaf3;
     border-radius:8px; padding:11px 16px; font-size:13px; cursor:pointer; font-weight:700; font-family:inherit;
@@ -127,7 +134,10 @@
 </div>
 
 <div class="toolbar">
-  <select id="eventSelect"><option>読み込み中…</option></select>
+  <div class="event-select-wrap">
+    <div class="event-select-display" id="eventSelectDisplay">読み込み中...</div>
+    <select id="eventSelect"><option>読み込み中…</option></select>
+  </div>
   <button class="print-btn" id="printBtn">🖨 PDF印刷</button>
 </div>
 
@@ -202,6 +212,13 @@
     return d;
   }
 
+  function syncEventDisplay(){
+    const sel = document.getElementById('eventSelect');
+    const display = document.getElementById('eventSelectDisplay');
+    const opt = sel.options[sel.selectedIndex];
+    display.textContent = opt ? opt.textContent : '';
+  }
+
   async function loadEvents(){
     const { data, error } = await sb
       .from('events')
@@ -229,6 +246,7 @@
 
     // 一番上(=直近未来、無ければ最新の過去回)をデフォルト選択に
     sel.value = events[0].id;
+    syncEventDisplay();
   }
 
   function renderInfo(ev){
@@ -374,7 +392,7 @@ ${start.getMonth()+1}月${start.getDate()}日9時から開始いたします✨
       if(events.length > 0){
         await loadDetail(sel.value);
       }
-      sel.addEventListener('change', ()=> loadDetail(sel.value));
+      sel.addEventListener('change', ()=>{ syncEventDisplay(); loadDetail(sel.value); });
       document.getElementById('printBtn').addEventListener('click', ()=> window.print());
     } catch(e){
       document.getElementById('emptyMsg').style.display = 'block';
