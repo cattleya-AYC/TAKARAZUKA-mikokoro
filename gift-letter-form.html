@@ -183,7 +183,8 @@ input[type=text],textarea{
   </div>
 </div>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- 外部CDNへの依存をやめ、ライブラリ本体を同じサイトに置いて読み込みます -->
+<script src="./supabase-js.min.js"></script>
 <script>
 const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";

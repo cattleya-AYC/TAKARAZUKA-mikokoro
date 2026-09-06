@@ -178,6 +178,8 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
 
 <div id="debugPanel" style="position:fixed;left:0;right:0;bottom:0;max-height:32vh;overflow-y:auto;background:#241d18;color:#9be89b;font:11px/1.6 monospace;padding:8px 10px;z-index:999;white-space:pre-wrap;"></div>
 
+<!-- 外部CDNへの依存をやめ、ライブラリ本体を同じサイトに置いて読み込みます -->
+<script src="./supabase-js.min.js"></script>
 <script>
 /* ==============================================================
    設定：ご自身のSupabaseプロジェクトのURLとanonキーに置き換えてください
@@ -203,38 +205,6 @@ function withTimeout(promise, ms, label){
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}：${ms/1000}秒応答なし(タイムアウト)`)), ms))
   ]);
-}
-
-// モバイル回線が不安定でも読み込めるよう、複数のCDNを順番に試す
-const SUPABASE_LIB_URLS = [
-  "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js",
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js",
-  "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"
-];
-function loadScriptOnce(url){
-  return new Promise((resolve, reject)=>{
-    const s = document.createElement("script");
-    s.src = url;
-    s.onload = ()=>resolve();
-    s.onerror = ()=>reject(new Error("load failed"));
-    document.head.appendChild(s);
-  });
-}
-async function loadSupabaseLib(){
-  for(let i=0; i<SUPABASE_LIB_URLS.length; i++){
-    const url = SUPABASE_LIB_URLS[i];
-    logDebug(`② supabase-js 読み込み試行 ${i+1}/${SUPABASE_LIB_URLS.length}: ${url}`);
-    try{
-      await withTimeout(loadScriptOnce(url), 6000, "CDN読み込み");
-      if(window.supabase){
-        logDebug(`② supabase-js: OK (試行${i+1})`);
-        return true;
-      }
-    }catch(e){
-      logDebug(`② 試行${i+1} 失敗: ${e.message || e}`);
-    }
-  }
-  return false;
 }
 
 let supabase = null;
@@ -464,14 +434,14 @@ document.getElementById("confirmGiftBtn").addEventListener("click", async ()=>{
 });
 
 (async function init(){
-  logDebug("④ init開始");
-  const ok = await loadSupabaseLib();
-  if(!ok){
-    logDebug("② supabase-js: 全CDN失敗");
-    document.getElementById("eventSelect").innerHTML = `<option value="">読み込み失敗：電波の良い場所で再読み込みしてください</option>`;
-    document.getElementById("jenneList").innerHTML = `<div class="empty">ライブラリの読み込みに失敗しました。電波の良い場所でページを再読み込みしてください。</div>`;
+  logDebug("① スクリプト開始 / init開始");
+  if(!window.supabase){
+    logDebug("② supabase-js: 読み込み失敗(supabase-js.min.jsが見つからないか壊れています)");
+    document.getElementById("eventSelect").innerHTML = `<option value="">読み込み失敗：supabase-js.min.jsを確認してください</option>`;
+    document.getElementById("jenneList").innerHTML = `<div class="empty">supabase-js.min.jsの読み込みに失敗しました。同じフォルダにアップロードされているか確認してください。</div>`;
     return;
   }
+  logDebug("② supabase-js: OK(自サイトから読み込み)");
   supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   logDebug("③ createClient 完了");
   configWarningIfNeeded();
