@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>差し入れ・のし紙 スタッフページ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f4f1;--paper:#fffdf9;--ink:#3f3f3a;--muted:#847e76;
+  --green:#a39a8a;--green-dark:#7d7568;--green-soft:#eeece7;--line:#e2ded6;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+}
+.wrap{max-width:640px;margin:0 auto;padding:0 0 60px}
+.panel{background:var(--paper)}
+header{padding:22px 18px 18px;background:linear-gradient(180deg,#fff,#fffaf5);border-bottom:1px solid var(--line)}
+header h1{margin:0 0 6px;font-size:22px}
+header p{margin:0;color:var(--muted);font-size:13px;line-height:1.7}
+main{padding:16px}
+.section{border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:18px;background:#fff}
+.section h2{margin:0 0 10px;font-size:18px;color:var(--green-dark)}
+.section .sub{margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.7}
+
+.event-select-wrap{position:relative;margin-bottom:16px}
+.event-select-display{
+  padding:14px 40px 14px 16px;border:1px solid #d7cfc2;border-radius:14px;background:#fff;
+  font-size:16px;font-weight:700;line-height:1.5;white-space:normal;word-break:break-word;
+}
+.event-select-display::after{content:"▾";position:absolute;right:16px;top:16px;color:var(--muted);font-size:18px}
+.event-select-wrap select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+
+.info-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.info-card{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:#fdfcfa}
+.info-card .label{font-size:11.5px;color:var(--muted)}
+.info-card .value{font-size:22px;color:var(--green-dark);font-weight:700}
+
+.jenne-group{margin-bottom:16px}
+.jenne-group-head{font-size:16px;color:var(--green-dark);margin-bottom:8px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:14px;background:#fff}
+th,td{border-bottom:1px solid #f0ece5;padding:9px 6px;text-align:left}
+th{background:#faf8f5;color:var(--muted);font-size:12px}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;background:var(--green-soft);color:var(--green-dark);font-size:12px}
+.badge.none{background:#f3e8e2;color:#725b51}
+.companion-tag{
+  display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:50%;border:2px solid var(--green-dark);color:var(--green-dark);
+  font-weight:700;font-size:11px;margin-right:6px;flex-shrink:0;
+}
+.empty{color:var(--muted);padding:14px;text-align:center;font-size:13px}
+
+/* 大きめUI(担当者向け) */
+.big-label{display:block;font-size:16px;font-weight:700;margin-bottom:8px;color:var(--ink)}
+.big-input{
+  width:100%;padding:16px;border:1px solid #d7cfc2;border-radius:14px;font:inherit;font-size:17px;margin-bottom:18px;
+}
+.photo-field{margin-bottom:18px}
+.photo-field .cap{display:block;font-size:15px;font-weight:700;margin-bottom:8px}
+.photo-field input[type=file]{
+  width:100%;padding:16px;border:2px dashed #d7cfc2;border-radius:14px;background:#fdfcfa;font-size:15px;
+}
+.big-btn{
+  width:100%;padding:20px;border:0;border-radius:16px;font:inherit;font-size:19px;font-weight:700;
+  cursor:pointer;background:linear-gradient(#e49a9d,#cc7477);color:#fff;
+}
+.status{margin-top:12px;padding:12px 14px;border-radius:12px;font-size:14px;display:none;line-height:1.7}
+.status.ok{display:block;background:var(--green-soft);color:var(--green-dark)}
+.status.err{display:block;background:#fbe6e6;color:#a34848}
+
+.bg-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;margin-top:6px}
+.bg-thumb{
+  border:2px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;aspect-ratio:297/210;position:relative;background:#f6efe9;
+}
+.bg-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.bg-thumb.selected{border-color:var(--green-dark)}
+
+.result-box{margin-top:16px;text-align:center;display:none}
+.result-box img{max-width:100%;border-radius:10px;border:1px solid var(--line)}
+.result-box .note{font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <header>
+      <h1>差し入れ・のし紙 スタッフページ</h1>
+      <p>観劇会を選ぶと、申込状況の確認・差し入れ完了報告・のし紙画像の作成がこの1ページでできます。</p>
+    </header>
+
+    <main>
+      <div class="event-select-wrap">
+        <div class="event-select-display" id="eventSelectDisplay">読み込み中...</div>
+        <select id="eventSelect"><option value="">読み込み中...</option></select>
+      </div>
+
+      <!-- ① 申込集計 -->
+      <div class="section">
+        <h2>📋 申込状況</h2>
+        <div class="info-row">
+          <div class="info-card"><div class="label">申込件数</div><div class="value" id="countValue">-</div></div>
+          <div class="info-card"><div class="label">協力人数（同伴者含む）</div><div class="value" id="peopleValue">-</div></div>
+          <div class="info-card"><div class="label">合計金額</div><div class="value" id="totalAmountValue">-</div></div>
+          <div class="info-card"><div class="label">お菓子担当</div><div class="value" id="dutyStaffValue">-</div></div>
+        </div>
+        <div id="jenneGroups"></div>
+      </div>
+
+      <!-- ② 差し入れ完了報告 -->
+      <div class="section">
+        <h2>📸 差し入れ完了報告</h2>
+        <p class="sub">差し入れをお渡しした後、担当者の方はここから報告をお願いします。</p>
+
+        <label class="big-label">担当者のお名前</label>
+        <input type="text" id="staffName" class="big-input" placeholder="例：原田">
+
+        <div class="photo-field">
+          <span class="cap">🎀 のしをお付けした差し入れの写真</span>
+          <input type="file" id="photoGift" accept="image/*">
+        </div>
+        <div class="photo-field">
+          <span class="cap">🍬 お菓子の中身の写真</span>
+          <input type="file" id="photoCandy" accept="image/*">
+        </div>
+        <div class="photo-field">
+          <span class="cap">📄 領収書の写真</span>
+          <input type="file" id="photoReceipt" accept="image/*">
+        </div>
+
+        <button type="button" class="big-btn" id="reportUploadBtn">この内容で報告する</button>
+        <div class="status" id="reportStatus"></div>
+      </div>
+
+      <!-- ③ のし紙を作る -->
+      <div class="section">
+        <h2>🎀 のし紙を作る</h2>
+        <p class="sub">背景を選ぶだけで、名前入りのし紙の画像ができます。できた画像を長押しして「写真に保存」を選んでください。</p>
+        <div class="bg-gallery" id="bgGallery"><div class="empty">読み込み中...</div></div>
+
+        <div class="result-box" id="resultBox">
+          <p class="note">画像を長押しして「写真に保存」を選んでください。</p>
+          <img id="resultImg" alt="のし紙">
+          <div style="margin-top:12px">
+            <button type="button" class="big-btn" id="openNewTabBtn" style="background:linear-gradient(145deg,#fff8f4,#f5dddd);color:var(--green-dark)">画像を新しいタブで開く</button>
+          </div>
+        </div>
+        <div class="status" id="nashiStatus"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<canvas id="exportCanvas" style="display:none"></canvas>
+
+<!-- 外部CDNへの依存をやめ、ライブラリ本体を同じサイトに置いて読み込みます -->
+<script src="./supabase-js.min.js"></script>
+<script>
+const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
+
+if(!window.supabase){
+  document.getElementById("jenneGroups").innerHTML = `<div class="empty">読み込みエラー：ページを再読み込みしてください</div>`;
+  throw new Error("supabase-js failed to load");
+}
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function showStatus(el, msg, isError){
+  el.textContent = msg;
+  el.className = "status " + (isError ? "err" : "ok");
+}
+
+// 組ごとのテーマカラー
+const TROUPE_THEMES = {
+  "花": { bg:"#faf1f3", greenSoft:"#f6e3e7", greenDark:"#a8586a" },
+  "月": { bg:"#faf6ec", greenSoft:"#f6ecd6", greenDark:"#9b783f" },
+  "雪": { bg:"#f2f7f0", greenSoft:"#e9f2e4", greenDark:"#6f9159" },
+  "星": { bg:"#eef4fa", greenSoft:"#dfeaf3", greenDark:"#4d7196" },
+  "宙": { bg:"#f5f0f7", greenSoft:"#ece3f5", greenDark:"#6d5aa3" }
+};
+function applyTroupeTheme(troupe){
+  const theme = TROUPE_THEMES[troupe];
+  if(!theme) return;
+  const root = document.documentElement.style;
+  root.setProperty("--bg", theme.bg);
+  root.setProperty("--green-soft", theme.greenSoft);
+  root.setProperty("--green-dark", theme.greenDark);
+}
+
+let eventsData = [];
+let currentEventId = null;
+let currentRows = [];
+let backgrounds = [];
+
+function syncEventDisplay(){
+  const sel = document.getElementById("eventSelect");
+  const display = document.getElementById("eventSelectDisplay");
+  const opt = sel.options[sel.selectedIndex];
+  display.textContent = opt ? opt.textContent : "";
+  const ev = eventsData.find(e=>e.id === sel.value);
+  if(ev) applyTroupeTheme(ev.troupe);
+}
+
+async function loadEvents(){
+  const sel = document.getElementById("eventSelect");
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, event_number, troupe, event_date, work_title")
+    .order("event_date", { ascending:false })
+    .limit(30);
+  if(error || !data || data.length===0){
+    sel.innerHTML = `<option value="">開催回が見つかりません</option>`;
+    syncEventDisplay();
+    return;
+  }
+  eventsData = data;
+  sel.innerHTML = data.map(e=>{
+    const troupeLabel = e.troupe ? `${e.troupe}組` : "";
+    const workLabel = e.work_title ? `「${e.work_title}」` : "";
+    const label = `第${e.event_number ?? "?"}回 ${troupeLabel}${workLabel}公演`;
+    return `<option value="${e.id}">${label}</option>`;
+  }).join("");
+
+  const today = new Date().toISOString().slice(0,10);
+  const upcoming = data.filter(e=>e.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+  const defaultEvent = upcoming[0] || data[0];
+
+  currentEventId = defaultEvent.id;
+  sel.value = currentEventId;
+  syncEventDisplay();
+  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds()]);
+}
+
+document.getElementById("eventSelect").addEventListener("change", async e=>{
+  currentEventId = e.target.value || null;
+  syncEventDisplay();
+  document.getElementById("resultBox").style.display = "none";
+  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds()]);
+});
+
+function peopleCount(r){
+  return 1 + (r.has_companion ? 1 : 0);
+}
+
+async function loadSubmissions(){
+  const body = document.getElementById("jenneGroups");
+  body.innerHTML = `<div class="empty">読み込み中...</div>`;
+  try{
+    let query = supabase
+      .from("gift_letter_submissions")
+      .select("*, jennes(name, period)")
+      .order("created_at", { ascending:false });
+    if(currentEventId) query = query.eq("event_id", currentEventId);
+    const { data, error } = await query;
+    if(error) throw error;
+    currentRows = data || [];
+    renderSubmissions();
+  }catch(err){
+    console.error(err);
+    body.innerHTML = `<div class="empty">読み込みエラー</div>`;
+  }
+}
+
+function renderSubmissions(){
+  const container = document.getElementById("jenneGroups");
+  const totalPeople = currentRows.reduce((sum,r)=>sum + peopleCount(r), 0);
+  document.getElementById("countValue").textContent = currentRows.length + "件";
+  document.getElementById("peopleValue").textContent = totalPeople + "名";
+  document.getElementById("totalAmountValue").textContent = (totalPeople * 200).toLocaleString("ja-JP") + "円";
+
+  if(currentRows.length===0){
+    container.innerHTML = `<div class="empty">まだ申し込みがありません</div>`;
+    return;
+  }
+
+  const groups = {};
+  const order = [];
+  currentRows.forEach(r=>{
+    const key = r.jennes ? r.jennes.name : "未設定";
+    if(!groups[key]){ groups[key] = []; order.push(key); }
+    groups[key].push(r);
+  });
+
+  container.innerHTML = order.map(name=>{
+    const rows = groups[name];
+    const rowsHtml = rows.map(r=>{
+      const mainRow = `
+      <tr>
+        <td>${r.period || ""}</td>
+        <td>${r.name}</td>
+        <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
+      </tr>`;
+      const companionRow = r.has_companion ? `
+      <tr>
+        <td>${r.period || ""}</td>
+        <td><span class="companion-tag">同</span>${r.companion_name || ""}</td>
+        <td>${r.companion_name_display ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display}</span>` : ""}</td>
+      </tr>` : "";
+      return mainRow + companionRow;
+    }).join("");
+
+    return `
+    <div class="jenne-group">
+      <div class="jenne-group-head">差し入れ先：${name}さん</div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>回生</th><th>お名前</th><th>外装記名</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function loadDutyStaff(){
+  const el = document.getElementById("dutyStaffValue");
+  if(!currentEventId){ el.textContent = "-"; return; }
+  try{
+    const { data, error } = await supabase
+      .from("event_duty")
+      .select("duty_staff")
+      .eq("event_id", currentEventId)
+      .maybeSingle();
+    if(error) throw error;
+    el.textContent = data?.duty_staff || "未設定";
+  }catch(err){
+    console.error(err);
+    el.textContent = "-";
+  }
+}
+
+async function uploadReportPhoto(file){
+  const ext = file.name.split(".").pop();
+  const path = `gift-report/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage.from("public photo").upload(path, file, { upsert:true });
+  if(error) throw error;
+  const { data } = supabase.storage.from("public photo").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+document.getElementById("reportUploadBtn").addEventListener("click", async ()=>{
+  const statusEl = document.getElementById("reportStatus");
+  const btn = document.getElementById("reportUploadBtn");
+  const staffName = document.getElementById("staffName").value.trim();
+  const giftFile = document.getElementById("photoGift").files?.[0];
+  const candyFile = document.getElementById("photoCandy").files?.[0];
+  const receiptFile = document.getElementById("photoReceipt").files?.[0];
+
+  if(!currentEventId){
+    showStatus(statusEl, "観劇会を選んでください。", true);
+    return;
+  }
+  if(!staffName){
+    showStatus(statusEl, "担当者のお名前をご入力ください。", true);
+    return;
+  }
+  if(!giftFile || !candyFile || !receiptFile){
+    showStatus(statusEl, "写真を3枚とも選んでください。", true);
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "アップロード中…";
+  try{
+    const [giftUrl, candyUrl, receiptUrl] = await Promise.all([
+      uploadReportPhoto(giftFile),
+      uploadReportPhoto(candyFile),
+      uploadReportPhoto(receiptFile)
+    ]);
+    const { error } = await supabase.from("event_gift_report").upsert({
+      event_id: currentEventId,
+      staff_name: staffName,
+      gift_photo_url: giftUrl,
+      candy_photo_url: candyUrl,
+      receipt_photo_url: receiptUrl,
+      updated_at: new Date().toISOString()
+    });
+    if(error) throw error;
+    showStatus(statusEl, "ご報告ありがとうございました！写真を登録しました。", false);
+  }catch(err){
+    console.error(err);
+    showStatus(statusEl, "アップロードに失敗しました：" + (err.message || err), true);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "この内容で報告する";
+  }
+});
+
+async function loadBackgrounds(){
+  const gallery = document.getElementById("bgGallery");
+  try{
+    const { data, error } = await supabase
+      .from("nashi_backgrounds")
+      .select("id, name, image_url, overlay_top, overlay_font_size")
+      .order("created_at", { ascending:true });
+    if(error) throw error;
+    backgrounds = data || [];
+    renderBgGallery();
+  }catch(err){
+    console.error(err);
+    gallery.innerHTML = `<div class="empty">読み込みエラー</div>`;
+  }
+}
+
+function renderBgGallery(){
+  const gallery = document.getElementById("bgGallery");
+  if(backgrounds.length===0){
+    gallery.innerHTML = `<div class="empty">まだ背景が登録されていません。まりさんに登録を依頼してください。</div>`;
+    return;
+  }
+  gallery.innerHTML = backgrounds.map(b=>`
+    <div class="bg-thumb" data-id="${b.id}">
+      <img src="${b.image_url}" alt="${b.name||''}">
+    </div>
+  `).join("");
+  gallery.querySelectorAll(".bg-thumb").forEach(el=>{
+    el.addEventListener("click", ()=>selectBackground(el.dataset.id, el));
+  });
+}
+
+async function selectBackground(bgId, el){
+  const statusEl = document.getElementById("nashiStatus");
+  const b = backgrounds.find(x=>x.id===bgId);
+  if(!b) return;
+
+  document.querySelectorAll(".bg-thumb").forEach(t=>t.classList.remove("selected"));
+  el.classList.add("selected");
+  document.getElementById("resultBox").style.display = "none";
+
+  if(!currentEventId){
+    showStatus(statusEl, "観劇会を選んでください。", true);
+    return;
+  }
+
+  showStatus(statusEl, "画像を作成しています…", false);
+  try{
+    const { data, error } = await supabase
+      .from("gift_letter_submissions")
+      .select("name, name_display, has_companion, companion_name, companion_name_display")
+      .eq("event_id", currentEventId);
+    if(error) throw error;
+
+    const names = [];
+    (data || []).forEach(r=>{
+      if(r.name_display === "記載") names.push(r.name);
+      if(r.has_companion && r.companion_name_display === "記載" && r.companion_name){
+        names.push(r.companion_name);
+      }
+    });
+    if(names.length===0){
+      showStatus(statusEl, "「記載」を選んだ協力者がまだいません。", true);
+      return;
+    }
+
+    await document.fonts.load(`20px "Yuji Syuku"`);
+    await document.fonts.ready;
+
+    const img = await loadImage(b.image_url);
+    const canvas = document.getElementById("exportCanvas");
+    canvas.width = EXPORT_WIDTH;
+    canvas.height = EXPORT_HEIGHT;
+    const ctx = canvas.getContext("2d");
+    drawCoverImage(ctx, img, EXPORT_WIDTH, EXPORT_HEIGHT);
+
+    const scale = EXPORT_WIDTH / PREVIEW_WIDTH_REF;
+    const fontPx = (b.overlay_font_size ?? 20) * scale;
+    const topY = EXPORT_HEIGHT * ((b.overlay_top ?? 55) / 100);
+    drawVerticalNames(ctx, names, EXPORT_WIDTH, topY, fontPx);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    document.getElementById("resultImg").src = dataUrl;
+    document.getElementById("resultBox").style.display = "block";
+    document.getElementById("openNewTabBtn").onclick = ()=>{
+      const w = window.open();
+      if(w) w.document.write(`<img src="${dataUrl}" style="max-width:100%">`);
+    };
+    document.getElementById("resultBox").scrollIntoView({ behavior:"smooth", block:"start" });
+    showStatus(statusEl, "画像ができました。下の画像を長押しして保存してください。", false);
+  }catch(err){
+    console.error(err);
+    showStatus(statusEl, "画像の作成に失敗しました：" + (err.message || err), true);
+  }
+}
+
+// A4横向き・高解像度で書き出す(mm換算 297x210 を約7px/mmで)
+const EXPORT_WIDTH = 2079;
+const EXPORT_HEIGHT = 1470;
+const PREVIEW_WIDTH_REF = 700; // nashi-print.html側のプレビュー基準幅と合わせる
+
+function loadImage(url){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = ()=>resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function drawCoverImage(ctx, img, w, h){
+  const imgRatio = img.width / img.height;
+  const boxRatio = w / h;
+  let sx, sy, sw, sh;
+  if(imgRatio > boxRatio){
+    sh = img.height;
+    sw = sh * boxRatio;
+    sx = (img.width - sw) / 2;
+    sy = 0;
+  } else {
+    sw = img.width;
+    sh = sw / boxRatio;
+    sx = 0;
+    sy = (img.height - sh) / 2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+}
+
+function drawVerticalNames(ctx, names, canvasWidth, topY, fontPx){
+  ctx.fillStyle = "#3a2a20";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `${fontPx}px "Yuji Syuku", serif`;
+
+  const colWidth = fontPx * 1.35;
+  const lineHeight = fontPx * 1.15;
+  const totalWidth = names.length * colWidth;
+  const rightEdge = (canvasWidth + totalWidth) / 2;
+
+  names.forEach((name, i)=>{
+    const colCenterX = rightEdge - colWidth * (i + 0.5);
+    const chars = Array.from(name);
+    chars.forEach((ch, j)=>{
+      ctx.fillText(ch, colCenterX, topY + lineHeight * (j + 0.5));
+    });
+  });
+}
+
+loadEvents();
+</script>
+</body>
+</html>
