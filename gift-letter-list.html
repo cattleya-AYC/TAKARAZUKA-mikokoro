@@ -48,6 +48,10 @@ th{background:#f5f9f2;color:#556b4c}
 .badge{display:inline-block;padding:3px 9px;border-radius:999px;background:var(--green-soft);color:var(--green-dark);font-size:12px}
 .badge.none{background:#f3e8e2;color:#725b51}
 .empty{color:var(--muted);padding:16px;text-align:center}
+.section{border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-top:16px;background:#fff}
+.status{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;display:none}
+.status.ok{display:block;background:var(--green-soft);color:var(--green-dark)}
+.status.err{display:block;background:#fbe6e6;color:#a34848}
 button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;background:#f3e8e2;color:#725b51}
 .jenne-group{margin-bottom:22px}
 .jenne-group-head{
@@ -58,7 +62,11 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
 .jenne-group-head .stats{font-size:13px;color:var(--muted)}
 .jenne-group-head .stats b{color:var(--green-dark);font-size:15px}
 .companion-row td{color:var(--muted)}
-.companion-tag{color:var(--green-dark);font-weight:700;margin-right:4px}
+.companion-tag{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:50%;border:2px solid var(--green-dark);
+  color:var(--green-dark);font-weight:700;font-size:12px;margin-right:6px;flex-shrink:0;
+}
 .print-check-col{display:none;width:34px}
 .print-check-box{
   display:inline-block;width:18px;height:18px;border:1.5px solid #999;border-radius:4px;vertical-align:middle;
@@ -99,15 +107,38 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
       </div>
 
       <div id="jenneGroups"></div>
+
+      <div class="section no-print" id="thanksSection">
+        <h2 style="margin:0 0 6px;font-size:17px;color:var(--green-dark)">🎁 協力者へ御礼メール</h2>
+        <p style="margin:0 0 10px;font-size:12.5px;color:var(--muted);line-height:1.7">
+          メールアドレスを入力してくれた協力者にだけ、差し入れ完了のご報告メールを送ります。
+        </p>
+        <textarea id="thanksBody" rows="4" placeholder="例：おかげさまで、無事にジェンヌさんへお渡しすることができました。ご協力ありがとうございました。" style="width:100%;padding:10px 12px;border:1px solid #d7e2d1;border-radius:10px;font:inherit;line-height:1.7;resize:vertical"></textarea>
+        <div style="margin-top:10px;display:flex;justify-content:flex-end">
+          <button id="thanksSendBtn">御礼メールを送信</button>
+        </div>
+        <div class="status" id="thanksStatus"></div>
+      </div>
     </main>
   </div>
 </div>
 
+<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
 <!-- 外部CDNへの依存をやめ、ライブラリ本体を同じサイトに置いて読み込みます -->
 <script src="./supabase-js.min.js"></script>
 <script>
 const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
+const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
+const EMAILJS_SERVICE_ID = "service_qpuxvaj";
+const EMAILJS_GENERIC_TEMPLATE_ID = "template_khkmzni";
+let emailjsReady = false;
+function ensureEmailjsInit(){
+  if(emailjsReady) return true;
+  if(!window.emailjs) return false;
+  try{ window.emailjs.init(EMAILJS_PUBLIC_KEY); emailjsReady = true; return true; }
+  catch(e){ console.warn("EmailJS初期化失敗", e); return false; }
+}
 
 if(!window.supabase){
   document.getElementById("jenneGroups").innerHTML = `<div class="empty">読み込みエラー：ページを再読み込みしてください</div>`;
@@ -260,7 +291,7 @@ function render(){
       <tr class="companion-row">
         <td class="print-check-col"><span class="print-check-box"></span></td>
         <td>${r.period || ""}</td>
-        <td><span class="companion-tag">⭕️同</span>${r.companion_name || ""}</td>
+        <td><span class="companion-tag">同</span>${r.companion_name || ""}</td>
         <td>${r.companion_name_display ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display}</span>` : ""}</td>
       </tr>` : "";
       return mainRow + companionRow;
@@ -283,6 +314,82 @@ function render(){
     </div>`;
   }).join("");
 }
+
+document.getElementById("thanksSendBtn").addEventListener("click", async ()=>{
+  const statusEl = document.getElementById("thanksStatus");
+  const btn = document.getElementById("thanksSendBtn");
+  statusEl.className = "status"; statusEl.textContent = "";
+
+  if(!ensureEmailjsInit()){
+    statusEl.className = "status err";
+    statusEl.textContent = "メール送信ライブラリの読み込みに失敗しました。時間をおいて再度お試しください。";
+    return;
+  }
+
+  const body = document.getElementById("thanksBody").value.trim();
+  if(!body){
+    statusEl.className = "status err";
+    statusEl.textContent = "本文を入力してください。";
+    return;
+  }
+
+  const recipients = [];
+  const seen = new Set();
+  currentRows.forEach(r=>{
+    const email = (r.email || "").trim();
+    if(email && !seen.has(email)){
+      seen.add(email);
+      recipients.push({ email, name: r.name || "ご協力者" });
+    }
+  });
+
+  if(recipients.length === 0){
+    statusEl.className = "status err";
+    statusEl.textContent = "メールアドレスが登録されている協力者が見つかりませんでした。";
+    return;
+  }
+
+  if(!confirm(`メールアドレス登録済みの協力者 ${recipients.length}名に御礼メールを送信します。よろしいですか？`)) return;
+
+  btn.disabled = true;
+  let successCount = 0;
+  const failedNames = [];
+
+  for(let i=0; i<recipients.length; i++){
+    const r = recipients[i];
+    statusEl.className = "status";
+    statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
+    const message =
+`${r.name}様
+
+いつも観劇会の活動にご理解とご協力を賜り、誠にありがとうございます。
+
+${body}
+
+小林タカラヅカ倶楽部`;
+    try{
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+        email: r.email,
+        subject: "【小林タカラヅカ倶楽部】差し入れご協力ありがとうございました",
+        message
+      });
+      successCount++;
+    }catch(err){
+      console.warn("送信失敗:", r.email, err);
+      failedNames.push(r.name);
+    }
+  }
+
+  statusEl.className = "status";
+  if(failedNames.length === 0){
+    statusEl.classList.add("ok");
+    statusEl.textContent = `送信完了：${successCount}名に送信しました。`;
+  } else {
+    statusEl.classList.add("err");
+    statusEl.textContent = `送信完了：${successCount}名成功／${failedNames.length}名失敗（${failedNames.join("、")}）`;
+  }
+  btn.disabled = false;
+});
 
 document.getElementById("printBtn").addEventListener("click", ()=>{
   window.print();

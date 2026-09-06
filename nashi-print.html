@@ -36,7 +36,7 @@ select,input[type=text],input[type=number],input[type=file]{
 button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer}
 .secondary{background:#f3e8e2;color:#725b51}
 .primary{background:linear-gradient(#e49a9d,#cc7477);color:#fff}
-.bg-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+.bg-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin-top:10px}
 .bg-thumb{
   border:2px solid var(--line);border-radius:10px;overflow:hidden;cursor:pointer;aspect-ratio:297/210;position:relative;background:#f6efe9;
 }
@@ -336,12 +336,15 @@ function renderGallery(){
 
 document.getElementById("bgUploadBtn").addEventListener("click", async ()=>{
   const statusEl = document.getElementById("bgStatus");
+  const btn = document.getElementById("bgUploadBtn");
   const file = document.getElementById("bgFile").files?.[0];
   const name = document.getElementById("bgName").value.trim();
   if(!file){
     showStatus(statusEl, "画像ファイルを選んでください", true);
     return;
   }
+  btn.disabled = true;
+  btn.textContent = "登録中…";
   try{
     const ext = file.name.split(".").pop();
     const path = `nashi/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
@@ -360,6 +363,9 @@ document.getElementById("bgUploadBtn").addEventListener("click", async ()=>{
   }catch(err){
     console.error(err);
     showStatus(statusEl, "登録に失敗しました：" + (err.message || err), true);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "登録する";
   }
 });
 
