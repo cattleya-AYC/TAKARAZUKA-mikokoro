@@ -244,6 +244,7 @@
           const checked = row.assigned_staff.includes(name) ? 'checked' : '';
           return `<label><input type="checkbox" ${checked} onchange="toggleStaff(${idx},'${name}',this.checked)">${name}</label>`;
         }).join('') + `</div>
+        ${row.is_group_task ? '<p class="row-note">🔀を押すと、同じ時刻に他の仕事へ入っていない人を自動で全員セットします。</p>' : ''}
         <div class="row-actions">
           <button class="btn-sub" onclick="autoAssignRow(${idx})">🔀 この行だけ自動割り当て</button>
         </div>`;
@@ -302,10 +303,18 @@
   async function autoAssignRow(idx){
     const row = rows[idx];
     if(row.fixed_staff) return;
-    const counts = await getTaskCounts(row.task_name);
     const usedAtThisTime = rows
       .filter((r,i)=>i!==idx && r.time_label && r.time_label===row.time_label)
       .flatMap(r=>r.assigned_staff||[]);
+
+    if(row.is_group_task){
+      // 「全員」タイプ:同じ時刻に他の仕事を持っていない人を自動で全員割り当て
+      row.assigned_staff = STAFF_LIST.filter(name => !usedAtThisTime.includes(name));
+      renderRows();
+      return;
+    }
+
+    const counts = await getTaskCounts(row.task_name);
     const candidates = STAFF_LIST.slice().sort((a,b)=>{
       const aBusy = usedAtThisTime.includes(a) ? 1 : 0;
       const bBusy = usedAtThisTime.includes(b) ? 1 : 0;
