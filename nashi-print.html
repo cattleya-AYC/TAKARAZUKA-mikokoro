@@ -177,10 +177,9 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
 
         <div class="preview-outer">
           <div class="a4 landscape" id="printArea">
-            <img class="bg" id="previewBg" src="" alt="">
-            <div class="name-overlay-wrap" id="nameOverlayWrap">
-              <div class="name-overlay" id="nameOverlay"></div>
-            </div>
+            <img class="bg" id="previewBg" src="" alt="" style="display:none">
+            <canvas id="previewCanvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+            <div id="nameOverlay" style="display:none"></div>
           </div>
         </div>
 
@@ -289,17 +288,22 @@ function renderGallery(){
     </div>
   `).join("");
   gallery.querySelectorAll(".bg-thumb").forEach(el=>{
-    el.addEventListener("click", (ev)=>{
+    el.addEventListener("click", async (ev)=>{
       if(ev.target.classList.contains("del")) return;
       selectedBgUrl = el.dataset.url;
       selectedBgId = el.dataset.id;
-      document.getElementById("previewBg").src = selectedBgUrl;
       const b = backgrounds.find(x=>x.id===selectedBgId);
       if(b){
         document.getElementById("posTop").value = b.overlay_top ?? 55;
         document.getElementById("fontSize").value = b.overlay_font_size ?? 8;
-        applyOverlayPosition();
       }
+      try{
+        currentBgImage = await loadImage(selectedBgUrl);
+      }catch(err){
+        console.error(err);
+        currentBgImage = null;
+      }
+      renderPreview();
       renderGallery();
     });
   });
@@ -353,6 +357,7 @@ async function loadNames(){
   const overlay = document.getElementById("nameOverlay");
   if(!currentEventId){
     overlay.textContent = "";
+    renderPreview();
     return;
   }
   try{
@@ -372,10 +377,11 @@ async function loadNames(){
 
     overlay.textContent = names.join("\n");
     if(names.length===0){
-      showStatus(statusEl, `「記載」を選んだ協力者がまだいません。(event_id: ${currentEventId} / 取得件数: ${(data||[]).length})`, true);
+      showStatus(statusEl, "「記載」を選んだ協力者がまだいません。", true);
     } else {
       showStatus(statusEl, `${names.length}名分のお名前を読み込みました。`, false);
     }
+    renderPreview();
   }catch(err){
     console.error(err);
     showStatus(statusEl, "名前の読み込みに失敗しました：" + (err.message || err), true);
@@ -384,11 +390,32 @@ async function loadNames(){
 
 document.getElementById("refreshNamesBtn").addEventListener("click", loadNames);
 
+// プレビューも書き出しと全く同じcanvas描画を使い、見た目のズレをなくす
+const PREVIEW_WIDTH = 700;
+const PREVIEW_HEIGHT = Math.round(PREVIEW_WIDTH * 210 / 297);
+let currentBgImage = null;
+
+function renderPreview(){
+  const canvas = document.getElementById("previewCanvas");
+  canvas.width = PREVIEW_WIDTH;
+  canvas.height = PREVIEW_HEIGHT;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
+  ctx.fillStyle = "#f6efe9";
+  ctx.fillRect(0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
+
+  if(currentBgImage){
+    drawCoverImage(ctx, currentBgImage, PREVIEW_WIDTH, PREVIEW_HEIGHT);
+  }
+
+  const names = document.getElementById("nameOverlay").textContent.split("\n").filter(Boolean);
+  const fontPx = Number(document.getElementById("fontSize").value) || 8;
+  const topY = PREVIEW_HEIGHT * (Number(document.getElementById("posTop").value) / 100);
+  drawVerticalNames(ctx, names, PREVIEW_WIDTH, topY, fontPx);
+}
+
 function applyOverlayPosition(){
-  const wrap = document.getElementById("nameOverlayWrap");
-  const overlay = document.getElementById("nameOverlay");
-  wrap.style.top = document.getElementById("posTop").value + "%";
-  overlay.style.fontSize = document.getElementById("fontSize").value + "px";
+  renderPreview();
 }
 ["posTop","fontSize"].forEach(id=>{
   document.getElementById(id).addEventListener("input", applyOverlayPosition);
@@ -417,11 +444,10 @@ document.getElementById("saveOverlayBtn").addEventListener("click", async ()=>{
 // A4横向き・高解像度で書き出す(mm換算 297x210 を約7px/mmで)
 const EXPORT_WIDTH = 2079;  // 297mm相当
 const EXPORT_HEIGHT = 1470; // 210mm相当
-const DESIGN_WIDTH = 560;   // 画面プレビューの基準幅(.a4.landscapeのmax-width)
 
 document.getElementById("exportBtn").addEventListener("click", async ()=>{
   const statusEl = document.getElementById("overlaySaveStatus");
-  if(!selectedBgUrl){
+  if(!selectedBgUrl || !currentBgImage){
     showStatus(statusEl, "③で背景画像を選んでください", true);
     return;
   }
@@ -437,11 +463,10 @@ document.getElementById("exportBtn").addEventListener("click", async ()=>{
     canvas.height = EXPORT_HEIGHT;
     const ctx = canvas.getContext("2d");
 
-    const img = await loadImage(selectedBgUrl);
-    drawCoverImage(ctx, img, EXPORT_WIDTH, EXPORT_HEIGHT);
+    drawCoverImage(ctx, currentBgImage, EXPORT_WIDTH, EXPORT_HEIGHT);
 
     const names = document.getElementById("nameOverlay").textContent.split("\n").filter(Boolean);
-    const scale = EXPORT_WIDTH / DESIGN_WIDTH;
+    const scale = EXPORT_WIDTH / PREVIEW_WIDTH;
     const fontPx = Number(document.getElementById("fontSize").value) * scale;
     const topY = EXPORT_HEIGHT * (Number(document.getElementById("posTop").value) / 100);
     drawVerticalNames(ctx, names, EXPORT_WIDTH, topY, fontPx);
@@ -514,6 +539,11 @@ async function startApp(){
   applyOverlayPosition();
   await loadEvents();
   await loadBackgrounds();
+  try{
+    await document.fonts.load(`8px "Yuji Syuku"`);
+    await document.fonts.ready;
+    renderPreview();
+  }catch(e){ /* フォント読み込み失敗時はデフォルトフォントのまま */ }
 }
 
 document.getElementById("loginForm").addEventListener("submit", async (e)=>{
