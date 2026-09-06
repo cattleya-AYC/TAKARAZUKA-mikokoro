@@ -176,6 +176,8 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
   </div>
 </div>
 
+<div id="debugPanel" style="position:fixed;left:0;right:0;bottom:0;max-height:32vh;overflow-y:auto;background:#241d18;color:#9be89b;font:11px/1.6 monospace;padding:8px 10px;z-index:999;white-space:pre-wrap;"></div>
+
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ==============================================================
@@ -190,12 +192,31 @@ const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
    jennes/event_gifts への書き込み(登録・確定)は、staff_rolesでadmin権限を持つ
    アカウントでログイン中のブラウザからのみ行えます(他の管理画面と同じ方式)。 */
 
+function logDebug(msg){
+  const panel = document.getElementById("debugPanel");
+  const t = new Date().toLocaleTimeString("ja-JP", { hour12:false });
+  panel.textContent += `[${t}] ${msg}\n`;
+  panel.scrollTop = panel.scrollHeight;
+  console.log(msg);
+}
+function withTimeout(promise, ms, label){
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}：${ms/1000}秒応答なし(タイムアウト)`)), ms))
+  ]);
+}
+
+logDebug("① スクリプト開始");
+
 if(!window.supabase){
+  logDebug("② supabase-js: 読み込み失敗(window.supabaseが無い)");
   document.getElementById("eventSelect").innerHTML = `<option value="">読み込み失敗：supabase-jsが読み込めていません</option>`;
   document.getElementById("jenneList").innerHTML = `<div class="empty">supabase-jsライブラリの読み込みに失敗しました。ページを再読み込みしてください。</div>`;
   throw new Error("supabase-js failed to load");
 }
+logDebug("② supabase-js: OK");
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+logDebug("③ createClient 完了");
 
 let jennes = [];
 let selectedJenneId = null;
@@ -219,12 +240,18 @@ function configWarningIfNeeded(){
 
 async function loadEvents(){
   const sel = document.getElementById("eventSelect");
+  logDebug("⑤ events取得 開始");
   try{
-    const { data, error } = await supabase
-      .from("events")
-      .select("id, event_number, troupe, event_date, work_title")
-      .order("event_date", { ascending:false })
-      .limit(30);
+    const { data, error } = await withTimeout(
+      supabase
+        .from("events")
+        .select("id, event_number, troupe, event_date, work_title")
+        .order("event_date", { ascending:false })
+        .limit(30),
+      8000,
+      "events取得"
+    );
+    logDebug("⑥ events取得 応答あり");
     if(error) throw error;
     if(!data || data.length===0){
       sel.innerHTML = `<option value="">開催回が見つかりません</option>`;
@@ -240,6 +267,7 @@ async function loadEvents(){
     currentEventId = data[0].id;
     sel.value = currentEventId;
   }catch(err){
+    logDebug("⑥ events取得 エラー: " + (err.message || err));
     sel.innerHTML = `<option value="">読み込みエラー（events テーブルを確認してください）</option>`;
     console.error(err);
   }
@@ -251,15 +279,22 @@ document.getElementById("eventSelect").addEventListener("change", e=>{
 
 async function loadJennes(){
   const list = document.getElementById("jenneList");
+  logDebug("⑦ jennes取得 開始");
   try{
-    const { data, error } = await supabase
-      .from("jennes")
-      .select("id, name, period, photo_url")
-      .order("name", { ascending:true });
+    const { data, error } = await withTimeout(
+      supabase
+        .from("jennes")
+        .select("id, name, period, photo_url")
+        .order("name", { ascending:true }),
+      8000,
+      "jennes取得"
+    );
+    logDebug("⑧ jennes取得 応答あり");
     if(error) throw error;
     jennes = data || [];
     renderJenneList(jennes);
   }catch(err){
+    logDebug("⑧ jennes取得 エラー: " + (err.message || err));
     list.innerHTML = `<div class="empty">読み込みエラー：jennes テーブルが未作成の可能性があります（下部のコメントのSQLを参照）</div>`;
     console.error(err);
   }
@@ -407,9 +442,11 @@ document.getElementById("confirmGiftBtn").addEventListener("click", async ()=>{
 });
 
 (async function init(){
+  logDebug("④ init開始");
   configWarningIfNeeded();
   await loadEvents();
   await loadJennes();
+  logDebug("⑨ init完了(全て終了)");
 })();
 </script>
 </body>
