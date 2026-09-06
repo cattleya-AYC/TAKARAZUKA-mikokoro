@@ -159,7 +159,7 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
           <p class="sub">画像を長押しして「写真に保存」を選ぶか、下のボタンで保存してください。</p>
           <img id="exportPreviewImg" style="max-width:100%;border-radius:8px;border:1px solid var(--line)">
           <div style="margin-top:10px">
-            <a id="exportDownloadLink" download="のし紙.jpg" class="primary" style="display:inline-block;text-decoration:none;padding:11px 16px;border-radius:12px">画像をダウンロード</a>
+            <button type="button" id="exportDownloadLink" class="primary" style="display:inline-block;padding:11px 16px;border-radius:12px">画像を新しいタブで開く</button>
           </div>
         </div>
       </div>
@@ -368,7 +368,10 @@ document.getElementById("exportBtn").addEventListener("click", async ()=>{
 
     const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     document.getElementById("exportPreviewImg").src = dataUrl;
-    document.getElementById("exportDownloadLink").href = dataUrl;
+    document.getElementById("exportDownloadLink").onclick = ()=>{
+      const w = window.open();
+      if(w) w.document.write(`<img src="${dataUrl}" style="max-width:100%">`);
+    };
     document.getElementById("exportResult").style.display = "block";
     document.getElementById("exportResult").scrollIntoView({ behavior:"smooth", block:"start" });
     showStatus(statusEl, "画像を作成しました。下に表示されています。", false);
