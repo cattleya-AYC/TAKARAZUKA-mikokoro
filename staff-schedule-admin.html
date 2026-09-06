@@ -237,9 +237,7 @@
       else if(row.is_group_task) badge = `<span class="badge group">全員</span>`;
 
       let staffHtml = '';
-      if(row.is_group_task){
-        staffHtml = `<p class="row-note">手の空いている人全員で対応してください。</p>`;
-      } else if(row.fixed_staff){
+      if(row.fixed_staff){
         staffHtml = `<p class="row-note">固定担当のため自動割り当ての対象外です。</p>`;
       } else {
         staffHtml = `<div class="staff-check">` + STAFF_LIST.map(name=>{
@@ -303,7 +301,7 @@
 
   async function autoAssignRow(idx){
     const row = rows[idx];
-    if(row.fixed_staff || row.is_group_task) return;
+    if(row.fixed_staff) return;
     const counts = await getTaskCounts(row.task_name);
     const usedAtThisTime = rows
       .filter((r,i)=>i!==idx && r.time_label && r.time_label===row.time_label)
@@ -322,7 +320,7 @@
   async function autoAssignAll(){
     for(let i=0;i<rows.length;i++){
       const row = rows[i];
-      if(row.fixed_staff || row.is_group_task) continue;
+      if(row.fixed_staff) continue;
       if(row.assigned_staff && row.assigned_staff.length >= row.required_count) continue; // 既に割当済みはスキップ
       await autoAssignRow(i);
     }
