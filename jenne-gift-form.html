@@ -429,6 +429,14 @@ document.getElementById("saveJenneBtn").addEventListener("click", async ()=>{
     showStatus(statusEl, "お名前を入力してください", true);
     return;
   }
+  {
+    const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+    const panel = document.getElementById("debugPanel");
+    panel.style.display = "block";
+    logDebug("[保存前チェック] session存在: " + Boolean(sessionData?.session)
+      + " / user: " + (sessionData?.session?.user?.email || "なし")
+      + " / エラー: " + (sessionErr ? sessionErr.message : "なし"));
+  }
   try{
     let photoUrl = null;
     if(pendingPhotoFile){
