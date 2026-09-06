@@ -37,7 +37,7 @@
   .row-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
   .row-head .task-input{flex:1;min-width:0;}
   .count-row{display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
-  .time-input{width:100px;flex-shrink:0;}
+  .time-input{width:84px;flex-shrink:0;}
   .count-row .req-count{width:56px;}
   input[type=number]::-webkit-inner-spin-button{margin-left:2px;}
   textarea.note-input{
@@ -306,7 +306,7 @@
         <div class="count-row">
           <input type="text" class="time-input" value="${escapeHtml(row.time_label||'')}" placeholder="時刻" onchange="rows[${idx}].time_label=this.value">
           <label style="margin:0;white-space:nowrap;">必要人数</label>
-          <input type="number" min="0" class="req-count" value="${row.required_count}" style="width:48px;flex-shrink:0;text-align:center;padding:8px 4px;" onchange="rows[${idx}].required_count=parseInt(this.value)||0; renderRows();">
+          <input type="number" min="0" max="6" class="req-count" value="${row.required_count}" style="width:44px !important;flex-shrink:0;flex-grow:0;text-align:center;padding:8px 2px;" onchange="rows[${idx}].required_count=parseInt(this.value)||0; renderRows();">
         </div>
         ${staffHtml}
         <textarea class="note-input" placeholder="補足メモ・作業内容の指示(スタッフ画面にそのまま表示されます)" onchange="rows[${idx}].note=this.value">${escapeHtml(row.note||'')}</textarea>
