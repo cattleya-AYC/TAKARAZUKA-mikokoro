@@ -81,6 +81,11 @@
   .schedule-row b{ color:var(--gold-soft); font-weight:700; white-space:nowrap; }
   .schedule-row.highlight{ background:rgba(165,84,74,0.08); border-radius:6px; padding:9px 8px; }
   .schedule-row.highlight b{ color:var(--rose); }
+  .auto-badge{
+    display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.03em;
+    background:var(--gold-soft); color:#fff; border-radius:999px; padding:2px 7px; margin-left:6px;
+    vertical-align:middle;
+  }
 
   .summary-grid{ display:flex; gap:10px; flex-wrap:wrap; }
   .summary-item{
@@ -268,6 +273,8 @@
     const payStart = addDays(eventDate, -40);
     const payDeadline = addDays(eventDate, -30);
     const namecard = addDays(eventDate, -3);
+    const giftInviteStart = addDays(eventDate, -14);
+    const giftInviteDeadline = addDays(eventDate, -7);
     const giftReport = addDays(eventDate, 2);
     const hpUpload = addDays(eventDate, 3);
 
@@ -278,6 +285,8 @@
       { label:'食事メニュー申込締切', date:mealDeadline },
       { label:'振込案内開始', date:payStart },
       { label:'入金締切', date:payDeadline },
+      { label:'差し入れ募集開始', date:giftInviteStart, isAuto:true },
+      { label:'差し入れ募集締切、集計開始', date:giftInviteDeadline },
       { label:'開催日', date:eventDate, highlight:true },
       { label:'席札作成', date:namecard },
       { label:'差し入れ報告', date:giftReport },
@@ -288,7 +297,8 @@
 
     document.getElementById('scheduleRows').innerHTML = items.map(item=>{
       const dateStr = item.date.toISOString().slice(0,10);
-      return `<div class="schedule-row${item.highlight ? ' highlight' : ''}"><span>${item.label}</span><b>${formatDateJp(dateStr)}</b></div>`;
+      const badge = item.isAuto ? '<span class="auto-badge">自動</span>' : '';
+      return `<div class="schedule-row${item.highlight ? ' highlight' : ''}"><span>${item.label}${badge}</span><b>${formatDateJp(dateStr)}</b></div>`;
     }).join('');
   }
 
