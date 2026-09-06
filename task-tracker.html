@@ -35,6 +35,10 @@
   .toggle-btn.active{ background:var(--gold-soft); color:#fff; }
 
   .summary-bar{ display:flex; gap:10px; margin-bottom:16px; }
+  .legend-note{
+    font-size:12px; color:var(--muted); background:var(--navy-card); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; margin-bottom:14px; line-height:1.7;
+  }
   .summary-card{
     flex:1; background:var(--navy-card); border:1px solid var(--line); border-radius:10px;
     padding:12px 10px; text-align:center;
@@ -105,6 +109,10 @@
 </div>
 
 <div class="wrap">
+  <div class="legend-note">
+    <span class="auto-badge">自動</span>バッジが付いている項目だけ、システムが自動で処理します。バッジが無い項目は、すべて自分で対応が必要な手動タスクです。
+  </div>
+
   <div class="summary-bar">
     <div class="summary-card overdue"><div class="num" id="overdueCount">―</div><div class="lbl">締切超過</div></div>
     <div class="summary-card"><div class="num" id="soonCount">―</div><div class="lbl">3日以内</div></div>
