@@ -586,6 +586,19 @@
   </div>
 </div>
 
+<div class="net-score-summary-wrap print-hide-block" id="giftLetterSection">
+  <div class="net-score-summary" style="padding:16px;margin-top:14px;min-width:0;">
+    <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:var(--gold-soft);">🎁 差し入れ・お手紙 ご案内メール</p>
+    <p style="margin:0 0 10px;font-size:12px;color:var(--muted);word-break:break-word;overflow-wrap:break-word;" id="giftLetterHeaderPreview">先に公演を選んでください</p>
+    <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">お申し込み締切(任意・文面に入ります)</label>
+    <input type="text" id="giftLetterDeadline" placeholder="例:11月8日(日)" style="width:100%;margin-bottom:10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
+    <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">補足メッセージ(任意)</label>
+    <textarea id="giftLetterBody" placeholder="例:ご協力いただける方は下記フォームよりお申し込みください。" style="width:100%;min-height:90px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
+    <button type="button" id="giftLetterSendBtn" style="margin-top:10px;background:var(--gold-soft);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">差し入れ・お手紙ご案内メールを送信(参加決定者のみ)</button>
+    <p class="status-msg" id="giftLetterStatus" style="padding:8px 0 0;text-align:left;"></p>
+  </div>
+</div>
+
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
 <script>
@@ -594,6 +607,7 @@
   const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
   const EMAILJS_SERVICE_ID = "service_qpuxvaj";
   const EMAILJS_GENERIC_TEMPLATE_ID = "template_khkmzni";
+  const GIFT_LETTER_FORM_URL = "https://takarazuka-mikokoro.vercel.app/gift-letter-form.html";
 
   function getSb(){
     if(!window.supabase){
@@ -1200,6 +1214,94 @@
     preview.textContent = `件名:「【小林タカラヅカ倶楽部】からのお知らせ」／書き出し:「この度は、${title}にご参加ありがとうございます。」`;
   }
 
+  function updateGiftLetterHeaderPreview(){
+    const ev = events.find(e => e.id === currentEventId);
+    const preview = document.getElementById('giftLetterHeaderPreview');
+    if(!ev){ preview.textContent = '先に公演を選んでください'; return; }
+    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+    preview.textContent = `件名:「【小林タカラヅカ倶楽部】差し入れ・お手紙 ご協力のお願い」／対象:${title}`;
+  }
+
+  async function sendGiftLetterEmail(){
+    const statusEl = document.getElementById('giftLetterStatus');
+    statusEl.className = 'status-msg'; statusEl.textContent = '';
+
+    const ev = events.find(e => e.id === currentEventId);
+    if(!ev){
+      statusEl.classList.add('err');
+      statusEl.textContent = '先に公演を選んでください。';
+      return;
+    }
+
+    const deadline = document.getElementById('giftLetterDeadline').value.trim();
+    const extraBody = document.getElementById('giftLetterBody').value.trim();
+
+    const decided = currentRows.filter(r => r.status === '参加決定' && r.answers?.email);
+    const recipients = [];
+    const seen = new Set();
+    decided.forEach(r=>{
+      const email = r.answers.email.trim();
+      if(!seen.has(email)){
+        seen.add(email);
+        recipients.push({ email, name: r.answers.full_name || r.participants?.name || 'ご参加者' });
+      }
+    });
+
+    if(recipients.length === 0){
+      statusEl.classList.add('err');
+      statusEl.textContent = '参加決定の方でメールアドレスが登録されている人が見つかりませんでした。';
+      return;
+    }
+
+    if(!confirm(`参加決定者 ${recipients.length}名に差し入れ・お手紙ご案内メールを送信します。よろしいですか？`)) return;
+
+    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+    const subject = `【小林タカラヅカ倶楽部】差し入れ・お手紙 ご協力のお願い`;
+
+    const btn = document.getElementById('giftLetterSendBtn');
+    btn.disabled = true;
+    let successCount = 0;
+    const failedNames = [];
+
+    for(let i = 0; i < recipients.length; i++){
+      const r = recipients[i];
+      statusEl.className = 'status-msg';
+      statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
+      const message =
+`${r.name}様
+
+いつも観劇会の活動にご理解とご協力を賜り、誠にありがとうございます。
+
+${title}にあたり、ジェンヌさんへの差し入れ・お手紙にご協力いただける方を募集しております。
+ご協力いただける方は、下記フォームよりお申し込みください。
+
+${GIFT_LETTER_FORM_URL}
+${deadline ? `\n【お申し込み締切】\n${deadline}\n` : ''}${extraBody ? `\n${extraBody}\n` : ''}
+お手紙のみご協力いただく方はお申し込み不要です。観劇当日、集合時間にお持ちください。
+
+小林タカラヅカ倶楽部`;
+      try{
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+          email: r.email, subject, message
+        });
+        successCount++;
+      }catch(err){
+        console.warn('送信失敗:', r.email, err);
+        failedNames.push(r.name);
+      }
+    }
+
+    statusEl.className = 'status-msg';
+    if(failedNames.length === 0){
+      statusEl.classList.add('ok');
+      statusEl.textContent = `送信完了:${successCount}名に送信しました。`;
+    } else {
+      statusEl.classList.add('err');
+      statusEl.textContent = `送信完了:${successCount}名成功 / ${failedNames.length}名失敗(${failedNames.join('、')})`;
+    }
+    btn.disabled = false;
+  }
+
   async function sendEmergencyEmail(){
     const statusEl = document.getElementById('emergencyStatus');
     statusEl.className = 'status-msg'; statusEl.textContent = '';
@@ -1289,6 +1391,7 @@ ${body}
         await loadRegistrations(currentEventId);
         await loadAgencyInfo(currentEventId);
         updateEmergencyHeaderPreview();
+        updateGiftLetterHeaderPreview();
       }
       sel.addEventListener('change', ()=>{
         currentEventId = sel.value;
@@ -1296,6 +1399,7 @@ ${body}
         loadRegistrations(currentEventId);
         loadAgencyInfo(currentEventId);
         updateEmergencyHeaderPreview();
+        updateGiftLetterHeaderPreview();
       });
       document.getElementById('refreshBtn').addEventListener('click', ()=>{
         if(currentEventId){
@@ -1308,6 +1412,7 @@ ${body}
       });
       document.getElementById('changeBtn').addEventListener('click', openChangeModal);
       document.getElementById('emergencySendBtn').addEventListener('click', sendEmergencyEmail);
+      document.getElementById('giftLetterSendBtn').addEventListener('click', sendGiftLetterEmail);
       document.querySelectorAll('th.sortable').forEach(th=>{
         th.addEventListener('click', ()=>{
           const key = th.getAttribute('data-sort');
