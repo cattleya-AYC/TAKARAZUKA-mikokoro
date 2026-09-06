@@ -95,6 +95,8 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
 }
 
 .a4.size-b5{max-width:337px;aspect-ratio:176/250}
+.a4.landscape{aspect-ratio:297/210;max-width:560px}
+.a4.landscape.size-b5{aspect-ratio:250/176;max-width:450px}
 
 @media print{
   body *{visibility:hidden}
@@ -104,6 +106,8 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
     width:210mm; height:297mm;
   }
   #printArea.size-b5{ width:176mm; height:250mm; }
+  #printArea.landscape{ width:297mm; height:210mm; }
+  #printArea.landscape.size-b5{ width:250mm; height:176mm; }
 }
 </style>
 <style id="printPageSize">@page{ size:A4; margin:0; }</style>
@@ -140,6 +144,17 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
             </label>
             <label style="flex:1;display:block">
               <input type="radio" name="paperSize" value="B5" style="width:auto;margin-right:6px">B5
+            </label>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:12px">
+          <label>向き</label>
+          <div class="row" style="gap:8px">
+            <label style="flex:1;display:block">
+              <input type="radio" name="orientation" value="portrait" checked style="width:auto;margin-right:6px">縦
+            </label>
+            <label style="flex:1;display:block">
+              <input type="radio" name="orientation" value="landscape" style="width:auto;margin-right:6px">横
             </label>
           </div>
         </div>
@@ -324,12 +339,18 @@ function applyOverlayPosition(){
 
 function applyPaperSize(){
   const size = document.querySelector('input[name="paperSize"]:checked').value;
+  const orientation = document.querySelector('input[name="orientation"]:checked').value;
+  const isLandscape = orientation === "landscape";
   const printArea = document.getElementById("printArea");
   printArea.classList.toggle("size-b5", size === "B5");
-  document.getElementById("printPageSize").textContent =
-    size === "B5" ? "@page{ size:176mm 250mm; margin:0; }" : "@page{ size:A4; margin:0; }";
+  printArea.classList.toggle("landscape", isLandscape);
+
+  let w, h;
+  if(size === "B5"){ w = "176mm"; h = "250mm"; } else { w = "210mm"; h = "297mm"; }
+  if(isLandscape){ const t = w; w = h; h = t; }
+  document.getElementById("printPageSize").textContent = `@page{ size:${w} ${h}; margin:0; }`;
 }
-document.querySelectorAll('input[name="paperSize"]').forEach(r=>{
+document.querySelectorAll('input[name="paperSize"], input[name="orientation"]').forEach(r=>{
   r.addEventListener("change", applyPaperSize);
 });
 

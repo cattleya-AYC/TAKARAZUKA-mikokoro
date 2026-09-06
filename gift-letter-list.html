@@ -6,8 +6,8 @@
 <title>差し入れ・お手紙 申込一覧</title>
 <style>
 :root{
-  --bg:#f2f7f0;--paper:#fffdf9;--ink:#3f4a3a;--muted:#7c8a76;
-  --green-dark:#6f9159;--green-soft:#e9f2e4;--line:#dfe8da;
+  --bg:#f5f4f1;--paper:#fffdf9;--ink:#3f3f3a;--muted:#847e76;
+  --green-dark:#7d7568;--green-soft:#eeece7;--line:#e2ded6;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
@@ -45,7 +45,7 @@ select,input[type=text]{padding:10px 12px;border:1px solid #d7e2d1;border-radius
 table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border-radius:14px;overflow:hidden}
 th,td{border-bottom:1px solid #eef3ec;padding:10px 9px;text-align:left}
 th{background:#f5f9f2;color:#556b4c}
-.badge{display:inline-block;padding:3px 9px;border-radius:999px;background:var(--green-soft);color:#4d6b3e;font-size:12px}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;background:var(--green-soft);color:var(--green-dark);font-size:12px}
 .badge.none{background:#f3e8e2;color:#725b51}
 .empty{color:var(--muted);padding:16px;text-align:center}
 button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;background:#f3e8e2;color:#725b51}
@@ -103,12 +103,32 @@ if(!window.supabase){
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentRows = [];
+let eventsData = [];
+
+// 組ごとのテーマカラー
+const TROUPE_THEMES = {
+  "花": { bg:"#faf1f3", greenSoft:"#f6e3e7", greenDark:"#a8586a" },
+  "月": { bg:"#faf6ec", greenSoft:"#f6ecd6", greenDark:"#9b783f" },
+  "雪": { bg:"#f2f7f0", greenSoft:"#e9f2e4", greenDark:"#6f9159" },
+  "星": { bg:"#eef4fa", greenSoft:"#dfeaf3", greenDark:"#4d7196" },
+  "宙": { bg:"#f5f0f7", greenSoft:"#ece3f5", greenDark:"#6d5aa3" }
+};
+function applyTroupeTheme(troupe){
+  const theme = TROUPE_THEMES[troupe];
+  if(!theme) return;
+  const root = document.documentElement.style;
+  root.setProperty("--bg", theme.bg);
+  root.setProperty("--green-soft", theme.greenSoft);
+  root.setProperty("--green-dark", theme.greenDark);
+}
 
 function syncEventDisplay(){
   const sel = document.getElementById("eventSelect");
   const display = document.getElementById("eventSelectDisplay");
   const opt = sel.options[sel.selectedIndex];
   display.textContent = opt ? opt.textContent : "";
+  const ev = eventsData.find(e=>e.id === sel.value);
+  if(ev) applyTroupeTheme(ev.troupe);
 }
 
 async function loadEvents(){
@@ -123,6 +143,7 @@ async function loadEvents(){
     syncEventDisplay();
     return;
   }
+  eventsData = data;
   sel.innerHTML = `<option value="">すべて</option>` + data.map(e=>{
     const troupeLabel = e.troupe ? `${e.troupe}組` : "";
     const workLabel = e.work_title ? `「${e.work_title}」` : "";
