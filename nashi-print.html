@@ -395,7 +395,7 @@ async function loadNames(){
 
     overlay.textContent = names.join("\n");
     if(names.length===0){
-      showStatus(statusEl, "「記載」を選んだ協力者がまだいません。", true);
+      showStatus(statusEl, `「記載」を選んだ協力者がまだいません。(event_id: ${currentEventId} / 取得件数: ${(data||[]).length})`, true);
     } else {
       showStatus(statusEl, `${names.length}名分のお名前を読み込みました。`, false);
     }
