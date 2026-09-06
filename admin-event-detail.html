@@ -146,14 +146,7 @@
 
   <div class="panel">
     <div class="panel-title">運営スケジュール</div>
-    <div class="schedule-row"><span>募集開始</span><b id="schStart"></b></div>
-    <div class="schedule-row"><span>観劇会申込締切(参加者決定)</span><b id="schDeadline"></b></div>
-    <div class="schedule-row"><span>食事フォーム入力開始</span><b id="schMealStart"></b></div>
-    <div class="schedule-row"><span>食事メニュー申込締切</span><b id="schMealDeadline"></b></div>
-    <div class="schedule-row"><span>振込案内開始</span><b id="schPayStart"></b></div>
-    <div class="schedule-row"><span>入金締切</span><b id="schPayDeadline"></b></div>
-    <div class="schedule-row highlight"><span>開催日</span><b id="schEventDate"></b></div>
-    <div class="schedule-row"><span>席札作成</span><b id="schNamecard"></b></div>
+    <div id="scheduleRows"></div>
   </div>
 
   <div class="panel">
@@ -257,15 +250,28 @@
     const payStart = addDays(eventDate, -40);
     const payDeadline = addDays(eventDate, -30);
     const namecard = addDays(eventDate, -3);
+    const giftReport = addDays(eventDate, 2);
+    const hpUpload = addDays(eventDate, 3);
 
-    document.getElementById('schStart').textContent = formatDateJp(start.toISOString().slice(0,10));
-    document.getElementById('schDeadline').textContent = formatDateJp(deadline.toISOString().slice(0,10));
-    document.getElementById('schMealStart').textContent = formatDateJp(mealStart.toISOString().slice(0,10));
-    document.getElementById('schMealDeadline').textContent = formatDateJp(mealDeadline.toISOString().slice(0,10));
-    document.getElementById('schPayStart').textContent = formatDateJp(payStart.toISOString().slice(0,10));
-    document.getElementById('schPayDeadline').textContent = formatDateJp(payDeadline.toISOString().slice(0,10));
-    document.getElementById('schEventDate').textContent = formatDateJp(ev.event_date);
-    document.getElementById('schNamecard').textContent = formatDateJp(namecard.toISOString().slice(0,10));
+    const items = [
+      { label:'募集開始', date:start },
+      { label:'観劇会申込締切(参加者決定)', date:deadline },
+      { label:'食事フォーム入力開始', date:mealStart },
+      { label:'食事メニュー申込締切', date:mealDeadline },
+      { label:'振込案内開始', date:payStart },
+      { label:'入金締切', date:payDeadline },
+      { label:'開催日', date:eventDate, highlight:true },
+      { label:'席札作成', date:namecard },
+      { label:'差し入れ報告', date:giftReport },
+      { label:'ホームページで報告アップ', date:hpUpload },
+    ];
+
+    items.sort((a,b)=> a.date - b.date);
+
+    document.getElementById('scheduleRows').innerHTML = items.map(item=>{
+      const dateStr = item.date.toISOString().slice(0,10);
+      return `<div class="schedule-row${item.highlight ? ' highlight' : ''}"><span>${item.label}</span><b>${formatDateJp(dateStr)}</b></div>`;
+    }).join('');
   }
 
   const troupeMark = { '花':'🌸', '月':'🌙', '雪':'❄️', '星':'⭐', '宙':'🌌' };
