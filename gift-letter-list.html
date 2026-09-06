@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>差し入れ・お手紙 申込一覧</title>
+<style>
+:root{
+  --bg:#f2f7f0;--paper:#fffdf9;--ink:#3f4a3a;--muted:#7c8a76;
+  --green-dark:#6f9159;--green-soft:#e9f2e4;--line:#dfe8da;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+.wrap{max-width:1000px;margin:24px auto;padding:0 14px 40px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:22px;box-shadow:0 14px 38px rgba(63,74,58,.10);overflow:hidden}
+header{padding:26px 22px 20px;background:linear-gradient(180deg,#fff,#f8fbf6);border-bottom:1px solid var(--line)}
+header h1{margin:0 0 6px;font-family:"Yu Mincho","Hiragino Mincho ProN",serif;font-size:26px}
+header p{margin:0;color:var(--muted);font-size:13.5px}
+main{padding:18px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+select,input[type=text]{padding:10px 12px;border:1px solid #d7e2d1;border-radius:10px;font:inherit}
+.info-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.info-card{border:1px solid var(--line);border-radius:14px;padding:12px 16px;background:#fff;min-width:140px}
+.info-card .label{font-size:12px;color:var(--muted)}
+.info-card .value{font-size:22px;color:var(--green-dark)}
+table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border-radius:14px;overflow:hidden}
+th,td{border-bottom:1px solid #eef3ec;padding:10px 9px;text-align:left}
+th{background:#f5f9f2;color:#556b4c}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;background:var(--green-soft);color:#4d6b3e;font-size:12px}
+.badge.none{background:#f3e8e2;color:#725b51}
+.empty{color:var(--muted);padding:16px;text-align:center}
+button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;background:#f3e8e2;color:#725b51}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <header>
+      <h1>差し入れ・お手紙 申込一覧</h1>
+      <p>gift-letter-form.html から送信された内容をSupabaseから取得して表示します。</p>
+    </header>
+    <main>
+      <div class="controls">
+        <label style="font-size:13px;color:var(--muted)">対象の観劇会：</label>
+        <select id="eventSelect"><option value="">読み込み中...</option></select>
+        <button id="csvBtn">CSV出力</button>
+      </div>
+
+      <div class="info-row">
+        <div class="info-card"><div class="label">申込件数</div><div class="value" id="countValue">-</div></div>
+        <div class="info-card"><div class="label">記名希望</div><div class="value" id="namedValue">-</div></div>
+        <div class="info-card"><div class="label">記名不要</div><div class="value" id="unnamedValue">-</div></div>
+      </div>
+
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr><th>お名前</th><th>回生</th><th>記名</th><th>ご住所</th><th>送信日時</th></tr>
+          </thead>
+          <tbody id="listBody"><tr><td colspan="5" class="empty">読み込み中...</td></tr></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+
+if(!window.supabase){
+  document.getElementById("listBody").innerHTML = `<tr><td colspan="5" class="empty">読み込みエラー：ページを再読み込みしてください</td></tr>`;
+  throw new Error("supabase-js failed to load");
+}
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentRows = [];
+
+async function loadEvents(){
+  const sel = document.getElementById("eventSelect");
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, event_number, troupe, event_date, work_title")
+    .order("event_date", { ascending:false })
+    .limit(30);
+  if(error || !data || data.length===0){
+    sel.innerHTML = `<option value="">開催回が見つかりません</option>`;
+    return;
+  }
+  sel.innerHTML = `<option value="">すべて</option>` + data.map(e=>{
+    const troupeLabel = e.troupe ? `${e.troupe}組` : "";
+    const workLabel = e.work_title ? `「${e.work_title}」` : "";
+    const label = `第${e.event_number ?? "?"}回 ${troupeLabel}${workLabel}公演`;
+    return `<option value="${e.id}">${label}</option>`;
+  }).join("");
+  sel.value = data[0].id;
+  await loadSubmissions(data[0].id);
+}
+
+document.getElementById("eventSelect").addEventListener("change", e=>{
+  loadSubmissions(e.target.value || null);
+});
+
+async function loadSubmissions(eventId){
+  const body = document.getElementById("listBody");
+  body.innerHTML = `<tr><td colspan="5" class="empty">読み込み中...</td></tr>`;
+  try{
+    let query = supabase.from("gift_letter_submissions").select("*").order("created_at", { ascending:false });
+    if(eventId) query = query.eq("event_id", eventId);
+    const { data, error } = await query;
+    if(error) throw error;
+    currentRows = data || [];
+    render();
+  }catch(err){
+    console.error(err);
+    body.innerHTML = `<tr><td colspan="5" class="empty">読み込みエラー</td></tr>`;
+  }
+}
+
+function render(){
+  const body = document.getElementById("listBody");
+  if(currentRows.length===0){
+    body.innerHTML = `<tr><td colspan="5" class="empty">まだ申し込みがありません</td></tr>`;
+  } else {
+    body.innerHTML = currentRows.map(r=>`
+      <tr>
+        <td>${r.name}</td>
+        <td>${r.period || ""}</td>
+        <td><span class="badge ${r.name_display==='記名不要'?'none':''}">${r.name_display}</span></td>
+        <td>${r.address || "―"}</td>
+        <td>${new Date(r.created_at).toLocaleString("ja-JP")}</td>
+      </tr>`).join("");
+  }
+  document.getElementById("countValue").textContent = currentRows.length + "件";
+  document.getElementById("namedValue").textContent = currentRows.filter(r=>r.name_display==="記載する").length + "件";
+  document.getElementById("unnamedValue").textContent = currentRows.filter(r=>r.name_display==="記名不要").length + "件";
+}
+
+document.getElementById("csvBtn").addEventListener("click", ()=>{
+  const rows = [["お名前","回生","記名","ご住所","送信日時"]];
+  currentRows.forEach(r=>rows.push([r.name, r.period||"", r.name_display, r.address||"", new Date(r.created_at).toLocaleString("ja-JP")]));
+  const csv = rows.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\ufeff"+csv], { type:"text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "差し入れ手紙申込一覧.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+loadEvents();
+</script>
+</body>
+</html>
