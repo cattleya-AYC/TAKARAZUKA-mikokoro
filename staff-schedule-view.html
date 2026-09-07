@@ -74,6 +74,10 @@
   .duty-banner .label{font-size:12.5px;opacity:.9;margin-bottom:4px;}
   .duty-banner .name{font-family:'Shippori Mincho',serif;font-size:30px;font-weight:800;letter-spacing:.06em;}
   .duty-banner .note{font-size:13px;margin-top:8px;color:#fff;font-weight:700;}
+  .duty-banner .instruction{
+    font-size:12.5px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.4);
+    line-height:1.7;color:#fff;
+  }
   .time-block.untimed .time-col{color:var(--muted);font-size:12px;}
 </style>
 </head>
@@ -290,6 +294,7 @@
         <div class="duty-banner">
           <div class="label">🍬 お菓子担当(前日までに購入)</div>
           <div class="name">${escapeHtml(dutyData.duty_staff)}さん</div>
+          <div class="instruction">📷 当日中に差し入れサイトへ、お菓子・領収書・のし紙付きの菓子箱の写真を登録してください</div>
           ${nextStaff ? `<div class="note">次回は${escapeHtml(nextStaff)}さんの番です</div>` : ''}
         </div>
       `;

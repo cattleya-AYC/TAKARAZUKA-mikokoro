@@ -94,6 +94,7 @@
     .pnamecard .nc-name-small{ font-size:10pt; font-weight:700; color:#555; margin-top:1mm; }
     .pnamecard .nc-menu{ font-size:14pt; font-weight:700; color:#7a3b3b; }
     .pnamecard .nc-drink{ font-size:11pt; color:#222; margin-top:1mm; }
+    .pnamecard.blank{ }
   }
   #printArea{ display:none; }
 </style>
@@ -333,9 +334,15 @@
 
   document.getElementById('printBtn').addEventListener('click', ()=>{
     const previewCards = document.querySelectorAll('#previewGrid .namecard');
-    document.getElementById('printGrid').innerHTML = Array.from(previewCards).map(el=>{
+    let html = Array.from(previewCards).map(el=>{
       return `<div class="pnamecard" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}">${el.innerHTML}</div>`;
     }).join('');
+    const remainder = previewCards.length % 10;
+    if(remainder !== 0){
+      const blanks = 10 - remainder;
+      for(let i=0;i<blanks;i++) html += `<div class="pnamecard blank" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}"></div>`;
+    }
+    document.getElementById('printGrid').innerHTML = html;
     setTimeout(()=> window.print(), 50);
   });
 
