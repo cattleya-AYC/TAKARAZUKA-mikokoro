@@ -140,8 +140,8 @@
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const STAFF_LIST = ['原田','水無瀬','西中','伊庭','岩本','太田'];
   const DUTY_PAIRS = [['原田','太田'],['伊庭','岩本'],['西中','水無瀬']];
-  const PAIRABLE_TASKS = ['チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)'];
-  const PAIRABLE_LABELS = { 'チケット抽選係':'チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)':'食事なしチケット渡し(インフォ前)' };
+  const PAIRABLE_TASKS = ['チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)', 'メッセージカード配布', 'チケット封入'];
+  const PAIRABLE_LABELS = { 'チケット抽選係':'チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)':'食事なしチケット渡し(インフォ前)', 'メッセージカード配布':'メッセージカード配布', 'チケット封入':'チケット封入' };
 
   let currentEvent = null;
   let rows = []; // {id, task_type_id, task_name, time_label, required_count, assigned_staff, note, fixed_staff, is_group_task, sort_order, _isNew}
@@ -214,7 +214,7 @@
     const names = await fetchDutyNames();
     if(!names.length){
       rows = rows.filter(r=>r.task_name !== DUTY_TASK_NAME);
-      return;
+      return names;
     }
     const existing = rows.find(r=>r.task_name === DUTY_TASK_NAME);
     if(existing){
@@ -233,6 +233,48 @@
           : '差し入れ・お菓子を楽屋口へ届ける当番です(jenne-gift-form.htmlで設定)。同じ時間帯に「食事なしの参加者へチケット渡し(インフォ前)」があるため、担当が重ならないようご注意ください。',
         fixed_staff:null, is_group_task:false, from_duty:true, sort_order:-10, _isNew:true
       });
+    }
+    return names;
+  }
+
+  // お菓子当番のチームから「チケット抽選係」「食事なしチケット渡し」を自動で決めるルール
+  // A=原田・太田, B=伊庭・岩本, C=西中・水無瀬 (DUTY_PAIRSのインデックス0,1,2に対応)
+  const PAIR_AUTO_RULE = {
+    0: { lottery: 1, pass: 2 }, // お菓子=Aチーム → 抽選=Bチーム, 食事なし渡し=Cチーム
+    1: { lottery: 2, pass: 0 }, // お菓子=Bチーム → 抽選=Cチーム, 食事なし渡し=Aチーム
+    2: { lottery: 1, pass: 0 }  // お菓子=Cチーム → 抽選=Bチーム, 食事なし渡し=Aチーム
+  };
+
+  function autoAssignPairsFromDuty(dutyNames){
+    if(!dutyNames || !dutyNames.length) return;
+    const dutyIdx = DUTY_PAIRS.findIndex(p => p.length===dutyNames.length && p.every(n=>dutyNames.includes(n)));
+    if(dutyIdx < 0) return; // 当番がきれいなペアでない場合は自動化しない
+    const rule = PAIR_AUTO_RULE[dutyIdx];
+    if(!rule) return;
+
+    const lotteryRow = rows.find(r=>r.task_name === 'チケット抽選係');
+    if(lotteryRow && (!lotteryRow.assigned_staff || !lotteryRow.assigned_staff.length)){
+      const pair = DUTY_PAIRS[rule.lottery].slice();
+      lotteryRow.fixed_staff = pair.slice();
+      lotteryRow.assigned_staff = pair;
+    }
+    const passRow = rows.find(r=>r.task_name === '食事なしの参加者へチケット渡し(インフォ前)');
+    if(passRow && (!passRow.assigned_staff || !passRow.assigned_staff.length)){
+      const pair = DUTY_PAIRS[rule.pass].slice();
+      passRow.fixed_staff = pair.slice();
+      passRow.assigned_staff = pair;
+    }
+    const msgRow = rows.find(r=>r.task_name === 'メッセージカード配布');
+    if(msgRow && (!msgRow.assigned_staff || !msgRow.assigned_staff.length)){
+      const pair = DUTY_PAIRS[rule.pass].slice(); // お菓子でも抽選でもない残りのチーム
+      msgRow.fixed_staff = pair.slice();
+      msgRow.assigned_staff = pair;
+    }
+    const packRow = rows.find(r=>r.task_name === 'チケット封入');
+    if(packRow && (!packRow.assigned_staff || !packRow.assigned_staff.length)){
+      const pair = DUTY_PAIRS[rule.pass].slice(); // お菓子でも抽選でもない残りのチーム
+      packRow.fixed_staff = pair.slice();
+      packRow.assigned_staff = pair;
     }
   }
 
@@ -304,7 +346,8 @@
       } else {
         rows = [];
       }
-      await syncDutyRow();
+      const dutyNames1 = await syncDutyRow();
+      autoAssignPairsFromDuty(dutyNames1);
       isDirty = false;
     } catch(e){
       console.error(e);
@@ -341,7 +384,8 @@
           sort_order: t.sort_order, _isNew:true
         };
       });
-      await syncDutyRow();
+      const dutyNames2 = await syncDutyRow();
+      autoAssignPairsFromDuty(dutyNames2);
       markDirty();
     } catch(e){
       console.error(e);
