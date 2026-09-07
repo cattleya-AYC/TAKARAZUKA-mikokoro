@@ -145,7 +145,7 @@
   .log-item{ margin-bottom:4px; line-height:1.6; }
   .detail-box b{ color:var(--gold-soft); }
 
-  .empty-msg, .status-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; }
+  .empty-msg, .status-msg{ text-align:center; color:var(--muted); padding:40px 20px; font-size:13.5px; word-break:break-all; white-space:pre-wrap; }
   .status-msg.err{ color:var(--rose); }
   .status-msg.ok{ color:var(--ok); }
 
@@ -1093,15 +1093,31 @@
         const statusMsg = document.getElementById('statusMsg');
         btn.disabled = true;
         try{
-          const { error } = await sb
+          const { data, error, status, statusText } = await sb
             .from('registrations')
             .update({ status: newStatus, decided_at: new Date().toISOString() })
-            .eq('id', id);
+            .eq('id', id)
+            .select();
+          const dbg = 'KEY先頭:' + SUPABASE_ANON_KEY.slice(0,18)
+            + ' / id:' + id
+            + ' / httpStatus:' + status + ' ' + statusText
+            + ' / 返却行数:' + (data ? data.length : 'null')
+            + ' / data:' + JSON.stringify(data)
+            + ' / error:' + JSON.stringify(error);
+          console.log(dbg);
+          statusMsg.classList.remove('err');
+          statusMsg.textContent = dbg;
           if(error) throw error;
+          if(!data || data.length === 0){
+            statusMsg.classList.add('err');
+            statusMsg.textContent += ' ← 0件更新(原因調査用に表示中)';
+            btn.disabled = false;
+            return;
+          }
           loadRegistrations(currentEventId);
         } catch(e){
           statusMsg.classList.add('err');
-          statusMsg.textContent = '更新に失敗しました:' + (e.message || '');
+          statusMsg.textContent = '更新に失敗しました:' + (e.message || '') + ' / ' + JSON.stringify(e);
           btn.disabled = false;
         }
       });
