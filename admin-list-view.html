@@ -66,6 +66,17 @@
     border-collapse:separate; border-spacing:0; width:100%; min-width:900px; font-size:13px;
     background:var(--navy-card); border:1px solid var(--gold); border-radius:12px; overflow:hidden;
   }
+  #dataTable{ min-width:0; width:auto; font-size:12px; table-layout:fixed; }
+  #dataTable th, #dataTable td{ padding:8px 4px; overflow:hidden; }
+  #dataTable col.col-name{ width:126px; }
+  #dataTable col.col-count{ width:40px; }
+  #dataTable col.col-mark{ width:22px; }
+  #dataTable col.col-status{ width:32px; }
+  #dataTable .mark-circle{ width:20px; height:20px; font-size:10.5px; }
+  #dataTable .badge{
+    display:inline-block; padding:0; width:22px; height:22px; line-height:22px; font-size:11px; text-align:center;
+    border-radius:50%; white-space:nowrap;
+  }
   th, td{ padding:11px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
   th{ color:var(--gold-soft); font-weight:700; background:var(--navy-card-2); position:sticky; top:0; }
   th.sortable{ cursor:pointer; user-select:none; }
@@ -111,6 +122,12 @@
   .mark-circle.header-circle.warn{ color:var(--rose); border-color:var(--rose); }
 
   th.narrow-col, td.narrow-col{ padding-left:6px; padding-right:6px; white-space:nowrap; }
+  th.tight-col, td.tight-col{ padding-left:2px; padding-right:2px; white-space:nowrap; }
+  #dataTable th.narrow-col, #dataTable td.narrow-col{ padding-left:4px; padding-right:4px; }
+  #dataTable th.tight-col, #dataTable td.tight-col{ padding-left:1px; padding-right:1px; }
+  .mark-circle.companion-alumni{ color:#fff; background:#7c6bb0; border-color:#7c6bb0; }
+  .mark-circle.companion-general{ color:var(--muted); border-color:var(--line); }
+  .companion-badges{ display:inline-flex; gap:3px; }
 
   .mini-badge{
     display:inline-block; min-width:22px; text-align:center; font-size:12px; font-weight:700;
@@ -123,12 +140,17 @@
     font-size:13.5px; color:var(--cream); cursor:pointer; text-decoration:underline; text-decoration-color:var(--line);
     text-underline-offset:3px;
   }
+  .grade-tag{ display:inline-block; width:1.6em; font-size:11px; color:var(--muted); text-align:right; margin-right:2px; }
+  #dataTable .grade-tag{ width:1.3em; font-size:10px; margin-right:1px; }
+  #dataTable .name-btn{ font-size:12.5px; max-width:none; white-space:nowrap; }
+  #dataTable td.name{ max-width:none; white-space:nowrap; }
   .submit-count{
     display:inline-flex; align-items:center; justify-content:center;
     min-width:18px; height:18px; padding:0 5px; margin-left:6px; border-radius:9px;
     font-size:10.5px; font-weight:700; font-family:'Noto Sans JP', sans-serif;
     background:var(--navy-card-2); color:var(--muted); border:1px solid var(--line); cursor:pointer;
   }
+  #dataTable .submit-count{ min-width:16px; height:16px; padding:0 3px; margin-left:3px; font-size:9.5px; }
   .submit-count.multi{
     background:#ffdf6b; color:#7a4a00; border-color:#e0b400;
     box-shadow:0 0 6px 1px rgba(255,200,0,0.7);
@@ -423,9 +445,41 @@
 
 <div class="summary-bar" id="agencyBar" style="display:none;"></div>
 
+<div class="net-score-summary-wrap summary-area" style="margin-top:16px;">
+<table class="net-score-summary summary-table" id="mainSummaryTable" style="width:100%;border-collapse:collapse;font-size:14px;">
+  <thead>
+    <tr>
+      <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);"></th>
+      <th style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);">件数</th>
+      <th style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);">枚数</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);">全申込</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);" id="sumAllCount">0件</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);" id="sumAllTickets">0枚</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ok);">決定</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ok);" id="sumDecidedCount">0件</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ok);" id="sumDecidedTickets">0枚</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--muted);">調整中(審査中)</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--muted);" id="sumPendingCount">0件</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--muted);" id="sumPendingTickets">0枚</td>
+    </tr>
+    <tr id="sumRemainRow" style="display:none;">
+      <td style="padding:8px 10px;color:var(--rose);">残り(代理店確定枠−決定)</td>
+      <td style="text-align:center;padding:8px 10px;color:var(--rose);">-</td>
+      <td style="text-align:center;padding:8px 10px;color:var(--rose);" id="sumRemainTickets">0枚</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
 <div class="summary-bar" id="summaryBar">
-  <div class="summary-item"><span class="summary-num" id="sumApplicants">0</span><span class="summary-label">申込者数</span></div>
-  <div class="summary-item"><span class="summary-num" id="sumTickets">0</span><span class="summary-label">チケット枚数</span></div>
   <div class="summary-item"><span class="summary-num" id="sumMeals">0</span><span class="summary-label">食事参加者数</span></div>
 </div>
 
@@ -498,16 +552,21 @@
 
 <div class="table-wrap">
   <table id="dataTable" style="display:none;">
+    <colgroup>
+      <col class="col-name">
+      <col class="col-count">
+      <col class="col-mark">
+      <col class="col-mark">
+      <col class="col-mark">
+      <col class="col-status">
+    </colgroup>
     <thead>
       <tr>
-        <th class="narrow-col">操作</th>
-        <th>氏名</th>
+        <th class="sortable" data-sort="grade">氏名 <span class="sort-arrow" data-arrow="grade"></span></th>
         <th class="sortable" data-sort="count">枚数 <span class="sort-arrow" data-arrow="count"></span></th>
-        <th>お食事</th>
-        <th class="print-hide">ペナルティ入力</th>
-        <th class="sortable" data-sort="grade">回生 <span class="sort-arrow" data-arrow="grade"></span></th>
-        <th>座席希望</th>
-        <th class="sortable" data-sort="applied">申込日時 <span class="sort-arrow" data-arrow="applied"></span></th>
+        <th class="tight-col" title="同行者"></th>
+        <th class="tight-col" title="座席希望"></th>
+        <th class="tight-col" title="お食事"></th>
         <th>状態</th>
       </tr>
     </thead>
@@ -558,6 +617,7 @@
   }
 
   const statusLabel = { '審査中':'審査中', '参加決定':'参加決定', 'お断り':'お断り', 'キャンセル':'キャンセル' };
+  const statusShortLabel = { '審査中':'審', '参加決定':'決', 'お断り':'×', 'キャンセル':'消' };
   const statusClass = { '審査中':'pending', '参加決定':'accepted', 'お断り':'declined', 'キャンセル':'cancelled' };
 
   let sb = null;
@@ -617,6 +677,7 @@
     if(error || !data || data.length === 0){
       bar.style.display = 'none';
       agencyConfirmedText = '';
+      agencyConfirmedTotal = null;
       renderSummary(currentRows);
       return;
     }
@@ -629,10 +690,12 @@
     `).join('');
     bar.style.display = 'flex';
     agencyConfirmedText = data.map(row => `代理店確定(${row.seat_type}):${row.confirmed_count}`).join('　');
+    agencyConfirmedTotal = data.reduce((sum, row) => sum + (Number(row.confirmed_count) || 0), 0);
     renderSummary(currentRows);
   }
 
   let agencyConfirmedText = '';
+  let agencyConfirmedTotal = null;
 
   let currentRows = [];
   let recentCounts = {};
@@ -713,17 +776,40 @@
       const s = r.status || '審査中';
       return s !== 'お断り' && s !== 'キャンセル';
     });
-    const applicants = activeRows.length;
-    const tickets = activeRows.reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
+    const decidedRows = activeRows.filter(r => r.status === '参加決定');
+    const pendingRows = activeRows.filter(r => (r.status || '審査中') === '審査中');
+
+    const countTickets = list => list.reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
+
+    const allCount = activeRows.length;
+    const allTickets = countTickets(activeRows);
+    const decidedCount = decidedRows.length;
+    const decidedTickets = countTickets(decidedRows);
+    const pendingCount = pendingRows.length;
+    const pendingTickets = countTickets(pendingRows);
+
     const meals = activeRows
       .filter(r => r.answers?.meal === 'ご参加')
       .reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
-    document.getElementById('sumApplicants').textContent = applicants;
-    document.getElementById('sumTickets').textContent = tickets;
+
+    document.getElementById('sumAllCount').textContent = allCount + '件';
+    document.getElementById('sumAllTickets').textContent = allTickets + '枚';
+    document.getElementById('sumDecidedCount').textContent = decidedCount + '件';
+    document.getElementById('sumDecidedTickets').textContent = decidedTickets + '枚';
+    document.getElementById('sumPendingCount').textContent = pendingCount + '件';
+    document.getElementById('sumPendingTickets').textContent = pendingTickets + '枚';
     document.getElementById('sumMeals').textContent = meals;
 
+    const remainRow = document.getElementById('sumRemainRow');
+    if(agencyConfirmedTotal !== null){
+      remainRow.style.display = '';
+      document.getElementById('sumRemainTickets').textContent = (agencyConfirmedTotal - decidedTickets) + '枚';
+    } else {
+      remainRow.style.display = 'none';
+    }
+
     // 参加決定者のみ、食事有無×人数(1名/2名)で組数を集計
-    const decided = currentRows.filter(r => r.status === '参加決定');
+    const decided = decidedRows;
     let mealYes1 = 0, mealYes2 = 0, mealNo1 = 0, mealNo2 = 0;
     decided.forEach(r=>{
       const count = Number(r.answers?.participant_count) || 1;
@@ -739,8 +825,9 @@
     // 印刷専用：上部4枠を、枠なしの1行にまとめる
     const statsParts = [];
     if(agencyConfirmedText) statsParts.push(agencyConfirmedText);
-    statsParts.push(`申込者数:${applicants}`);
-    statsParts.push(`チケット枚数:${tickets}`);
+    statsParts.push(`全申込:${allCount}件/${allTickets}枚`);
+    statsParts.push(`決定:${decidedCount}件/${decidedTickets}枚`);
+    statsParts.push(`調整中:${pendingCount}件/${pendingTickets}枚`);
     statsParts.push(`食事参加者数:${meals}`);
     document.getElementById('printOnlyStats').innerHTML =
       statsParts.map(s => `<span>${s}</span>`).join('');
@@ -833,26 +920,22 @@
       if(status === 'お断り') tr.classList.add('row-declined');
 
       tr.innerHTML = `
-        <td class="actions narrow-col">
-          <span class="mini-badge ${status==='参加決定' ? '' : (status==='お断り' ? 'warn' : '')}">${statusLabel[status] || status}</span>
-        </td>
         <td class="name">
+          <span class="grade-tag">${escapeHtml(a.grade || '')}</span>
           <button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button>
           <button class="submit-count ${netScore !== '-' && netScore <= 0 ? 'multi' : ''}" data-detail="${rowId}" title="直近7回の参加数−ペナルティ(タップで変更履歴を表示)">${netScore}</button>
         </td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
-        <td>${a.meal === 'ご参加'
-              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
-              : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
-        <td class="print-hide"></td>
-        <td>${escapeHtml(a.grade || '')}</td>
-        <td>${a.seat_pref === '連席希望'
+        <td class="tight-col">${companionBadges(a.companion_type)}</td>
+        <td class="tight-col">${a.seat_pref === '連席希望'
               ? '<span class="mark-circle seat-together" title="連席希望">連</span>'
               : a.seat_pref === '抽選'
                 ? '<span class="mark-circle seat-lottery" title="抽選">抽</span>'
                 : '-'}</td>
-        <td>${formatDateTimeJp(r.applied_at)}</td>
-        <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
+        <td class="tight-col">${a.meal === 'ご参加'
+              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
+              : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
+        <td><span class="badge ${statusClass[status] || 'pending'}" title="${statusLabel[status] || status}">${statusShortLabel[status] || status}</span></td>
       `;
       tbody.appendChild(tr);
 
@@ -866,10 +949,11 @@
       detailTr.id = `detail-${rowId}`;
       detailTr.style.display = 'none';
       detailTr.innerHTML = `
-        <td colspan="9">
+        <td colspan="6">
           <div class="detail-box">
             <span><b>メール:</b> ${escapeHtml(p.email || a.email || '')}</span>
             <span><b>携帯:</b> ${escapeHtml(p.phone || a.emergency_phone || '')}</span>
+            <span><b>申込日時:</b> ${formatDateTimeJp(r.applied_at)}</span>
           </div>
           ${logsHtml ? `<div class="detail-logs"><b>変更・キャンセル履歴</b>${logsHtml}</div>` : ''}
         </td>
@@ -995,6 +1079,22 @@
 
   function escapeHtml(str){
     return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function companionBadges(companionType){
+    if(!companionType) return '-';
+    const parts = companionType.split(/[／/]/).map(s => s.trim()).filter(Boolean);
+    if(parts.length === 0) return '-';
+    const badges = parts.map(part => {
+      if(part.includes('同窓') || part.includes('在校')){
+        return `<span class="mark-circle companion-alumni" title="${escapeHtml(part)}">同</span>`;
+      } else if(part.includes('一般')){
+        return `<span class="mark-circle companion-general" title="${escapeHtml(part)}">一</span>`;
+      } else {
+        return `<span class="mark-circle" title="${escapeHtml(part)}">?</span>`;
+      }
+    });
+    return `<span class="companion-badges">${badges.join('')}</span>`;
   }
 
   let currentEventId = null;
