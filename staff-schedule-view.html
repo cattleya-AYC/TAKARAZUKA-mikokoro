@@ -39,7 +39,15 @@
   .staff-tag.group{background:var(--muted);}
   .note{font-size:12px;color:var(--muted);line-height:1.7;white-space:pre-line;}
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:40px 0;}
-  .loading{text-align:center;color:var(--muted);font-size:13px;padding:40px 0;}
+  .loading{
+    text-align:center;font-family:'Shippori Mincho',serif;font-weight:700;
+    color:var(--rose);font-size:24px;padding:60px 10px;letter-spacing:.05em;
+    animation:blinkLoading 0.9s ease-in-out infinite;
+  }
+  @keyframes blinkLoading{
+    0%,100%{opacity:1;}
+    50%{opacity:.2;}
+  }
 
   /* --- 時系列テーブル表示 --- */
   .time-block{display:flex;gap:10px;margin-bottom:2px;}
@@ -64,8 +72,8 @@
     text-align:center;box-shadow:0 4px 10px rgba(165,84,74,.25);
   }
   .duty-banner .label{font-size:12.5px;opacity:.9;margin-bottom:4px;}
-  .duty-banner .name{font-family:'Shippori Mincho',serif;font-size:22px;font-weight:700;letter-spacing:.04em;}
-  .duty-banner .note{font-size:12px;margin-top:6px;opacity:.95;}
+  .duty-banner .name{font-family:'Shippori Mincho',serif;font-size:30px;font-weight:800;letter-spacing:.06em;}
+  .duty-banner .note{font-size:13px;margin-top:8px;color:#fff;font-weight:700;}
   .time-block.untimed .time-col{color:var(--muted);font-size:12px;}
 </style>
 </head>
@@ -74,10 +82,10 @@
   <h1>🌸 当日スケジュール 🌸</h1>
   <p class="sub">その日の仕事分担です。時間になったら動いてください。</p>
   <select id="eventSelect"></select>
-  <div id="timeline" class="timeline"><p class="loading">読み込み中…</p></div>
+  <div id="timeline" class="timeline"><p class="loading">📡 読み込み中‼️</p></div>
 
   <h1 style="font-size:17px;margin-top:30px;">🎒 持ち物リスト</h1>
-  <div id="belongings" class="timeline"><p class="loading">読み込み中…</p></div>
+  <div id="belongings" class="timeline"><p class="loading">📡 読み込み中‼️</p></div>
 </div>
 
 <script>
@@ -122,7 +130,7 @@
 
   async function loadBelongings(eventId){
     const area = document.getElementById('belongings');
-    area.innerHTML = '<p class="loading">読み込み中…</p>';
+    area.innerHTML = '<p class="loading">📡 読み込み中‼️</p>';
     const { data, error } = await sb
       .from('event_belongings')
       .select('*')
@@ -230,7 +238,7 @@
 
   async function loadSchedule(eventId, showTime){
     const timeline = document.getElementById('timeline');
-    timeline.innerHTML = '<p class="loading">読み込み中…</p>';
+    timeline.innerHTML = '<p class="loading">📡 読み込み中‼️</p>';
     const { data, error } = await sb
       .from('event_staff_assignments')
       .select('*')
@@ -281,8 +289,7 @@
       html += `
         <div class="duty-banner">
           <div class="label">🍬 お菓子担当(前日までに購入)</div>
-          <div class="name">${escapeHtml(dutyData.duty_staff)}</div>
-          ${dutyData.duty_partner ? `<div class="note">金銭回収担当：${escapeHtml(dutyData.duty_partner)}</div>` : ''}
+          <div class="name">${escapeHtml(dutyData.duty_staff)}さん</div>
           ${nextStaff ? `<div class="note">次回は${escapeHtml(nextStaff)}さんの番です</div>` : ''}
         </div>
       `;
