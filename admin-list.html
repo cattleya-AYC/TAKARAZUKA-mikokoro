@@ -66,6 +66,8 @@
     border-collapse:separate; border-spacing:0; width:100%; min-width:900px; font-size:13px;
     background:var(--navy-card); border:1px solid var(--gold); border-radius:12px; overflow:hidden;
   }
+  #dataTable{ min-width:0; width:auto; font-size:12px; }
+  #dataTable th, #dataTable td{ padding:8px 6px; }
   th, td{ padding:11px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
   th{ color:var(--gold-soft); font-weight:700; background:var(--navy-card-2); position:sticky; top:0; }
   th.sortable{ cursor:pointer; user-select:none; }
@@ -77,7 +79,7 @@
   tr.row-declined td{ background:rgba(165,84,74,0.08); }
   tr.row-accepted:hover td{ background:rgba(79,143,102,0.14); }
   tr.row-declined:hover td{ background:rgba(165,84,74,0.14); }
-  td.name{ font-weight:700; font-family:'Shippori Mincho', serif; }
+  td.name{ font-weight:700; font-family:'Shippori Mincho', serif; max-width:6.4em; }
   .badge{ padding:3px 10px; border-radius:12px; font-size:11.5px; font-weight:700; display:inline-block; }
   .badge.pending{ background:rgba(154,134,201,0.15); color:var(--gold-soft); }
   .badge.accepted{ background:rgba(79,143,102,0.15); color:var(--ok); }
@@ -90,6 +92,8 @@
     border:1px solid var(--line); background:var(--navy-card-2); color:var(--cream);
     cursor:pointer; white-space:nowrap; font-family:inherit; line-height:1;
   }
+  #dataTable .actions{ gap:2px; }
+  #dataTable .actions button{ width:22px; height:22px; font-size:11px; }
   .actions button.accept{ border-color:var(--ok); color:var(--ok); }
   .actions button.decline{ border-color:var(--rose); color:var(--rose); }
   .actions button:disabled{ opacity:.4; cursor:default; }
@@ -111,13 +115,16 @@
   .mark-circle.header-circle.warn{ color:var(--rose); border-color:var(--rose); }
   .mark-circle.companion-alumni{ color:#fff; background:#7c6bb0; border-color:#7c6bb0; }
   .mark-circle.companion-general{ color:var(--muted); border-color:var(--line); }
+  #dataTable .mark-circle{ width:20px; height:20px; font-size:10.5px; }
   .companion-badges{ display:inline-flex; gap:3px; }
   .actions button.revert{ border-color:var(--muted); color:var(--muted); }
   .actions button.revert:disabled{ background:var(--muted); color:#fff; opacity:1; border-color:var(--muted); }
 
   th.narrow-col, td.narrow-col{ padding-left:6px; padding-right:6px; white-space:nowrap; }
   th.tight-col, td.tight-col{ padding-left:2px; padding-right:2px; white-space:nowrap; }
-  .grade-tag{ font-size:11px; color:var(--muted); margin-right:4px; }
+  #dataTable th.narrow-col, #dataTable td.narrow-col{ padding-left:4px; padding-right:4px; }
+  #dataTable th.tight-col, #dataTable td.tight-col{ padding-left:1px; padding-right:1px; }
+  .grade-tag{ display:inline-block; width:1.6em; font-size:11px; color:var(--muted); text-align:right; margin-right:2px; }
 
   .mini-badge{
     display:inline-block; min-width:22px; text-align:center; font-size:12px; font-weight:700;
@@ -128,13 +135,15 @@
   .name-btn{
     background:none; border:none; padding:0; font-family:'Shippori Mincho', serif; font-weight:700;
     font-size:13.5px; color:var(--cream); cursor:pointer; text-decoration:underline; text-decoration-color:var(--line);
-    text-underline-offset:3px;
+    text-underline-offset:3px; white-space:normal; word-break:keep-all; overflow-wrap:break-word;
+    display:inline-block; max-width:5.2em; text-align:left; vertical-align:top;
   }
   .submit-count{
     display:inline-flex; align-items:center; justify-content:center;
     min-width:18px; height:18px; padding:0 5px; margin-left:6px; border-radius:9px;
     font-size:10.5px; font-weight:700; font-family:'Noto Sans JP', sans-serif;
     background:var(--navy-card-2); color:var(--muted); border:1px solid var(--line); cursor:pointer;
+    vertical-align:top;
   }
   .submit-count.multi{
     background:#ffdf6b; color:#7a4a00; border-color:#e0b400;
@@ -600,8 +609,6 @@
         <th class="tight-col" title="座席希望"></th>
         <th class="tight-col" title="お食事"></th>
         <th>状態</th>
-        <th class="print-hide narrow-col">ペナルティ入力</th>
-        <th class="sortable" data-sort="applied">申込日時 <span class="sort-arrow" data-arrow="applied"></span></th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -1009,8 +1016,6 @@
               ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
               : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
         <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
-        <td class="print-hide narrow-col"><button class="penalty-badge" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠</button></td>
-        <td>${formatDateTimeJp(r.applied_at)}</td>
       `;
       tbody.appendChild(tr);
 
@@ -1024,10 +1029,12 @@
       detailTr.id = `detail-${rowId}`;
       detailTr.style.display = 'none';
       detailTr.innerHTML = `
-        <td colspan="9">
+        <td colspan="7">
           <div class="detail-box">
             <span><b>メール:</b> ${escapeHtml(p.email || a.email || '')}</span>
             <span><b>携帯:</b> ${escapeHtml(p.phone || a.emergency_phone || '')}</span>
+            <span><b>申込日時:</b> ${formatDateTimeJp(r.applied_at)}</span>
+            <span><b>ペナルティ:</b> <button class="penalty-badge" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠ 入力</button></span>
           </div>
           ${logsHtml ? `<div class="detail-logs"><b>変更・キャンセル履歴</b>${logsHtml}</div>` : ''}
         </td>
