@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>名刺(席札)印刷(スタッフ用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%), var(--navy-deep);
+    color:var(--cream); font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; }
+  .divider{ display:flex; align-items:center; justify-content:center; gap:10px; max-width:160px; margin:12px auto 0; opacity:.85; }
+  .divider::before, .divider::after{ content:""; flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); }
+  .divider .gem{ width:6px; height:6px; background:var(--gold); transform:rotate(45deg); border:1px solid var(--gold-soft); flex-shrink:0; }
+
+  .wrap{ max-width:900px; margin:0 auto; padding:0 16px; }
+  .section{ border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; background:var(--navy-card); }
+  .section h2{ margin:0 0 12px; font-size:16px; color:var(--gold-soft); font-family:'Shippori Mincho', serif; }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:12.5px; color:var(--gold-soft); font-weight:700; margin-bottom:6px; }
+  select{
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line); color:var(--cream);
+    border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit;
+  }
+  button{ border:0; border-radius:8px; padding:11px 15px; cursor:pointer; font:inherit; font-weight:700; }
+  .secondary{ background:var(--navy-card-2); color:var(--gold-soft); }
+  .primary{ background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fff; }
+  .status{ font-size:12.5px; margin-top:10px; }
+  .status.ok{ color:var(--ok); } .status.err{ color:var(--rose); }
+  .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+
+  .bg-grid{ display:flex; flex-wrap:wrap; gap:10px; }
+  .bg-choice{
+    width:120px; border:2px solid var(--line); border-radius:8px; overflow:hidden; cursor:pointer;
+    background:var(--navy-card-2);
+  }
+  .bg-choice.selected{ border-color:var(--gold-soft); box-shadow:0 0 0 2px var(--gold-soft) inset; }
+  .bg-choice img{ width:100%; aspect-ratio:91/55; object-fit:cover; display:block; }
+  .bg-choice .lbl{ padding:5px; font-size:11px; text-align:center; }
+  .bg-choice.none{ display:flex; align-items:center; justify-content:center; aspect-ratio:91/55; color:var(--muted); font-size:11px; }
+
+  .card-count{ font-size:13px; color:var(--muted); margin-bottom:10px; }
+  .preview-grid{ display:flex; flex-wrap:wrap; gap:10px; }
+  .namecard{
+    width:280px; height: calc(280px * 55 / 91);
+    border:1px solid var(--line); border-radius:6px; position:relative; overflow:hidden;
+    background-size:cover; background-position:center; background-color:#fff;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+    padding:6% 5%; font-family:'Shippori Mincho', 'Noto Sans JP', serif;
+  }
+  .namecard .nc-header{ font-size:11px; color:#555; font-weight:700; letter-spacing:.05em; }
+  .namecard .nc-name{ font-size:26px; font-weight:700; color:#222; margin:6px 0 4px; line-height:1.25; }
+  .namecard .nc-name-small{ font-size:14px; font-weight:700; color:#555; margin-top:4px; }
+  .namecard .nc-menu{ font-size:19px; font-weight:700; color:#7a3b3b; }
+  .namecard .nc-drink{ font-size:15px; color:#333; margin-top:2px; }
+
+  @media print{
+    @page{ size: A4 portrait; margin: 11mm 14mm; }
+    body{ background:#fff !important; }
+    .hero, .section, .actions{ display:none !important; }
+    #printArea{ display:block !important; }
+    .namecard-grid{
+      display:grid; grid-template-columns:91mm 91mm; grid-auto-rows:55mm;
+      width:182mm; border:1px dashed #999;
+    }
+    .pnamecard{
+      width:91mm; height:55mm; box-sizing:border-box; overflow:hidden;
+      background-size:cover; background-position:center; background-color:#fff;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+      padding:4mm 5mm; break-inside:avoid; font-family:'Shippori Mincho', 'Noto Sans JP', serif;
+    }
+    .pnamecard .nc-header{ font-size:8pt; color:#555; font-weight:700; letter-spacing:.05em; }
+    .pnamecard .nc-name{ font-size:20pt; font-weight:700; color:#111; margin:2mm 0 1.5mm; line-height:1.25; }
+    .pnamecard .nc-name-small{ font-size:10pt; font-weight:700; color:#555; margin-top:1mm; }
+    .pnamecard .nc-menu{ font-size:14pt; font-weight:700; color:#7a3b3b; }
+    .pnamecard .nc-drink{ font-size:11pt; color:#222; margin-top:1mm; }
+  }
+  #printArea{ display:none; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">スタッフ用</div>
+  <h1>名刺(席札)印刷</h1>
+  <div class="divider"><span class="gem"></span></div>
+</div>
+
+<div class="wrap">
+
+  <div class="section">
+    <h2>① 対象公演を選ぶ</h2>
+    <div class="field">
+      <label>公演</label>
+      <select id="eventSelect"><option value="">選択してください</option></select>
+    </div>
+    <button type="button" class="secondary" id="loadBtn">食事申込者を読み込む</button>
+    <p class="status" id="loadStatus"></p>
+  </div>
+
+  <div class="section">
+    <h2>② 背景デザインを選ぶ</h2>
+    <div class="bg-grid" id="bgGrid"><p class="status" style="color:var(--muted)">読み込み中…</p></div>
+  </div>
+
+  <div class="section" id="cardsSection" style="display:none">
+    <h2>③ プレビュー・印刷</h2>
+    <div class="card-count" id="cardCount"></div>
+    <div class="preview-grid" id="previewGrid"></div>
+    <div class="actions">
+      <button type="button" class="primary" id="printBtn">A4で印刷する</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="printArea">
+  <div class="namecard-grid" id="printGrid"></div>
+</div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  let sb = null;
+  let selectedEvent = null;
+  let bgUrl = null;
+  let cards = [];
+
+  function waitForLib(timeoutMs){
+    return new Promise((resolve, reject)=>{
+      const start = Date.now();
+      const check = ()=>{
+        if(window.supabase) resolve();
+        else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました'));
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+  }
+
+  async function loadEventOptions(){
+    const sel = document.getElementById('eventSelect');
+    const todayStr = new Date().toISOString().slice(0,10);
+    const { data, error } = await sb
+      .from('events').select('id, event_number, troupe, event_date, show_time, work_title')
+      .gte('event_date', todayStr)
+      .order('event_date', { ascending:true });
+    if(error || !data){ return; }
+    sel.innerHTML = '<option value="">選択してください</option>' +
+      data.map(ev => `<option value="${ev.id}">第${ev.event_number??'?'}回 ${ev.troupe||''}組 ${ev.event_date}${ev.work_title ? `『${ev.work_title}』` : ''}</option>`).join('');
+    sel.dataset.map = JSON.stringify(data);
+  }
+
+  document.getElementById('eventSelect').addEventListener('change', (e)=>{
+    const id = e.target.value;
+    if(!id){ selectedEvent = null; return; }
+    const list = JSON.parse(e.target.dataset.map || '[]');
+    selectedEvent = list.find(ev => ev.id === id) || { id };
+  });
+
+  async function loadBgGrid(){
+    const grid = document.getElementById('bgGrid');
+    const { data, error } = await sb
+      .from('namecard_backgrounds')
+      .select('*')
+      .order('sort_order', { ascending:true });
+    if(error){ grid.innerHTML = '<p class="status err">背景の読み込みに失敗しました。</p>'; return; }
+    const noneChoice = `<div class="bg-choice none selected" data-url="" onclick="selectBg(this,'')">背景なし(白背景)</div>`;
+    const items = (data||[]).map(bg => `
+      <div class="bg-choice" data-url="${bg.image_url}" onclick="selectBg(this,'${bg.image_url}')">
+        <img src="${bg.image_url}">
+        <div class="lbl">${bg.label}</div>
+      </div>
+    `).join('');
+    grid.innerHTML = noneChoice + items;
+  }
+
+  function selectBg(el, url){
+    document.querySelectorAll('.bg-choice').forEach(e=>e.classList.remove('selected'));
+    el.classList.add('selected');
+    bgUrl = url || null;
+    renderPreview();
+  }
+
+  document.getElementById('loadBtn').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('loadStatus');
+    statusEl.className = 'status'; statusEl.textContent = '';
+    if(!selectedEvent){ statusEl.classList.add('err'); statusEl.textContent = '先に公演を選んでください。'; return; }
+
+    try{
+      const { data: orderRows, error } = await sb.from('meal_orders').select('*').eq('event_id', selectedEvent.id);
+      if(error) throw error;
+      const ids = (orderRows||[]).map(o=>o.id);
+      const { data: itemRows, error: itemErr } = await sb
+        .from('meal_order_items').select('*')
+        .in('meal_order_id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
+      if(itemErr) throw itemErr;
+
+      const header = `第${selectedEvent.event_number??'?'}回 ${selectedEvent.troupe||''}組観劇会` + (selectedEvent.work_title ? `『${selectedEvent.work_title}』` : '');
+
+      cards = [];
+      (orderRows||[]).forEach(o=>{
+        const items = (itemRows||[]).filter(i=>i.meal_order_id===o.id).sort((a,b)=>a.person_no-b.person_no);
+        const i1 = items.find(i=>i.person_no===1);
+        const i2 = items.find(i=>i.person_no===2);
+        if(i1 && i1.menu_name){
+          cards.push({
+            header,
+            name: `${o.representative_name}様`,
+            menu: i1.menu_name,
+            drink: i1.drink || '',
+            isCompanion:false
+          });
+        }
+        if(o.party_count >= 2 && i2 && i2.menu_name){
+          cards.push({
+            header,
+            name: `${o.representative_name}様`,
+            relationLine: (o.relation && o.relation !== 'その他') ? `${o.relation}様` : 'ご同伴者様',
+            menu: i2.menu_name,
+            drink: i2.drink || '',
+            isCompanion:true
+          });
+        }
+      });
+
+      renderPreview();
+      document.getElementById('cardsSection').style.display = cards.length ? 'block' : 'none';
+      statusEl.classList.add('ok');
+      statusEl.textContent = `${cards.length}枚のカードを作成しました。`;
+    }catch(err){
+      console.error(err);
+      statusEl.classList.add('err');
+      statusEl.textContent = '読み込みに失敗しました:' + (err.message || err);
+    }
+  });
+
+  function headerFontSizeMm(text){
+    const len = (text || '').length;
+    if(len <= 18) return '2.6mm';
+    if(len <= 30) return '2.1mm';
+    if(len <= 45) return '1.7mm';
+    return '1.4mm';
+  }
+
+  function cardHtml(c, cls){
+    return `
+      <div class="${cls}" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}">
+        <div class="nc-header" style="font-size:${headerFontSizeMm(c.header)};line-height:1.3;">${c.header}</div>
+        ${c.isCompanion
+          ? `<div class="nc-name-small">${c.name}</div>
+             <div class="nc-name">${c.relationLine}</div>`
+          : `<div class="nc-name">${c.name}</div>`
+        }
+        <div class="nc-menu">${c.menu}</div>
+        <div class="nc-drink">${c.drink}</div>
+      </div>
+    `;
+  }
+
+  function renderPreview(){
+    document.getElementById('cardCount').textContent = `合計 ${cards.length}枚（A4 1枚あたり10枚印刷されます・${Math.ceil(cards.length/10)}ページ分）`;
+    document.getElementById('previewGrid').innerHTML = cards.map(c => cardHtml(c, 'namecard')).join('');
+  }
+
+  document.getElementById('printBtn').addEventListener('click', ()=>{
+    document.getElementById('printGrid').innerHTML = cards.map(c => cardHtml(c, 'pnamecard')).join('');
+    setTimeout(()=> window.print(), 50);
+  });
+
+  async function init(){
+    await waitForLib(10000);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    await loadEventOptions();
+    await loadBgGrid();
+  }
+
+  init();
+</script>
+</body>
+</html>

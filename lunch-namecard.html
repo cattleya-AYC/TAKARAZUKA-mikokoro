@@ -151,6 +151,23 @@
     </p>
   </div>
 
+  <div class="section">
+    <h2>④ 背景デザインを登録する(スタッフ画面で選べます)</h2>
+    <div class="field">
+      <label>デザイン名</label>
+      <input type="text" id="bgLabelInput" placeholder="例:花柄・シンプル白 など">
+    </div>
+    <div class="field">
+      <label>画像</label>
+      <input type="file" accept="image/*" id="bgLibraryInput">
+    </div>
+    <div class="actions">
+      <button type="button" class="primary" id="addBgLibraryBtn">この背景を登録する</button>
+    </div>
+    <p class="status" id="bgLibraryStatus"></p>
+    <div id="bgLibraryList" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;"></div>
+  </div>
+
 </div>
 
 <div id="printArea">
@@ -322,6 +339,60 @@
     setTimeout(()=> window.print(), 50);
   });
 
+  // --- 背景デザインのライブラリ(複数登録・スタッフ画面で選択) ---
+  async function loadBgLibrary(){
+    const listEl = document.getElementById('bgLibraryList');
+    const { data, error } = await sb
+      .from('namecard_backgrounds')
+      .select('*')
+      .order('sort_order', { ascending:true });
+    if(error || !data){ listEl.innerHTML = ''; return; }
+    listEl.innerHTML = data.map(bg => `
+      <div style="width:140px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--navy-card-2);">
+        <img src="${bg.image_url}" style="width:100%;aspect-ratio:91/55;object-fit:cover;display:block;">
+        <div style="padding:6px;font-size:11.5px;display:flex;justify-content:space-between;align-items:center;gap:4px;">
+          <span>${bg.label}</span>
+          <button type="button" class="secondary" style="padding:4px 8px;font-size:10px;" onclick="deleteBgLibraryItem('${bg.id}')">削除</button>
+        </div>
+      </div>
+    `).join('') || '<p style="color:var(--muted);font-size:12.5px;">まだ登録されていません。</p>';
+  }
+
+  async function deleteBgLibraryItem(id){
+    if(!confirm('この背景デザインを削除しますか？')) return;
+    await sb.from('namecard_backgrounds').delete().eq('id', id);
+    loadBgLibrary();
+  }
+
+  document.getElementById('addBgLibraryBtn').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('bgLibraryStatus');
+    statusEl.className = 'status'; statusEl.textContent = '';
+    const label = document.getElementById('bgLabelInput').value.trim();
+    const file = document.getElementById('bgLibraryInput').files[0];
+    if(!label){ statusEl.classList.add('err'); statusEl.textContent = 'デザイン名を入力してください。'; return; }
+    if(!file){ statusEl.classList.add('err'); statusEl.textContent = '画像を選んでください。'; return; }
+    try{
+      const ext = file.name.split('.').pop();
+      const path = `namecard-bg-lib-${Date.now()}.${ext}`;
+      const { error: upErr } = await sb.storage.from('public photo').upload(path, file, { upsert:true });
+      if(upErr) throw upErr;
+      const { data } = sb.storage.from('public photo').getPublicUrl(path);
+      const { error } = await sb.from('namecard_backgrounds').insert({
+        label, image_url: data.publicUrl
+      });
+      if(error) throw error;
+      statusEl.classList.add('ok');
+      statusEl.textContent = '登録しました。';
+      document.getElementById('bgLabelInput').value = '';
+      document.getElementById('bgLibraryInput').value = '';
+      loadBgLibrary();
+    }catch(err){
+      console.error(err);
+      statusEl.classList.add('err');
+      statusEl.textContent = '登録に失敗しました:' + (err.message || err);
+    }
+  });
+
   async function init(){
     await waitForLib(10000);
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -330,6 +401,7 @@
       document.getElementById('authGate').style.display = 'none';
       document.getElementById('logoutBtn').style.display = 'inline-block';
       await loadEventOptions();
+      await loadBgLibrary();
     } else {
       document.getElementById('authGate').style.display = 'flex';
     }
@@ -349,6 +421,7 @@
       document.getElementById('authGate').style.display = 'none';
       document.getElementById('logoutBtn').style.display = 'inline-block';
       await loadEventOptions();
+      await loadBgLibrary();
     }catch(err){
       errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
       errEl.style.display = 'block';

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>準備スケジュール</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#efeaf2; --card:#fffdf9; --card2:#f4eef7; --gold:#9a86c9; --gold-soft:#6d5aa3;
+    --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35); --muted:#8b84a0;
+    --ok:#4f8f66; --warn:#c98a3a;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--cream);font-family:'Noto Sans JP',sans-serif;padding:0 0 60px;}
+  .wrap{max-width:520px;margin:0 auto;padding:0 16px;}
+  h1{font-family:'Shippori Mincho',serif;text-align:center;font-size:20px;padding:24px 16px 4px;margin:0;letter-spacing:.05em;}
+  .sub{text-align:center;color:var(--muted);font-size:12.5px;margin:0 0 18px;}
+  .empty{text-align:center;color:var(--muted);font-size:13px;padding:40px 0;}
+  .loading{
+    text-align:center;font-family:'Shippori Mincho',serif;font-weight:700;
+    color:var(--rose);font-size:22px;padding:60px 10px;letter-spacing:.05em;
+    animation:blinkLoading 0.9s ease-in-out infinite;
+  }
+  @keyframes blinkLoading{ 0%,100%{opacity:1;} 50%{opacity:.2;} }
+
+  .event-section{background:var(--card);border:1px solid var(--gold);border-radius:16px;padding:16px;margin-bottom:16px;}
+  .event-title{font-family:'Shippori Mincho',serif;font-weight:700;color:var(--gold-soft);font-size:15.5px;margin-bottom:10px;text-align:center;}
+  .prep-table{width:100%;border-collapse:collapse;}
+  .prep-table tr{border-bottom:1px solid var(--line);}
+  .prep-table tr:last-child{border-bottom:none;}
+  .prep-table td{padding:9px 4px;font-size:13px;vertical-align:top;}
+  .col-due{width:74px;color:var(--muted);font-size:12px;white-space:nowrap;}
+  .col-task{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .task-name.done{text-decoration:line-through;color:var(--muted);}
+  .tag{font-size:10px;font-weight:700;border-radius:999px;padding:2px 8px;white-space:nowrap;}
+  .tag.done{background:#e7f3ea;color:var(--ok);}
+  .tag.overdue{background:#fbeceb;color:var(--rose);}
+  .tag.soon{background:#fdf1e2;color:var(--warn);}
+  .tag.auto{background:var(--card2);color:var(--gold-soft);}
+  .tag.staff{background:var(--gold-soft);color:#fff;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🗓 準備スケジュール</h1>
+  <p class="sub">観劇会本番までの準備タスクの進み具合です(閲覧のみ)。</p>
+  <div id="content"><p class="loading">📡 読み込み中‼️</p></div>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // task-tracker.html(私用)と同じ定義。差し入れ集計はデジタル化により削除済み。担当者を追加。
+  const TASK_DEFS = [
+    { key:'proposeDate',   name:'開催日程提案',                   offset:-70, staff:'伊庭' },
+    { key:'restaurantBook',name:'レストラン予約',                 offset:-55, staff:'太田' },
+    { key:'lineInquiry',    name:'公式LINEへの問い合わせ対応',     offset:-55, staff:'太田' },
+    { key:'form',          name:'募集フォーム作成',               offset:-59, staff:'西中' },
+    { key:'line',          name:'LINE告知予約',                   offset:-59, staff:'西中' },
+    { key:'menuCheck',     name:'メニュー確認と連絡',             offset:-50, staff:'太田' },
+    { key:'adjust',        name:'申込状況確認・人数調整',         offset:-51, staff:'原田' },
+    { key:'agencyDesk',    name:'阪急交通社窓口',                 offset:-45, staff:'水無瀬' },
+    { key:'giftform',      name:'差し入れフォーム作成',           offset:-15, staff:'西中' },
+    { key:'giftstart',     name:'差し入れ募集開始',               offset:-14, isAuto:true },
+    { key:'mealform',      name:'食事フォーム作成・LINE案内送信', offset:-49, staff:'西中' },
+    { key:'mealchk',       name:'食事集計チェック(未入力催促)',   offset:-42, staff:'原田' },
+    { key:'billing',       name:'個別請求書をLINEで送る',         offset:-40, staff:'西中' },
+    { key:'payment',       name:'入金確認',                       offset:-30, staff:'岩本' },
+    { key:'paymentPush',   name:'入金督促',                       offset:-25, staff:'岩本' },
+    { key:'coupon',        name:'チケットクーポン受け取り',       offset:-20, staff:'伊庭' },
+    { key:'agencyPay',     name:'阪急交通社への振り込み',         offset:-15, staff:'岩本' },
+    { key:'appInput',      name:'決定内容アプリ入力',             offset:-13, staff:'水無瀬' },
+    { key:'website',       name:'ホームページ更新',               offset:-12, staff:'西中' },
+    { key:'namecard',      name:'名刺・席札作成',                 offset:-3,  staff:'原田' },
+    { key:'envelope',      name:'配布時のチケット封筒準備',       offset:-3,  staff:'伊庭' },
+    { key:'restaurantPay', name:'レストラン支払い',               offset:-3,  staff:'岩本' },
+    { key:'ticketReceive', name:'チケット受け取り(事前)',         offset:-2,  staff:'伊庭' },
+  ];
+
+  function addDays(base, diff){ const d = new Date(base.getTime()); d.setDate(d.getDate()+diff); return d; }
+  function fmtDateJp(d){
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getMonth()+1}/${d.getDate()}(${w})`;
+  }
+  function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
+  function daysUntil(d, today){ return Math.round((startOfDay(d) - startOfDay(today)) / 86400000); }
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function init(){
+    const content = document.getElementById('content');
+    try{
+      const today = new Date();
+      const windowStart = addDays(today, -14).toISOString().slice(0,10);
+
+      const { data: events, error } = await sb
+        .from('events')
+        .select('*')
+        .gte('event_date', windowStart)
+        .order('event_date', { ascending:true });
+      if(error) throw error;
+
+      if(!events || !events.length){
+        content.innerHTML = '<p class="empty">表示する観劇会がありません。</p>';
+        return;
+      }
+
+      const eventIds = events.map(e=>e.id);
+      const { data: progressRows } = await sb
+        .from('event_task_progress')
+        .select('*')
+        .in('event_id', eventIds);
+      const progressMap = {};
+      (progressRows||[]).forEach(p => { progressMap[`${p.event_id}_${p.task_key}`] = p; });
+
+      const today0 = new Date();
+      let html = '';
+
+      events.forEach(ev=>{
+        const eventDate = new Date(ev.event_date + 'T00:00:00');
+        const eventLabel = `第${ev.event_number ?? '◯'}回 ${ev.troupe ?? '◯'}組(${fmtDateJp(eventDate)})`;
+
+        const tasks = [];
+        TASK_DEFS.forEach(def=>{
+          const due = addDays(eventDate, def.offset);
+          const progress = progressMap[`${ev.id}_${def.key}`];
+          tasks.push({
+            name: def.name, due, isAuto: !!def.isAuto, staff: def.staff || '',
+            done: !!(progress && progress.done)
+          });
+        });
+        if(ev.application_deadline){
+          const contactDue = addDays(new Date(ev.application_deadline), 1);
+          const contactProgress = progressMap[`${ev.id}_contact`];
+          tasks.push({
+            name: '申込者へ可否連絡(LINE/メール)', due: contactDue, isAuto: false, staff: '原田',
+            done: !!(contactProgress && contactProgress.done)
+          });
+        }
+        tasks.sort((a,b)=> a.due - b.due);
+
+        const rowsHtml = tasks.map(t=>{
+          const diff = daysUntil(t.due, today0);
+          let statusTag = '';
+          if(t.done){
+            statusTag = `<span class="tag done">完了</span>`;
+          } else if(diff < 0){
+            statusTag = `<span class="tag overdue">${Math.abs(diff)}日超過</span>`;
+          } else if(diff <= 3){
+            statusTag = `<span class="tag soon">あと${diff}日</span>`;
+          }
+          const autoTag = t.isAuto ? `<span class="tag auto">自動</span>` : '';
+          const staffTag = t.staff ? `<span class="tag staff">${escapeHtml(t.staff)}</span>` : '';
+          return `
+            <tr>
+              <td class="col-due">${fmtDateJp(t.due)}</td>
+              <td>
+                <div class="col-task">
+                  <span class="task-name ${t.done?'done':''}">${escapeHtml(t.name)}</span>
+                  ${staffTag}${autoTag}${statusTag}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        html += `
+          <div class="event-section">
+            <div class="event-title">${escapeHtml(eventLabel)}</div>
+            <table class="prep-table">${rowsHtml}</table>
+          </div>
+        `;
+      });
+
+      content.innerHTML = html;
+    }catch(e){
+      console.error(e);
+      content.innerHTML = '<div class="empty">データを取得できませんでした。</div>';
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
