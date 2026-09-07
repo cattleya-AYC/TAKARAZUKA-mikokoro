@@ -473,6 +473,19 @@
     return counts;
   }
 
+  // 今回のイベント内での現在の合計件数(固定担当・テーブルリーダーは除く)
+  function currentEventCounts(){
+    const counts = {}; STAFF_LIST.forEach(s=>counts[s]=0);
+    rows.forEach(r=>{
+      if(r.task_name && r.task_name.includes('テーブルリーダー')) return;
+      if(isFullyFixedRow(r) && !r.is_duty_linked && !r.from_duty) return;
+      (r.assigned_staff||[]).forEach(name=>{
+        if(counts[name] !== undefined) counts[name]++;
+      });
+    });
+    return counts;
+  }
+
   async function autoAssignRow(idx){
     const row = rows[idx];
     if(row.from_duty || isFullyFixedRow(row)) return;
@@ -490,12 +503,14 @@
     }
 
     const counts = await getTaskCounts(row.task_name);
+    const eventCounts = currentEventCounts();
     const pool = STAFF_LIST.filter(name => !fixedArr.includes(name));
     const candidates = pool.sort((a,b)=>{
       const aBusy = usedAtThisTime.includes(a) ? 1 : 0;
       const bBusy = usedAtThisTime.includes(b) ? 1 : 0;
       if(aBusy !== bBusy) return aBusy - bBusy;
       if(counts[a] !== counts[b]) return counts[a]-counts[b];
+      if(eventCounts[a] !== eventCounts[b]) return eventCounts[a]-eventCounts[b];
       return Math.random()-0.5;
     });
     const remainingSlots = Math.max(0, row.required_count - fixedArr.length);
