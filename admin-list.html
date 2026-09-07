@@ -116,6 +116,7 @@
   .actions button.revert:disabled{ background:var(--muted); color:#fff; opacity:1; border-color:var(--muted); }
 
   th.narrow-col, td.narrow-col{ padding-left:6px; padding-right:6px; white-space:nowrap; }
+  th.tight-col, td.tight-col{ padding-left:2px; padding-right:2px; white-space:nowrap; }
 
   .mini-badge{
     display:inline-block; min-width:22px; text-align:center; font-size:12px; font-weight:700;
@@ -592,15 +593,15 @@
     <thead>
       <tr>
         <th class="narrow-col">操作</th>
+        <th class="narrow-col sortable" data-sort="grade">回生 <span class="sort-arrow" data-arrow="grade"></span></th>
         <th>氏名</th>
-        <th class="narrow-col">同行者</th>
         <th class="sortable" data-sort="count">枚数 <span class="sort-arrow" data-arrow="count"></span></th>
-        <th>お食事</th>
-        <th class="print-hide">ペナルティ入力</th>
-        <th class="sortable" data-sort="grade">回生 <span class="sort-arrow" data-arrow="grade"></span></th>
-        <th>座席希望</th>
-        <th class="sortable" data-sort="applied">申込日時 <span class="sort-arrow" data-arrow="applied"></span></th>
+        <th class="tight-col" title="同行者"></th>
+        <th class="tight-col" title="座席希望"></th>
+        <th class="tight-col" title="お食事"></th>
         <th>状態</th>
+        <th class="print-hide narrow-col">ペナルティ入力</th>
+        <th class="sortable" data-sort="applied">申込日時 <span class="sort-arrow" data-arrow="applied"></span></th>
       </tr>
     </thead>
     <tbody id="tableBody"></tbody>
@@ -992,24 +993,24 @@
           <button class="decline" title="お断りにする" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>✕</button>
           <button class="revert" title="審査中に戻す" data-id="${r.id}" data-status="審査中" ${status==='審査中' ? 'disabled' : ''}>↺</button>
         </td>
+        <td class="narrow-col">${escapeHtml(a.grade || '')}</td>
         <td class="name">
           <button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button>
           <button class="submit-count ${netScore !== '-' && netScore <= 0 ? 'multi' : ''}" data-detail="${rowId}" title="直近7回の参加数−ペナルティ(タップで変更履歴を表示)">${netScore}</button>
         </td>
-        <td class="narrow-col">${companionBadges(a.companion_type)}</td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
-        <td>${a.meal === 'ご参加'
-              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
-              : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
-        <td class="print-hide"><button class="penalty-badge" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠</button></td>
-        <td>${escapeHtml(a.grade || '')}</td>
-        <td>${a.seat_pref === '連席希望'
+        <td class="tight-col">${companionBadges(a.companion_type)}</td>
+        <td class="tight-col">${a.seat_pref === '連席希望'
               ? '<span class="mark-circle seat-together" title="連席希望">連</span>'
               : a.seat_pref === '抽選'
                 ? '<span class="mark-circle seat-lottery" title="抽選">抽</span>'
                 : '-'}</td>
-        <td>${formatDateTimeJp(r.applied_at)}</td>
+        <td class="tight-col">${a.meal === 'ご参加'
+              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
+              : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
         <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
+        <td class="print-hide narrow-col"><button class="penalty-badge" data-pid="${p.id || ''}" data-pname="${escapeHtml(p.name || '')}" data-open-modal="1">⚠</button></td>
+        <td>${formatDateTimeJp(r.applied_at)}</td>
       `;
       tbody.appendChild(tr);
 
