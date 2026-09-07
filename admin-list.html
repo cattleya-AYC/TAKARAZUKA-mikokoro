@@ -117,6 +117,7 @@
 
   th.narrow-col, td.narrow-col{ padding-left:6px; padding-right:6px; white-space:nowrap; }
   th.tight-col, td.tight-col{ padding-left:2px; padding-right:2px; white-space:nowrap; }
+  .grade-tag{ font-size:11px; color:var(--muted); margin-right:4px; }
 
   .mini-badge{
     display:inline-block; min-width:22px; text-align:center; font-size:12px; font-weight:700;
@@ -593,8 +594,7 @@
     <thead>
       <tr>
         <th class="narrow-col">操作</th>
-        <th class="narrow-col sortable" data-sort="grade">回生 <span class="sort-arrow" data-arrow="grade"></span></th>
-        <th>氏名</th>
+        <th class="sortable" data-sort="grade">氏名 <span class="sort-arrow" data-arrow="grade"></span></th>
         <th class="sortable" data-sort="count">枚数 <span class="sort-arrow" data-arrow="count"></span></th>
         <th class="tight-col" title="同行者"></th>
         <th class="tight-col" title="座席希望"></th>
@@ -993,8 +993,8 @@
           <button class="decline" title="お断りにする" data-id="${r.id}" data-status="お断り" ${status==='お断り' ? 'disabled' : ''}>✕</button>
           <button class="revert" title="審査中に戻す" data-id="${r.id}" data-status="審査中" ${status==='審査中' ? 'disabled' : ''}>↺</button>
         </td>
-        <td class="narrow-col">${escapeHtml(a.grade || '')}</td>
         <td class="name">
+          <span class="grade-tag">${escapeHtml(a.grade || '')}</span>
           <button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button>
           <button class="submit-count ${netScore !== '-' && netScore <= 0 ? 'multi' : ''}" data-detail="${rowId}" title="直近7回の参加数−ペナルティ(タップで変更履歴を表示)">${netScore}</button>
         </td>
