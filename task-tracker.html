@@ -142,22 +142,22 @@
     { key:'line',          name:'LINE告知予約',                   offset:-59, staff:'西中' },
     { key:'menuCheck',     name:'メニュー確認と連絡',             offset:-50, staff:'太田' },
     { key:'adjust',        name:'申込状況確認・人数調整',         offset:-51, staff:'原田' },
-    { key:'agencyDesk',    name:'阪急交通社窓口',                 offset:-45, staff:'水無瀬' },
+    { key:'agencyDesk',    name:'阪急交通社窓口',                 offset:-120, staff:'水無瀬' },
     { key:'giftform',      name:'差し入れフォーム作成',           offset:-15, staff:'西中' },
     { key:'giftstart',     name:'差し入れ募集開始',               offset:-14, isAuto:true },
     { key:'mealform',      name:'食事フォーム作成・LINE案内送信', offset:-49, staff:'西中' },
     { key:'mealchk',       name:'食事集計チェック(未入力催促)',   offset:-42, staff:'原田' },
     { key:'billing',       name:'個別請求書をLINEで送る',         offset:-40, staff:'西中' },
     { key:'payment',       name:'入金確認',                       offset:-30, staff:'岩本' },
-    { key:'paymentPush',   name:'入金督促',                       offset:-25, staff:'岩本' },
-    { key:'coupon',        name:'チケットクーポン受け取り',       offset:-20, staff:'伊庭' },
-    { key:'agencyPay',     name:'阪急交通社への振り込み',         offset:-15, staff:'岩本' },
-    { key:'appInput',      name:'決定内容アプリ入力',             offset:-13, staff:'水無瀬' },
+    { key:'paymentPush',   name:'入金督促',                       offset:-29, staff:'岩本' },
+    { key:'coupon',        name:'チケットクーポン受け取り',       offset:-10, staff:'伊庭' },
+    { key:'agencyPay',     name:'阪急交通社への振り込み',         offset:-14, staff:'岩本' },
+    { key:'appInput',      name:'決定内容アプリ入力',             offset:-119, staff:'水無瀬' },
     { key:'website',       name:'ホームページ更新',               offset:-12, staff:'西中' },
     { key:'namecard',      name:'名刺・席札作成',                 offset:-3,  staff:'原田' },
     { key:'envelope',      name:'配布時のチケット封筒準備',       offset:-3,  staff:'伊庭' },
-    { key:'restaurantPay', name:'レストラン支払い',               offset:-3,  staff:'岩本' },
-    { key:'ticketReceive', name:'チケット受け取り(事前)',         offset:-2,  staff:'伊庭' },
+    { key:'restaurantPay', name:'レストラン支払い',               offset:0,  staff:'岩本' },
+    { key:'ticketReceive', name:'チケット受け取り',               offset:0,  staff:'伊庭' },
   ];
 
   function addDays(base, diff){ const d = new Date(base.getTime()); d.setDate(d.getDate()+diff); return d; }
@@ -201,6 +201,13 @@
       const progressMap = {};
       (progressRows||[]).forEach(p => { progressMap[`${p.event_id}_${p.task_key}`] = p; });
 
+      const { data: dutyRows } = await sb
+        .from('event_duty')
+        .select('event_id, duty_staff')
+        .in('event_id', eventIds.length ? eventIds : ['00000000-0000-0000-0000-000000000000']);
+      const dutyMap = {};
+      (dutyRows||[]).forEach(d => { dutyMap[d.event_id] = d.duty_staff; });
+
       allTasks = [];
       (events||[]).forEach(ev=>{
         const eventDate = new Date(ev.event_date + 'T00:00:00');
@@ -229,10 +236,27 @@
             eventLabel,
             taskKey: 'contact',
             taskName: '申込者へ可否連絡(LINE/メール)',
-            staff: '原田',
+            staff: 'まり',
             due: contactDue,
             isAuto: false,
             done: !!(contactProgress && contactProgress.done)
+          });
+        }
+
+        // お菓子購入(前日・その回の当番の人)
+        const dutyStaff = dutyMap[ev.id];
+        if(dutyStaff){
+          const giftBuyDue = addDays(eventDate, -1);
+          const giftBuyProgress = progressMap[`${ev.id}_giftBuy`];
+          allTasks.push({
+            eventId: ev.id,
+            eventLabel,
+            taskKey: 'giftBuy',
+            taskName: 'お菓子購入',
+            staff: dutyStaff,
+            due: giftBuyDue,
+            isAuto: false,
+            done: !!(giftBuyProgress && giftBuyProgress.done)
           });
         }
       });
