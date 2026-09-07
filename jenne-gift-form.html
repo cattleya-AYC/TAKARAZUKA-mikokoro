@@ -244,6 +244,7 @@ button{border:0;border-radius:12px;padding:12px 18px;font:inherit;cursor:pointer
             <option value="太田">太田</option>
           </select>
           <div class="help">当番は観劇会1回につき1人です。変更するとこの回の担当が更新されます。ペアのパートナーが当日の金銭回収担当として自動で決まります。</div>
+          <div class="help" id="dutyAutoHint" style="color:var(--rose-dark)"></div>
           <div class="help" id="dutyPartnerPreview" style="font-weight:700;color:var(--rose-dark)"></div>
         </div>
 
@@ -306,6 +307,10 @@ const DUTY_PAIRS = {
   "伊庭":"岩本", "岩本":"伊庭",
   "西中":"水無瀬", "水無瀬":"西中"
 };
+// お菓子担当のローテーション順(11時/13時公演は問わず、開催回ごとに1人ずつ進む)
+const ROTATION_ORDER = ["水無瀬","伊庭","原田","西中","岩本","太田"];
+let eventsCache = [];
+
 function getDutyPartner(name){
   return DUTY_PAIRS[name] || "";
 }
@@ -314,7 +319,37 @@ function updateDutyPartnerPreview(){
   const preview = document.getElementById("dutyPartnerPreview");
   preview.textContent = staff ? `→ 金銭回収担当：${getDutyPartner(staff)}` : "";
 }
-document.getElementById("dutyStaffSelect").addEventListener("change", updateDutyPartnerPreview);
+document.getElementById("dutyStaffSelect").addEventListener("change", ()=>{
+  updateDutyPartnerPreview();
+  document.getElementById("dutyAutoHint").textContent = "";
+});
+
+// 直近の過去回(event_dateがcurrentEventDateより前)で最後に当番だった人の次の人を提案する
+async function suggestNextDutyStaff(currentEventDate){
+  try{
+    const pastEvents = eventsCache
+      .filter(e=>e.event_date && e.event_date < currentEventDate)
+      .sort((a,b)=>b.event_date.localeCompare(a.event_date))
+      .slice(0, 20);
+    if(!pastEvents.length) return ROTATION_ORDER[0];
+    const ids = pastEvents.map(e=>e.id);
+    const { data: duties } = await supabase
+      .from("event_duty")
+      .select("event_id, duty_staff")
+      .in("event_id", ids);
+    const dutyMap = {};
+    (duties || []).forEach(d=>{ dutyMap[d.event_id] = d.duty_staff; });
+    for(const ev of pastEvents){
+      const staff = dutyMap[ev.id];
+      const idx = staff ? ROTATION_ORDER.indexOf(staff) : -1;
+      if(idx >= 0) return ROTATION_ORDER[(idx + 1) % ROTATION_ORDER.length];
+    }
+    return ROTATION_ORDER[0];
+  }catch(err){
+    console.error(err);
+    return ROTATION_ORDER[0];
+  }
+}
 
 function showStatus(el, msg, isError){
   el.textContent = msg;
@@ -350,6 +385,7 @@ async function loadEvents(){
       sel.innerHTML = `<option value="">開催回が見つかりません</option>`;
       return;
     }
+    eventsCache = data;
     sel.innerHTML = data.map(e=>{
       const d = e.event_date ? new Date(e.event_date+"T00:00:00") : null;
       const troupeLabel = e.troupe ? `${e.troupe}組` : "";
@@ -386,7 +422,16 @@ async function loadExistingGiftForEvent(eventId){
       .select("duty_staff")
       .eq("event_id", eventId)
       .maybeSingle();
-    if(dutyData && dutyData.duty_staff) dutySelect.value = dutyData.duty_staff;
+    const hintEl = document.getElementById("dutyAutoHint");
+    if(dutyData && dutyData.duty_staff){
+      dutySelect.value = dutyData.duty_staff;
+      hintEl.textContent = "";
+    } else {
+      const currentEvent = eventsCache.find(e=>e.id === eventId);
+      const suggested = currentEvent ? await suggestNextDutyStaff(currentEvent.event_date) : ROTATION_ORDER[0];
+      dutySelect.value = suggested;
+      hintEl.textContent = `🔁 ローテーション順の自動提案です（変更する場合は選び直してください）`;
+    }
     updateDutyPartnerPreview();
 
     await renderConfirmedGiftList(eventId);
