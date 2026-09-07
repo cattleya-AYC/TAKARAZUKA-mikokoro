@@ -40,6 +40,26 @@
   .note{font-size:12px;color:var(--muted);line-height:1.7;white-space:pre-line;}
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:40px 0;}
   .loading{text-align:center;color:var(--muted);font-size:13px;padding:40px 0;}
+
+  /* --- 時系列テーブル表示 --- */
+  .time-block{display:flex;gap:10px;margin-bottom:2px;}
+  .time-col{
+    flex:0 0 58px;text-align:right;padding-top:12px;
+    font-family:'Shippori Mincho',serif;font-weight:700;color:var(--gold-soft);font-size:13.5px;
+  }
+  .content-col{
+    flex:1;min-width:0;border-left:2px solid var(--line);padding:0 0 16px 14px;
+  }
+  .task-row{
+    background:var(--card);border:1px solid var(--gold);border-radius:12px;
+    padding:12px 14px;margin-bottom:8px;
+  }
+  .task-row:last-child{margin-bottom:0;}
+  .task-row.group{border-color:var(--muted);}
+  .task-row .task{margin-bottom:6px;}
+  .time-block.gather .time-col{color:var(--rose);}
+  .time-block.gather .task-row{background:var(--card2);border-color:var(--rose);}
+  .time-block.untimed .time-col{color:var(--muted);font-size:12px;}
 </style>
 </head>
 <body>
@@ -71,6 +91,7 @@
     data.forEach(ev=>{
       const opt = document.createElement('option');
       opt.value = ev.id;
+      opt.dataset.showTime = ev.show_time || '';
       opt.textContent = `第${ev.event_number||'?'}回 ${ev.troupe||''}組 ${ev.event_date||''} (${ev.show_time||'?'}公演)`;
       sel.appendChild(opt);
     });
@@ -78,8 +99,13 @@
     const today = new Date().toISOString().slice(0,10);
     const upcoming = data.filter(ev=>ev.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
     sel.value = upcoming.length ? upcoming[0].id : data[0].id;
-    sel.addEventListener('change', ()=>{ loadSchedule(sel.value); loadBelongings(sel.value); });
-    await loadSchedule(sel.value);
+    sel.addEventListener('change', ()=>{
+      const showTime = sel.options[sel.selectedIndex].dataset.showTime;
+      loadSchedule(sel.value, showTime);
+      loadBelongings(sel.value);
+    });
+    const initialShowTime = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].dataset.showTime : '';
+    await loadSchedule(sel.value, initialShowTime);
     await loadBelongings(sel.value);
   }
 
@@ -128,7 +154,29 @@
     area.innerHTML = html || '<p class="empty">持ち物リストはまだ公開されていません。</p>';
   }
 
-  async function loadSchedule(eventId){
+  // 時刻ラベルから並び替え用の「分」を取り出す(例:「12:35に移動」→755分)。取れなければnull。
+  function parseTimeMinutes(label){
+    if(!label) return null;
+    const m = String(label).match(/(\d{1,2}):(\d{2})/);
+    if(!m) return null;
+    return parseInt(m[1],10)*60 + parseInt(m[2],10);
+  }
+
+  function renderTaskRow(row){
+    const isGroup = !row.assigned_staff || row.assigned_staff.length === 0;
+    const tags = isGroup
+      ? `<span class="staff-tag group">手の空いている人全員</span>`
+      : row.assigned_staff.map(n=>`<span class="staff-tag">${escapeHtml(n)}</span>`).join('');
+    return `
+      <div class="task-row ${isGroup?'group':''}">
+        <div class="task">${escapeHtml(row.task_name)}</div>
+        <div class="staff-tags">${tags}</div>
+        ${row.note ? `<div class="note">${escapeHtml(row.note)}</div>` : ''}
+      </div>
+    `;
+  }
+
+  async function loadSchedule(eventId, showTime){
     const timeline = document.getElementById('timeline');
     timeline.innerHTML = '<p class="loading">読み込み中…</p>';
     const { data, error } = await sb
@@ -144,20 +192,60 @@
       timeline.innerHTML = '<p class="empty">この回のスケジュールはまだ公開されていません。</p>';
       return;
     }
-    timeline.innerHTML = data.map(row=>{
-      const isGroup = !row.assigned_staff || row.assigned_staff.length === 0;
-      const tags = isGroup
-        ? `<span class="staff-tag group">手の空いている人全員</span>`
-        : row.assigned_staff.map(n=>`<span class="staff-tag">${escapeHtml(n)}</span>`).join('');
-      return `
-        <div class="item ${isGroup?'group':''}">
-          ${row.time_label ? `<div class="time">${escapeHtml(row.time_label)}</div>` : ''}
-          <div class="task">${escapeHtml(row.task_name)}</div>
-          <div class="staff-tags">${tags}</div>
-          ${row.note ? `<div class="note">${escapeHtml(row.note)}</div>` : ''}
+
+    // 時刻が取れる行と取れない行に分け、取れる行は時刻順に並べる
+    const timed = [];
+    const untimed = [];
+    data.forEach(row=>{
+      const mins = parseTimeMinutes(row.time_label);
+      if(mins === null) untimed.push(row);
+      else timed.push(Object.assign({}, row, { _mins: mins }));
+    });
+    timed.sort((a,b)=> a._mins - b._mins || a.sort_order - b.sort_order);
+
+    // 同じ時刻表記の行はひとつの時刻ブロックにまとめる
+    const groups = [];
+    timed.forEach(row=>{
+      const last = groups[groups.length-1];
+      if(last && last.time_label === row.time_label){
+        last.rows.push(row);
+      } else {
+        groups.push({ time_label: row.time_label, rows: [row] });
+      }
+    });
+
+    let html = '';
+
+    // 集合時間(13時公演は11:15、11時公演は10:15)を先頭に表示
+    if(showTime){
+      const gatherTime = showTime === '11:00' ? '10:15' : '11:15';
+      html += `
+        <div class="time-block gather">
+          <div class="time-col">${escapeHtml(gatherTime)}</div>
+          <div class="content-col"><div class="task-row"><div class="task">🚩 集合</div></div></div>
         </div>
       `;
-    }).join('');
+    }
+
+    groups.forEach(g=>{
+      html += `
+        <div class="time-block">
+          <div class="time-col">${escapeHtml(g.time_label)}</div>
+          <div class="content-col">${g.rows.map(renderTaskRow).join('')}</div>
+        </div>
+      `;
+    });
+
+    if(untimed.length){
+      html += `
+        <div class="time-block untimed">
+          <div class="time-col">随時</div>
+          <div class="content-col">${untimed.map(renderTaskRow).join('')}</div>
+        </div>
+      `;
+    }
+
+    timeline.innerHTML = html;
   }
 
   function escapeHtml(s){
