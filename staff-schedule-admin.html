@@ -92,6 +92,12 @@
     <p id="statusMsg"></p>
   </div>
 
+  <div class="panel" id="pairSelectorPanel">
+    <h2 style="font-family:'Shippori Mincho',serif;font-size:15px;text-align:center;margin:0 0 4px;color:var(--gold-soft);">🎫 抽選・チケット渡し 固定ペア選択</h2>
+    <p class="sub" style="margin-top:0;">差し入れ当番と同じ3ペアから選べます。</p>
+    <div id="pairSelectorArea"></div>
+  </div>
+
   <div id="rowsArea"></div>
 
   <div class="panel" style="text-align:center;">
@@ -133,6 +139,9 @@
   const SUPABASE_ANON_KEY = 'sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow';
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const STAFF_LIST = ['原田','水無瀬','西中','伊庭','岩本','太田'];
+  const DUTY_PAIRS = [['原田','太田'],['伊庭','岩本'],['西中','水無瀬']];
+  const PAIRABLE_TASKS = ['チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)'];
+  const PAIRABLE_LABELS = { 'チケット抽選係':'チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)':'食事なしチケット渡し(インフォ前)' };
 
   let currentEvent = null;
   let rows = []; // {id, task_type_id, task_name, time_label, required_count, assigned_staff, note, fixed_staff, is_group_task, sort_order, _isNew}
@@ -301,6 +310,7 @@
       console.error(e);
       setStatus('読み込み中にエラーが発生しました: ' + e.message);
     } finally {
+      lockPairableRows();
       renderRows();
     }
   }
@@ -338,6 +348,7 @@
       setStatus('読み込み中にエラーが発生しました: ' + e.message);
       return;
     } finally {
+      lockPairableRows();
       renderRows();
     }
     setStatus('テンプレートを読み込みました。保存を押すまで確定しません。');
@@ -360,8 +371,58 @@
     renderRows();
   }
 
+  // --- 抽選・チケット渡しの固定ペア選択 ---
+  function lockPairableRows(){
+    rows.forEach(row=>{
+      if(!PAIRABLE_TASKS.includes(row.task_name)) return;
+      const match = DUTY_PAIRS.find(p =>
+        row.assigned_staff && row.assigned_staff.length === p.length && p.every(n=>row.assigned_staff.includes(n))
+      );
+      if(match) row.fixed_staff = match.slice();
+    });
+  }
+
+  function applyPairSelection(taskName, idxStr){
+    const row = rows.find(r=>r.task_name === taskName);
+    if(!row){ setStatus(`「${taskName}」の行が見つかりません。先にスケジュールを読み込んでください。`); return; }
+    markDirty();
+    if(idxStr === ''){
+      row.fixed_staff = null;
+      row.assigned_staff = [];
+    } else {
+      const pair = DUTY_PAIRS[parseInt(idxStr)].slice();
+      row.fixed_staff = pair.slice();
+      row.assigned_staff = pair;
+    }
+    renderRows();
+  }
+
+  function renderPairSelector(){
+    const area = document.getElementById('pairSelectorArea');
+    if(!area) return;
+    area.innerHTML = PAIRABLE_TASKS.map(taskName=>{
+      const row = rows.find(r=>r.task_name === taskName);
+      const selectedIdx = row ? DUTY_PAIRS.findIndex(p =>
+        row.assigned_staff && row.assigned_staff.length === p.length && p.every(n=>row.assigned_staff.includes(n))
+      ) : -1;
+      const options = DUTY_PAIRS.map((p,i)=>
+        `<option value="${i}" ${i===selectedIdx?'selected':''}>${p.join('・')}</option>`
+      ).join('');
+      const notFound = row ? '' : '<p class="row-note" style="color:var(--rose);">この仕事はまだスケジュールに読み込まれていません。</p>';
+      return `
+        <label>${escapeHtml(PAIRABLE_LABELS[taskName] || taskName)}</label>
+        <select onchange="applyPairSelection('${taskName}', this.value)" ${row?'':'disabled'}>
+          <option value="" ${selectedIdx<0?'selected':''}>選択してください</option>
+          ${options}
+        </select>
+        ${notFound}
+      `;
+    }).join('');
+  }
+
   // --- 描画 ---
   function renderRows(){
+    renderPairSelector();
     const area = document.getElementById('rowsArea');
     area.innerHTML = '';
     rows.forEach((row, idx)=>{
