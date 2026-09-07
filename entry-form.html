@@ -248,7 +248,7 @@
     width:64px; height:76px; border-radius:50% / 42%;
     background:var(--gold); color:#fffaf3; font-size:26px; box-shadow:0 0 0 1px var(--gold-soft);
   }
-  .done-screen h2{ font-family:'Shippori Mincho',serif; margin:18px 0 8px; letter-spacing:.03em; }
+  .done-screen h2{ font-family:'Shippori Mincho',serif; margin:18px 0 8px; letter-spacing:.03em; font-size:clamp(20px,5.8vw,26px); line-height:1.6; }
   .done-screen p{ color:var(--muted-text); font-size:13.5px; line-height:1.8; }
 
   .status-msg{ text-align:center; font-size:13px; color:var(--rose); margin-top:10px; display:none; }
@@ -435,7 +435,7 @@
 <div class="wrap">
   <div class="done-screen" id="doneScreen" style="display:none;">
     <div class="mark">👑</div>
-    <h2>お申込みを受け付けました</h2>
+    <h2>お申込みを<br>受け付けました</h2>
     <p>ご入力いただいたメールアドレス宛に申込み控えをお送りします。<br>お取次結果は締切後1週間以内に公式LINEでご連絡いたします。</p>
     <p style="margin-top:18px; font-weight:700;">確認メールが届いているか、必ずご確認ください。<br>(迷惑メールフォルダも念のためご確認ください)</p>
   </div>
