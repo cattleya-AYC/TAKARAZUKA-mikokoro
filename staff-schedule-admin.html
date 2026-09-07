@@ -98,6 +98,8 @@
     <div id="pairSelectorArea"></div>
   </div>
 
+  <div class="panel" id="gatherTimeNote" style="text-align:center;font-family:'Shippori Mincho',serif;font-size:16px;font-weight:700;color:var(--gold-soft);"></div>
+
   <div id="rowsArea"></div>
 
   <div class="panel" style="text-align:center;">
@@ -262,13 +264,16 @@
     return names;
   }
 
-  // お菓子当番のチームから「チケット抽選係」「食事なしチケット渡し」を自動で決めるルール
+  // お菓子当番のチームから、残り2チームへの仕事の割り振りを自動で決めるルール
   // A=原田・太田, B=伊庭・岩本, C=西中・水無瀬 (DUTY_PAIRSのインデックス0,1,2に対応)
+  // teamA担当:チケット抽選係・食事なしチケット渡し / teamB担当:メッセージカード配布・チケット封入・撮影(食事中)
   const PAIR_AUTO_RULE = {
-    0: { lottery: 1, pass: 2 }, // お菓子=Aチーム → 抽選=Bチーム, 食事なし渡し=Cチーム
-    1: { lottery: 2, pass: 0 }, // お菓子=Bチーム → 抽選=Cチーム, 食事なし渡し=Aチーム
-    2: { lottery: 1, pass: 0 }  // お菓子=Cチーム → 抽選=Bチーム, 食事なし渡し=Aチーム
+    0: { teamA: 1, teamB: 2 }, // お菓子=Aチーム → teamA=Bチーム, teamB=Cチーム
+    1: { teamA: 2, teamB: 0 }, // お菓子=Bチーム → teamA=Cチーム, teamB=Aチーム
+    2: { teamA: 1, teamB: 0 }  // お菓子=Cチーム → teamA=Bチーム, teamB=Aチーム
   };
+  const TEAM_A_TASKS = ['チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)'];
+  const TEAM_B_TASKS = ['メッセージカード配布', 'チケット封入', '撮影(食事中)'];
 
   function autoAssignPairsFromDuty(dutyNames){
     if(!dutyNames || !dutyNames.length) return;
@@ -277,30 +282,23 @@
     const rule = PAIR_AUTO_RULE[dutyIdx];
     if(!rule) return;
 
-    const lotteryRow = rows.find(r=>r.task_name === 'チケット抽選係');
-    if(lotteryRow && (!lotteryRow.assigned_staff || !lotteryRow.assigned_staff.length)){
-      const pair = DUTY_PAIRS[rule.lottery].slice();
-      lotteryRow.fixed_staff = pair.slice();
-      lotteryRow.assigned_staff = pair;
-    }
-    const passRow = rows.find(r=>r.task_name === '食事なしの参加者へチケット渡し(インフォ前)');
-    if(passRow && (!passRow.assigned_staff || !passRow.assigned_staff.length)){
-      const pair = DUTY_PAIRS[rule.pass].slice();
-      passRow.fixed_staff = pair.slice();
-      passRow.assigned_staff = pair;
-    }
-    const msgRow = rows.find(r=>r.task_name === 'メッセージカード配布');
-    if(msgRow && (!msgRow.assigned_staff || !msgRow.assigned_staff.length)){
-      const pair = DUTY_PAIRS[rule.pass].slice(); // お菓子でも抽選でもない残りのチーム
-      msgRow.fixed_staff = pair.slice();
-      msgRow.assigned_staff = pair;
-    }
-    const packRow = rows.find(r=>r.task_name === 'チケット封入');
-    if(packRow && (!packRow.assigned_staff || !packRow.assigned_staff.length)){
-      const pair = DUTY_PAIRS[rule.pass].slice(); // お菓子でも抽選でもない残りのチーム
-      packRow.fixed_staff = pair.slice();
-      packRow.assigned_staff = pair;
-    }
+    const teamAPair = DUTY_PAIRS[rule.teamA];
+    const teamBPair = DUTY_PAIRS[rule.teamB];
+
+    TEAM_A_TASKS.forEach(taskName=>{
+      const row = rows.find(r=>r.task_name === taskName);
+      if(row && (!row.assigned_staff || !row.assigned_staff.length)){
+        row.fixed_staff = teamAPair.slice();
+        row.assigned_staff = teamAPair.slice();
+      }
+    });
+    TEAM_B_TASKS.forEach(taskName=>{
+      const row = rows.find(r=>r.task_name === taskName);
+      if(row && (!row.assigned_staff || !row.assigned_staff.length)){
+        row.fixed_staff = teamBPair.slice();
+        row.assigned_staff = teamBPair.slice();
+      }
+    });
   }
 
   async function onEventChange(){
@@ -386,7 +384,8 @@
 
   // --- テンプレート読み込み(既存データが無い場合のみ) ---
   async function loadTemplateIfEmpty(){
-    if(rows.length){
+    const hasRealRows = rows.some(r => !r.from_duty); // 当番の自動同期行だけの場合は「空」扱い
+    if(hasRealRows){
       if(!confirm('すでにこの回のスケジュールがあります。テンプレートで上書きしますか？(保存前なら元に戻せます)')) return;
     }
     try{
@@ -504,8 +503,18 @@
     area.innerHTML = html;
   }
 
+  // 集合時間(13時公演は11:15、11時公演は10:15)
+  function renderGatherTimeNote(){
+    const el = document.getElementById('gatherTimeNote');
+    if(!el) return;
+    if(!currentEvent || !currentEvent.show_time){ el.textContent = ''; return; }
+    const gatherTime = currentEvent.show_time === '11:00' ? '10:15' : '11:15';
+    el.innerHTML = `⏰ 集合時間：${gatherTime}`;
+  }
+
   // --- 描画 ---
   function renderRows(){
+    renderGatherTimeNote();
     renderPairSelector();
     const area = document.getElementById('rowsArea');
     area.innerHTML = '';
@@ -591,9 +600,11 @@
     ).join('');
   }
 
-  // 座席表の色分けの追加枠から除外する人(チケット封入チーム)
+  // 座席表の色分け・飲み物カード設置の追加枠から除外する人(チケット封入チーム)
+  const EXTRA_EXCLUDE_PACK_TASKS = ['飲み物カード設置'];
   function getExtraExcluded(row){
-    if(!row.task_name || !row.task_name.includes('色分け')) return [];
+    if(!row.task_name) return [];
+    if(!row.task_name.includes('色分け') && !EXTRA_EXCLUDE_PACK_TASKS.includes(row.task_name)) return [];
     const packRow = rows.find(r=>r.task_name === 'チケット封入');
     return packRow && packRow.assigned_staff ? packRow.assigned_staff : [];
   }
@@ -653,8 +664,9 @@
       .flatMap(r=>r.assigned_staff||[]);
 
     if(row.is_group_task){
-      // 「全員」タイプ:同じ時刻に他の仕事を持っていない人を自動で全員割り当て
-      row.assigned_staff = STAFF_LIST.filter(name => !usedAtThisTime.includes(name));
+      // 「全員」タイプ:同じ時刻に他の仕事を持っていない人を自動で全員割り当て(チケット封入チームなど除外対象も除く)
+      const extraExcludedGroup = getExtraExcluded(row);
+      row.assigned_staff = STAFF_LIST.filter(name => !usedAtThisTime.includes(name) && !extraExcludedGroup.includes(name));
       renderRows();
       return;
     }
