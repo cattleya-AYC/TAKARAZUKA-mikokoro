@@ -105,7 +105,7 @@
   </div>
 
   <div class="panel">
-    <h2 style="font-family:'Shippori Mincho',serif;font-size:15px;text-align:center;margin:0 0 10px;color:var(--gold-soft);">🔢 担当回数(固定担当・テーブルリーダーは除く)</h2>
+    <h2 style="font-family:'Shippori Mincho',serif;font-size:15px;text-align:center;margin:0 0 10px;color:var(--gold-soft);">🔢 担当回数(チケット受け取り・店支払いは除く)</h2>
     <div id="staffTally" style="display:flex;flex-direction:column;gap:6px;"></div>
   </div>
 
@@ -144,19 +144,29 @@
   const PAIRABLE_LABELS = { 'チケット抽選係':'チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)':'食事なしチケット渡し(インフォ前)', 'メッセージカード配布':'メッセージカード配布', 'チケット封入':'チケット封入', '撮影(食事中)':'撮影(食事中)' };
 
   let currentEvent = null;
-  let mealCounts = { withMeal: '?', withoutMeal: '?' };
+  let mealCounts = { withMeal:'?', withoutMeal:'?', withMeal1:'?', withMeal2:'?', withoutMeal1:'?', withoutMeal2:'?' };
 
   async function refreshMealCounts(){
     if(!currentEvent) return;
     const { data, error } = await sb
       .from('registrations')
-      .select('wants_meal')
+      .select('wants_meal, answers')
       .eq('event_id', currentEvent.id)
       .eq('status', '参加決定');
-    if(error || !data){ mealCounts = { withMeal: '?', withoutMeal: '?' }; return; }
+    if(error || !data){
+      mealCounts = { withMeal:'?', withoutMeal:'?', withMeal1:'?', withMeal2:'?', withoutMeal1:'?', withoutMeal2:'?' };
+      return;
+    }
+    const pc = r => (r.answers && r.answers.participant_count) ? String(r.answers.participant_count) : '1';
+    const withMealRows = data.filter(r=>r.wants_meal);
+    const withoutMealRows = data.filter(r=>!r.wants_meal);
     mealCounts = {
-      withMeal: data.filter(r=>r.wants_meal).length,
-      withoutMeal: data.filter(r=>!r.wants_meal).length
+      withMeal: withMealRows.length,
+      withoutMeal: withoutMealRows.length,
+      withMeal1: withMealRows.filter(r=>pc(r)==='1').length,
+      withMeal2: withMealRows.filter(r=>pc(r)==='2').length,
+      withoutMeal1: withoutMealRows.filter(r=>pc(r)==='1').length,
+      withoutMeal2: withoutMealRows.filter(r=>pc(r)==='2').length
     };
   }
   let rows = []; // {id, task_type_id, task_name, time_label, required_count, assigned_staff, note, fixed_staff, is_group_task, sort_order, _isNew}
@@ -552,7 +562,7 @@
         </div>
         ${staffHtml}
         <textarea class="note-input" placeholder="補足メモ・作業内容の指示(スタッフ画面にそのまま表示されます)" onchange="rows[${idx}].note=this.value; markDirty();">${escapeHtml(row.note||'')}</textarea>
-        ${(row.note && (row.note.includes('{{食事あり人数}}') || row.note.includes('{{食事なし人数}}'))) ? `<p class="row-note">🔢 現在の人数：食事あり${mealCounts.withMeal}人 / 食事なし${mealCounts.withoutMeal}人（スタッフ画面ではタグが自動でこの数字に置き換わります）</p>` : ''}
+        ${(row.note && /\{\{.*人.*\}\}/.test(row.note)) ? `<p class="row-note">🔢 現在の人数：食事あり${mealCounts.withMeal}人(2人組${mealCounts.withMeal2}組・1人${mealCounts.withMeal1}人) / 食事なし${mealCounts.withoutMeal}人(2人組${mealCounts.withoutMeal2}組・1人${mealCounts.withoutMeal1}人)（スタッフ画面ではタグが自動でこの数字に置き換わります）</p>` : ''}
         <div class="row-actions">
           <button class="btn-danger" onclick="removeRow(${idx})">削除</button>
         </div>
@@ -562,14 +572,14 @@
     renderStaffTally();
   }
 
+  const TALLY_EXCLUDED_TASK_NAMES = ['チケット引取り', '店支払い']; // 準備期間の仕事の延長のため、当日業務カウントからは除外
+
   function renderStaffTally(){
     const area = document.getElementById('staffTally');
     if(!area) return;
     const counts = {}; STAFF_LIST.forEach(s=>counts[s]=0);
     rows.forEach(row=>{
-      if(row.task_name && row.task_name.includes('テーブルリーダー')) return; // 進行担当は除外
-      const fully = isFullyFixedRow(row);
-      if(fully && !row.is_duty_linked && !row.from_duty) return; // 固定担当(伊庭・岩本など、当番系以外)は除外
+      if(row.task_name && TALLY_EXCLUDED_TASK_NAMES.includes(row.task_name)) return;
       (row.assigned_staff||[]).forEach(name=>{
         if(counts[name] !== undefined) counts[name]++;
       });
@@ -621,12 +631,11 @@
     return counts;
   }
 
-  // 今回のイベント内での現在の合計件数(固定担当・テーブルリーダーは除く)
+  // 今回のイベント内での現在の合計件数(チケット受け取り・店支払いは除く)
   function currentEventCounts(){
     const counts = {}; STAFF_LIST.forEach(s=>counts[s]=0);
     rows.forEach(r=>{
-      if(r.task_name && r.task_name.includes('テーブルリーダー')) return;
-      if(isFullyFixedRow(r) && !r.is_duty_linked && !r.from_duty) return;
+      if(r.task_name && TALLY_EXCLUDED_TASK_NAMES.includes(r.task_name)) return;
       (r.assigned_staff||[]).forEach(name=>{
         if(counts[name] !== undefined) counts[name]++;
       });
