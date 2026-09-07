@@ -140,10 +140,25 @@
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const STAFF_LIST = ['原田','水無瀬','西中','伊庭','岩本','太田'];
   const DUTY_PAIRS = [['原田','太田'],['伊庭','岩本'],['西中','水無瀬']];
-  const PAIRABLE_TASKS = ['チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)', 'メッセージカード配布', 'チケット封入'];
-  const PAIRABLE_LABELS = { 'チケット抽選係':'チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)':'食事なしチケット渡し(インフォ前)', 'メッセージカード配布':'メッセージカード配布', 'チケット封入':'チケット封入' };
+  const PAIRABLE_TASKS = ['チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)', 'メッセージカード配布', 'チケット封入', '撮影(食事中)'];
+  const PAIRABLE_LABELS = { 'チケット抽選係':'チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)':'食事なしチケット渡し(インフォ前)', 'メッセージカード配布':'メッセージカード配布', 'チケット封入':'チケット封入', '撮影(食事中)':'撮影(食事中)' };
 
   let currentEvent = null;
+  let mealCounts = { withMeal: '?', withoutMeal: '?' };
+
+  async function refreshMealCounts(){
+    if(!currentEvent) return;
+    const { data, error } = await sb
+      .from('registrations')
+      .select('wants_meal')
+      .eq('event_id', currentEvent.id)
+      .eq('status', '参加決定');
+    if(error || !data){ mealCounts = { withMeal: '?', withoutMeal: '?' }; return; }
+    mealCounts = {
+      withMeal: data.filter(r=>r.wants_meal).length,
+      withoutMeal: data.filter(r=>!r.wants_meal).length
+    };
+  }
   let rows = []; // {id, task_type_id, task_name, time_label, required_count, assigned_staff, note, fixed_staff, is_group_task, sort_order, _isNew}
   const DUTY_TASK_NAME = '楽屋口・お菓子当番';
   let isDirty = false;
@@ -288,6 +303,7 @@
     }
     const opt = sel.options[sel.selectedIndex];
     currentEvent = { id: eventId, show_time: opt.dataset.showTime };
+    await refreshMealCounts();
     await loadExistingRows();
     await loadExistingBelongings();
   }
@@ -444,7 +460,7 @@
   function renderPairSelector(){
     const area = document.getElementById('pairSelectorArea');
     if(!area) return;
-    area.innerHTML = PAIRABLE_TASKS.map(taskName=>{
+    let html = PAIRABLE_TASKS.map(taskName=>{
       const row = rows.find(r=>r.task_name === taskName);
       const selectedIdx = row ? DUTY_PAIRS.findIndex(p =>
         row.assigned_staff && row.assigned_staff.length === p.length && p.every(n=>row.assigned_staff.includes(n))
@@ -462,6 +478,20 @@
         ${notFound}
       `;
     }).join('');
+
+    // メッセージ回収・お金徴収(当番と連動、選択不可の表示のみ)
+    const letterRow = rows.find(r=>r.task_name === '手紙・メセカ回収／差し入れ代回収');
+    const dutyPairText = letterRow && letterRow.assigned_staff && letterRow.assigned_staff.length
+      ? letterRow.assigned_staff.join('・') : '未定';
+    ['メッセージ回収','お金徴収'].forEach(label=>{
+      html += `
+        <label>${label}</label>
+        <select disabled><option selected>${escapeHtml(dutyPairText)}</option></select>
+        <p class="row-note">🎁お菓子当番と連動しています(手紙・メセカ回収／差し入れ代回収と同じペア)。</p>
+      `;
+    });
+
+    area.innerHTML = html;
   }
 
   // --- 描画 ---
@@ -493,14 +523,18 @@
           ? `<p class="row-note">楽屋口・お菓子当番(${fixedArr.join('・')})と自動連動しています。ここでは名前を変更できません。</p>`
           : `<p class="row-note">固定担当のため自動割り当ての対象外です。</p>`;
       } else {
+        const extraExcluded = getExtraExcluded(row);
         staffHtml = `<div class="staff-check">` + STAFF_LIST.map(name=>{
           const isFixedMember = fixedArr.includes(name);
+          const isExtraExcluded = !isFixedMember && extraExcluded.includes(name);
           const checked = (row.assigned_staff.includes(name) || isFixedMember) ? 'checked' : '';
-          const disabled = isFixedMember ? 'disabled' : '';
-          return `<label><input type="checkbox" ${checked} ${disabled} onchange="toggleStaff(${idx},'${name}',this.checked)">${name}${isFixedMember?'🔒':''}</label>`;
+          const disabled = (isFixedMember || isExtraExcluded) ? 'disabled' : '';
+          const mark = isFixedMember ? '🔒' : (isExtraExcluded ? '🚫' : '');
+          return `<label style="${isExtraExcluded?'opacity:.5;':''}"><input type="checkbox" ${checked} ${disabled} onchange="toggleStaff(${idx},'${name}',this.checked)">${name}${mark}</label>`;
         }).join('') + `</div>
         ${row.is_group_task ? '<p class="row-note">🔀を押すと、同じ時刻に他の仕事へ入っていない人を自動で全員セットします。</p>' : ''}
         ${partialFixed ? `<p class="row-note">🔒${fixedArr.join('・')}は固定です。残り${Math.max(0,row.required_count-fixedArr.length)}人分だけ自動割り当て/手動選択できます。</p>` : ''}
+        ${extraExcluded.length ? `<p class="row-note">🚫${extraExcluded.join('・')}はチケット封入チームのため選択できません。</p>` : ''}
         <div class="row-actions">
           <button class="btn-sub" onclick="autoAssignRow(${idx})">🔀 この行だけ自動割り当て</button>
         </div>`;
@@ -518,6 +552,7 @@
         </div>
         ${staffHtml}
         <textarea class="note-input" placeholder="補足メモ・作業内容の指示(スタッフ画面にそのまま表示されます)" onchange="rows[${idx}].note=this.value; markDirty();">${escapeHtml(row.note||'')}</textarea>
+        ${(row.note && (row.note.includes('{{食事あり人数}}') || row.note.includes('{{食事なし人数}}'))) ? `<p class="row-note">🔢 現在の人数：食事あり${mealCounts.withMeal}人 / 食事なし${mealCounts.withoutMeal}人（スタッフ画面ではタグが自動でこの数字に置き換わります）</p>` : ''}
         <div class="row-actions">
           <button class="btn-danger" onclick="removeRow(${idx})">削除</button>
         </div>
@@ -546,9 +581,17 @@
     ).join('');
   }
 
+  // 座席表の色分けの追加枠から除外する人(チケット封入チーム)
+  function getExtraExcluded(row){
+    if(!row.task_name || !row.task_name.includes('色分け')) return [];
+    const packRow = rows.find(r=>r.task_name === 'チケット封入');
+    return packRow && packRow.assigned_staff ? packRow.assigned_staff : [];
+  }
+
   function toggleStaff(idx, name, checked){
     const row = rows[idx];
     if(getFixedArr(row).includes(name)) return; // 固定メンバーは変更不可
+    if(getExtraExcluded(row).includes(name)) return; // チケット封入チームは選択不可
     markDirty();
     if(checked){
       if(!row.assigned_staff.includes(name)) row.assigned_staff.push(name);
@@ -609,7 +652,8 @@
 
     const counts = await getTaskCounts(row.task_name);
     const eventCounts = currentEventCounts();
-    const pool = STAFF_LIST.filter(name => !fixedArr.includes(name));
+    const extraExcluded = getExtraExcluded(row);
+    const pool = STAFF_LIST.filter(name => !fixedArr.includes(name) && !extraExcluded.includes(name));
     const candidates = pool.sort((a,b)=>{
       const aBusy = usedAtThisTime.includes(a) ? 1 : 0;
       const bBusy = usedAtThisTime.includes(b) ? 1 : 0;
