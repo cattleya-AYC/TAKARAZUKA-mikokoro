@@ -477,9 +477,41 @@
 
 <div class="summary-bar" id="agencyBar" style="display:none;"></div>
 
+<div class="net-score-summary-wrap summary-area" style="margin-top:16px;">
+<table class="net-score-summary summary-table" id="mainSummaryTable" style="width:100%;border-collapse:collapse;font-size:14px;">
+  <thead>
+    <tr>
+      <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);"></th>
+      <th style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);">件数</th>
+      <th style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);">枚数</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);">全申込</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);" id="sumAllCount">0件</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);" id="sumAllTickets">0枚</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ok);">決定</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ok);" id="sumDecidedCount">0件</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ok);" id="sumDecidedTickets">0枚</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--line);color:var(--muted);">調整中(審査中)</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--muted);" id="sumPendingCount">0件</td>
+      <td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--muted);" id="sumPendingTickets">0枚</td>
+    </tr>
+    <tr id="sumRemainRow" style="display:none;">
+      <td style="padding:8px 10px;color:var(--rose);">残り(代理店確定枠−決定)</td>
+      <td style="text-align:center;padding:8px 10px;color:var(--rose);">-</td>
+      <td style="text-align:center;padding:8px 10px;color:var(--rose);" id="sumRemainTickets">0枚</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
 <div class="summary-bar" id="summaryBar">
-  <div class="summary-item"><span class="summary-num" id="sumApplicants">0</span><span class="summary-label">申込者数</span></div>
-  <div class="summary-item"><span class="summary-num" id="sumTickets">0</span><span class="summary-label">チケット枚数</span></div>
   <div class="summary-item"><span class="summary-num" id="sumMeals">0</span><span class="summary-label">食事参加者数</span></div>
 </div>
 
@@ -693,6 +725,7 @@
     if(error || !data || data.length === 0){
       bar.style.display = 'none';
       agencyConfirmedText = '';
+      agencyConfirmedTotal = null;
       renderSummary(currentRows);
       return;
     }
@@ -705,10 +738,12 @@
     `).join('');
     bar.style.display = 'flex';
     agencyConfirmedText = data.map(row => `代理店確定(${row.seat_type}):${row.confirmed_count}`).join('　');
+    agencyConfirmedTotal = data.reduce((sum, row) => sum + (Number(row.confirmed_count) || 0), 0);
     renderSummary(currentRows);
   }
 
   let agencyConfirmedText = '';
+  let agencyConfirmedTotal = null;
 
   let currentRows = [];
   let recentCounts = {};
@@ -794,17 +829,40 @@
       const s = r.status || '審査中';
       return s !== 'お断り' && s !== 'キャンセル';
     });
-    const applicants = activeRows.length;
-    const tickets = activeRows.reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
+    const decidedRows = activeRows.filter(r => r.status === '参加決定');
+    const pendingRows = activeRows.filter(r => (r.status || '審査中') === '審査中');
+
+    const countTickets = list => list.reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
+
+    const allCount = activeRows.length;
+    const allTickets = countTickets(activeRows);
+    const decidedCount = decidedRows.length;
+    const decidedTickets = countTickets(decidedRows);
+    const pendingCount = pendingRows.length;
+    const pendingTickets = countTickets(pendingRows);
+
     const meals = activeRows
       .filter(r => r.answers?.meal === 'ご参加')
       .reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
-    document.getElementById('sumApplicants').textContent = applicants;
-    document.getElementById('sumTickets').textContent = tickets;
+
+    document.getElementById('sumAllCount').textContent = allCount + '件';
+    document.getElementById('sumAllTickets').textContent = allTickets + '枚';
+    document.getElementById('sumDecidedCount').textContent = decidedCount + '件';
+    document.getElementById('sumDecidedTickets').textContent = decidedTickets + '枚';
+    document.getElementById('sumPendingCount').textContent = pendingCount + '件';
+    document.getElementById('sumPendingTickets').textContent = pendingTickets + '枚';
     document.getElementById('sumMeals').textContent = meals;
 
+    const remainRow = document.getElementById('sumRemainRow');
+    if(agencyConfirmedTotal !== null){
+      remainRow.style.display = '';
+      document.getElementById('sumRemainTickets').textContent = (agencyConfirmedTotal - decidedTickets) + '枚';
+    } else {
+      remainRow.style.display = 'none';
+    }
+
     // 参加決定者のみ、食事有無×人数(1名/2名)で組数を集計
-    const decided = currentRows.filter(r => r.status === '参加決定');
+    const decided = decidedRows;
     let mealYes1 = 0, mealYes2 = 0, mealNo1 = 0, mealNo2 = 0;
     decided.forEach(r=>{
       const count = Number(r.answers?.participant_count) || 1;
@@ -820,8 +878,9 @@
     // 印刷専用：上部4枠を、枠なしの1行にまとめる
     const statsParts = [];
     if(agencyConfirmedText) statsParts.push(agencyConfirmedText);
-    statsParts.push(`申込者数:${applicants}`);
-    statsParts.push(`チケット枚数:${tickets}`);
+    statsParts.push(`全申込:${allCount}件/${allTickets}枚`);
+    statsParts.push(`決定:${decidedCount}件/${decidedTickets}枚`);
+    statsParts.push(`調整中:${pendingCount}件/${pendingTickets}枚`);
     statsParts.push(`食事参加者数:${meals}`);
     document.getElementById('printOnlyStats').innerHTML =
       statsParts.map(s => `<span>${s}</span>`).join('');
@@ -1093,31 +1152,15 @@
         const statusMsg = document.getElementById('statusMsg');
         btn.disabled = true;
         try{
-          const { data, error, status, statusText } = await sb
+          const { error } = await sb
             .from('registrations')
             .update({ status: newStatus, decided_at: new Date().toISOString() })
-            .eq('id', id)
-            .select();
-          const dbg = 'KEY先頭:' + SUPABASE_ANON_KEY.slice(0,18)
-            + ' / id:' + id
-            + ' / httpStatus:' + status + ' ' + statusText
-            + ' / 返却行数:' + (data ? data.length : 'null')
-            + ' / data:' + JSON.stringify(data)
-            + ' / error:' + JSON.stringify(error);
-          console.log(dbg);
-          statusMsg.classList.remove('err');
-          statusMsg.textContent = dbg;
+            .eq('id', id);
           if(error) throw error;
-          if(!data || data.length === 0){
-            statusMsg.classList.add('err');
-            statusMsg.textContent += ' ← 0件更新(原因調査用に表示中)';
-            btn.disabled = false;
-            return;
-          }
           loadRegistrations(currentEventId);
         } catch(e){
           statusMsg.classList.add('err');
-          statusMsg.textContent = '更新に失敗しました:' + (e.message || '') + ' / ' + JSON.stringify(e);
+          statusMsg.textContent = '更新に失敗しました:' + (e.message || '');
           btn.disabled = false;
         }
       });
