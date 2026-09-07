@@ -257,6 +257,64 @@
     display:none; background:var(--navy-card-2); border:1px solid var(--rose);
     border-radius:8px; padding:10px 12px;
   }
+
+  /* 送信前の確認画面 */
+  .confirm-card{
+    background:var(--navy-card); border:1px solid var(--gold);
+    box-shadow:inset 0 0 0 3px var(--navy-card), inset 0 0 0 4px var(--line);
+    border-radius:12px; padding:24px 20px 22px; margin-top:6px;
+  }
+  .confirm-title{
+    font-family:'Shippori Mincho', serif; font-size:17px; text-align:center;
+    margin:0 0 4px; color:var(--gold-soft); font-weight:700; letter-spacing:.03em;
+  }
+  .confirm-lead{
+    text-align:center; color:var(--muted-text); font-size:12.5px; line-height:1.9; margin:6px 0 16px;
+  }
+  .confirm-row{
+    display:flex; flex-direction:column; gap:4px; padding:11px 2px;
+    border-bottom:1px dashed var(--line); font-size:14px;
+  }
+  .confirm-row:last-of-type{ border-bottom:none; }
+  .confirm-label{ font-size:11px; color:var(--gold-soft); font-weight:700; letter-spacing:.02em; }
+  .confirm-value{ font-size:15px; color:var(--cream); font-weight:600; line-height:1.6; word-break:break-all; }
+  .confirm-notice{
+    margin-top:16px; background:var(--navy-card-2); border:1px solid var(--line);
+    border-radius:10px; padding:14px 15px; font-size:12.5px; line-height:1.85; color:var(--cream);
+  }
+  .confirm-notice b{ color:var(--rose); }
+  .confirm-buttons{ display:flex; flex-direction:column; gap:10px; margin-top:20px; }
+  .confirm-back{
+    background:var(--navy-card); border:1px solid var(--line); color:var(--muted-text);
+  }
+
+  /* 完了画面のメール案内 */
+  .done-mail-box{
+    background:var(--navy-card-2); border:2px solid var(--gold); border-radius:14px;
+    padding:18px 16px; margin:22px 0 14px; text-align:center;
+  }
+  .done-mail-title{ margin:0; font-size:20px; font-weight:800; color:var(--rose); line-height:1.4; }
+  .done-mail-sub{ margin:10px 0 0; font-size:13px; color:var(--muted-text); line-height:1.8; }
+  .done-alert-box{
+    background:var(--navy-card-2); border:1px solid var(--gold); border-radius:12px;
+    padding:16px 15px; margin-bottom:14px; text-align:left;
+  }
+  .done-alert-title{ text-align:center; font-size:14px; font-weight:800; margin:0 0 8px; color:var(--gold-soft); }
+  .done-alert-text{ font-size:13px; line-height:1.85; margin:0; color:var(--cream); }
+  .done-must-check{
+    display:block; margin:14px 0 8px; text-align:center; font-size:18px; line-height:1.5;
+    font-weight:900; color:var(--rose);
+  }
+  .done-folder-list{
+    margin-top:10px; padding:10px 12px; border-radius:10px; background:var(--navy-card);
+    font-size:12.5px; line-height:1.85; color:var(--cream);
+  }
+  .done-address-box{
+    background:var(--navy-card-2); border:1px solid var(--line); border-radius:12px;
+    padding:15px 15px; text-align:left;
+  }
+  .done-address-title{ margin:0 0 6px; font-size:13.5px; font-weight:800; color:var(--gold-soft); }
+  .done-address-text{ margin:0; font-size:12.5px; line-height:1.85; color:var(--muted-text); }
 </style>
 </head>
 <body>
@@ -355,8 +413,9 @@
 
   <div class="info-card">
     <h3>お申込みにあたって</h3>
+    <p style="margin:0 0 12px; font-weight:700; color:var(--rose);">⚠ 先着順ではありません。ご入力内容をよくご確認のうえ、お申込みください。</p>
     <ul>
-      <li>お申込み後のキャンセルはできません。</li>
+      <li>お申込み後のキャンセル・変更は原則できません。</li>
       <li>チケットの転売は固く禁止です。</li>
       <li>参加可否は締切後1週間以内に公式LINE、またはメールにてご連絡します。</li>
       <li>チケット代は指定口座へのお振込みとなります(後日ご案内)。</li>
@@ -414,7 +473,7 @@
       <div class="notice-box">
         注意事項<br>
         ・お取次は締切後1週間以内にご連絡します(超過時は直近7回の参加回数が多い方優先)<br>
-        ・お申込み後のキャンセルはできません<br>
+        ・お申込み後のキャンセル・変更は原則できません<br>
         ・チケットの転売は固く禁止です<br>
         ・チケット代は指定口座へご入金いただきます(後日ご案内)<br>
         ・ご不明点は公式LINEよりお問い合わせください<br>
@@ -432,12 +491,57 @@
   </form>
 </div>
 
+<div class="wrap" id="confirmScreen" style="display:none;">
+  <div class="confirm-card">
+    <h2 class="confirm-title">お申込み内容の確認</h2>
+    <p class="confirm-lead">内容をご確認のうえ、よろしければ<br>「この内容で送信する」を押してください。</p>
+
+    <div id="confirmRows"></div>
+
+    <div class="confirm-notice">
+      <b>送信後のキャンセル・変更は、原則としてお受けできません。</b><br>
+      特にお名前・枚数・同伴者・座席希望・お食事・メールアドレスに<br>
+      お間違いがないか、今一度ご確認ください。
+    </div>
+
+    <div class="confirm-buttons">
+      <button type="button" id="confirmSendBtn">この内容で送信する</button>
+      <button type="button" class="confirm-back" id="confirmBackBtn">← 戻って修正する</button>
+    </div>
+    <p class="status-msg" id="confirmStatusMsg"></p>
+  </div>
+</div>
+
 <div class="wrap">
   <div class="done-screen" id="doneScreen" style="display:none;">
     <div class="mark">👑</div>
     <h2>お申込みを<br>受け付けました</h2>
-    <p>ご入力いただいたメールアドレス宛に<br>申込み控えをお送りします。<br>お取次結果は締切後<br>1週間以内に<br>公式LINEでご連絡いたします。</p>
-    <p style="margin-top:18px; font-weight:700;">確認メールが届いているか、<br>必ずご確認ください。<br>(迷惑メールフォルダも<br>念のためご確認ください)</p>
+    <p>お取次結果は締切後1週間以内に<br>公式LINEでご連絡いたします。</p>
+
+    <div class="done-mail-box">
+      <p class="done-mail-title">メールを送信しました‼️</p>
+      <p class="done-mail-sub">ご入力いただいたメールアドレス宛に、<br>申込み控えをお送りしています。</p>
+    </div>
+
+    <div class="done-alert-box">
+      <p class="done-alert-title">重要なご連絡はメールでお送りします</p>
+      <p class="done-alert-text">
+        ご利用のメールサービスや受信設定によっては、送信したメールが
+        <b style="color:var(--rose);">迷惑メールフォルダに振り分けられる場合があります。</b>
+      </p>
+      <span class="done-must-check">必ず、受信メールを<br>確認してください!</span>
+      <div class="done-folder-list">
+        「受信トレイ」だけでなく、<br><b>「迷惑メールフォルダ」もあわせてご確認ください。</b>
+      </div>
+    </div>
+
+    <div class="done-address-box">
+      <p class="done-address-title">メールアドレスについて</p>
+      <p class="done-address-text">
+        ご入力いただいたメールアドレスに誤りがある場合、確認メールや今後のご案内をお届けすることができません。<br><br>
+        メールが届かない場合は、<b>迷惑メールフォルダ</b>と、<b>ご入力いただいたメールアドレスに間違いがないか</b>をご確認ください。
+      </p>
+    </div>
   </div>
 </div>
 
@@ -825,12 +929,40 @@
   }
   function hideValidationMsg(){ document.getElementById('validationMsg').style.display = 'none'; }
 
-  form.addEventListener('submit', async (e)=>{
+  let pendingData = null;
+
+  const seatPrefLabel = { '連席希望':'連席希望', '抽選':'バラバラでも良い(抽選)' };
+  const companionTypeLabel = { '同窓生、または在校生':'同窓生、または在校生', '一般':'それ以外(一般)' };
+
+  function escapeHtml(str){
+    return (str == null ? '' : String(str)).replace(/[&<>"']/g, s => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[s]));
+  }
+
+  function renderConfirmRows(data){
+    const rows = [];
+    rows.push(['回生', data.grade]);
+    rows.push(['お名前', data.full_name]);
+    rows.push(['申込枚数', `${data.participant_count}枚`]);
+    if(Number(data.participant_count) > 1){
+      rows.push(['同伴者について', companionTypeLabel[data.companion_type] || data.companion_type || '']);
+      rows.push(['座席希望', seatPrefLabel[data.seat_pref] || data.seat_pref || '']);
+    } else {
+      rows.push(['同伴者', 'なし']);
+    }
+    rows.push(['お食事のご参加', data.meal === 'ご参加' ? '出席' : '欠席']);
+    rows.push(['緊急連絡先(携帯)', data.emergency_phone]);
+    rows.push(['メールアドレス', data.email]);
+
+    document.getElementById('confirmRows').innerHTML = rows.map(([label, value]) =>
+      `<div class="confirm-row"><span class="confirm-label">${escapeHtml(label)}</span><span class="confirm-value">${escapeHtml(value)}</span></div>`
+    ).join('');
+  }
+
+  form.addEventListener('submit', (e)=>{
     e.preventDefault();
     hideValidationMsg();
-    const statusMsg = document.getElementById('statusMsg');
-    const submitBtn = document.getElementById('submitBtn');
-    statusMsg.style.display = 'none';
 
     // 必須項目チェック
     const requiredEls = form.querySelectorAll('[required]');
@@ -853,19 +985,45 @@
     const data = Object.fromEntries(fd.entries());
     data.agree = form.querySelector('[name=agree]').checked;
 
+    // ここでは送信せず、確認画面へ切り替える
+    pendingData = data;
+    renderConfirmRows(data);
+    document.getElementById('confirmStatusMsg').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('confirmScreen').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  document.getElementById('confirmBackBtn').addEventListener('click', ()=>{
+    document.getElementById('confirmScreen').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  document.getElementById('confirmSendBtn').addEventListener('click', ()=>{
+    if(pendingData) performSubmit(pendingData);
+  });
+
+  async function performSubmit(data){
+    const confirmStatusMsg = document.getElementById('confirmStatusMsg');
+    const sendBtn = document.getElementById('confirmSendBtn');
+    const backBtn = document.getElementById('confirmBackBtn');
+    confirmStatusMsg.style.display = 'none';
+
     if(!sb){
-      statusMsg.style.display='block';
-      statusMsg.textContent = 'Supabaseの接続設定が未完了です(管理者にご連絡ください)';
+      confirmStatusMsg.style.display='block';
+      confirmStatusMsg.textContent = 'Supabaseの接続設定が未完了です(管理者にご連絡ください)';
       return;
     }
     if(!currentEvent){
-      statusMsg.style.display='block';
-      statusMsg.textContent = '開催回情報の取得に失敗しました。画面を再読み込みしてください。';
+      confirmStatusMsg.style.display='block';
+      confirmStatusMsg.textContent = '開催回情報の取得に失敗しました。画面を再読み込みしてください。';
       return;
     }
 
-    submitBtn.disabled = true;
-    submitBtn.textContent = '送信中…';
+    sendBtn.disabled = true;
+    backBtn.disabled = true;
+    sendBtn.textContent = '送信中…';
 
     try {
       const normalizedName = (data.full_name || '').replace(/[\s\u3000]/g, '');
@@ -981,18 +1139,21 @@
         console.warn('確認メールの送信に失敗しました', mailErr);
       }
 
+      document.getElementById('confirmScreen').style.display = 'none';
       document.getElementById('mainContent').style.display = 'none';
       document.querySelector('.hero').style.display = 'none';
       document.getElementById('doneScreen').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch(err){
       console.error(err);
-      statusMsg.style.display='block';
-      statusMsg.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
-      submitBtn.disabled = false;
-      submitBtn.textContent = '申込内容を送信する';
+      confirmStatusMsg.style.display='block';
+      confirmStatusMsg.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
+      sendBtn.disabled = false;
+      backBtn.disabled = false;
+      sendBtn.textContent = 'この内容で送信する';
     }
-  });
+  }
 </script>
 </body>
 </html>
