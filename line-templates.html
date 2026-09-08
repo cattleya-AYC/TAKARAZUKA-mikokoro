@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LINE返信テンプレート</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#efeaf2; --card:#fffdf9; --card2:#f4eef7; --gold:#9a86c9; --gold-soft:#6d5aa3;
+    --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35); --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--cream);font-family:'Noto Sans JP',sans-serif;padding:0 0 60px;}
+  .wrap{max-width:520px;margin:0 auto;padding:0 16px;}
+  h1{font-family:'Shippori Mincho',serif;text-align:center;font-size:20px;padding:24px 16px 4px;margin:0;letter-spacing:.05em;}
+  .sub{text-align:center;color:var(--muted);font-size:12.5px;margin:0 0 18px;line-height:1.7;}
+  .card{background:var(--card);border:1px solid var(--gold);border-radius:14px;padding:16px;margin-bottom:16px;}
+  .card h2{margin:0 0 8px;font-size:15px;color:var(--gold-soft);font-family:'Shippori Mincho',serif;}
+  .card .scene{font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6;}
+  textarea{
+    width:100%;min-height:120px;border:1px solid var(--line);border-radius:10px;
+    background:var(--card2);color:var(--cream);font-family:inherit;font-size:14px;
+    padding:10px 12px;line-height:1.8;resize:vertical;
+  }
+  .actions{display:flex;justify-content:flex-end;margin-top:8px;}
+  button{border:0;border-radius:8px;padding:9px 16px;cursor:pointer;font:inherit;font-weight:700;font-size:13px;}
+  .copy-btn{background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);color:#fff;}
+  .copy-btn.copied{background:var(--ok);}
+  .hint{font-size:11px;color:var(--muted);margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>💬 LINE返信テンプレート</h1>
+  <p class="sub">よくある場面の定型文です。[ ]の部分を書き換えてから「コピー」を押してLINEに貼り付けてください。</p>
+
+  <div id="templateArea"></div>
+</div>
+
+<script>
+  const TEMPLATES = [
+    {
+      title: '定員調整のお願い(2枚→1枚)',
+      scene: '申込多数で座席調整が必要な時に',
+      text: `[お名前]様
+
+いつも小林タカラヅカ倶楽部をご利用いただきありがとうございます。
+誠に恐れ入りますが、今回お申込みが多数となっており、皆様にできるだけご参加いただけるよう調整をしております。
+
+現在2枚でお申込みいただいておりますが、1枚でのご参加にご協力いただくことは可能でしょうか。
+ご無理を申し上げて大変恐縮ですが、ご検討のほどよろしくお願いいたします。`
+    },
+    {
+      title: '入金確認のお願い',
+      scene: '入金締切を過ぎても振込が確認できない時に',
+      text: `[お名前]様
+
+いつもお世話になっております。
+恐れ入りますが、観劇会代金のお振込みがまだ確認できておりません。
+
+行き違いでしたら申し訳ございませんが、お振込み状況のご確認をお願いできますでしょうか。
+ご不明な点がございましたらお気軽にご連絡ください。よろしくお願いいたします。`
+    },
+    {
+      title: 'メール未達の確認',
+      scene: '「メールが届かない」と言われた時に',
+      text: `[お名前]様
+
+ご案内メールが届いていないとのこと、ご不便をおかけして申し訳ございません。
+
+お手数ですが、迷惑メールフォルダに振り分けられていないか、
+また登録いただいているメールアドレスに誤りがないか、一度ご確認いただけますでしょうか。
+
+確認が取れましたら、こちらから改めてお送りいたします。よろしくお願いいたします。`
+    },
+    {
+      title: '次回開催日の問い合わせ回答',
+      scene: '「次はいつですか」と聞かれた時に',
+      text: `[お名前]様
+
+お問い合わせありがとうございます。
+次回の観劇会日程が決まり次第、公式ホームページに掲載しておりますので、
+お手数ですがそちらをご確認いただけますと幸いです。
+
+決まり次第、LINEでもご案内いたします。よろしくお願いいたします。`
+    }
+  ];
+
+  function copyText(idx, btn){
+    const ta = document.getElementById('ta-' + idx);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    let ok = false;
+    try{
+      ok = document.execCommand('copy');
+    }catch(e){ ok = false; }
+    if(!ok && navigator.clipboard){
+      navigator.clipboard.writeText(ta.value).then(()=>{
+        showCopied(btn);
+      }).catch(()=>{
+        alert('コピーに失敗しました。文章を選択して手動でコピーしてください。');
+      });
+      return;
+    }
+    if(ok) showCopied(btn);
+  }
+
+  function showCopied(btn){
+    const original = btn.textContent;
+    btn.textContent = '✓ コピーしました';
+    btn.classList.add('copied');
+    setTimeout(()=>{
+      btn.textContent = original;
+      btn.classList.remove('copied');
+    }, 1800);
+  }
+
+  function render(){
+    const area = document.getElementById('templateArea');
+    area.innerHTML = TEMPLATES.map((t, idx) => `
+      <div class="card">
+        <h2>${t.title}</h2>
+        <div class="scene">${t.scene}</div>
+        <textarea id="ta-${idx}">${t.text}</textarea>
+        <div class="actions">
+          <button class="copy-btn" onclick="copyText(${idx}, this)">📋 コピー</button>
+        </div>
+        <div class="hint">[ ]の部分は書き換えてからコピーしてください。</div>
+      </div>
+    `).join('');
+  }
+
+  render();
+</script>
+</body>
+</html>
