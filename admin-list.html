@@ -644,6 +644,7 @@
 <div class="nav-links">
   <a href="admin-summary-all.html">📋 これまでの申込者一覧</a>
   <a href="admin-summary-recent7.html">📋 直近7回 申込者一覧</a>
+  <a href="point-settings-admin.html">⚙ ポイントルール設定</a>
 </div>
 
 <div class="net-score-summary-wrap print-hide-block" id="emergencySection">
@@ -787,13 +788,25 @@
   let recentCounts = {};
   let recentMealCounts = {};
   let changeLogsMap = {};
+  let pointSettings = { theater_point: 2, meal_point: 1, before_deadline_penalty: -1, after_deadline_penalty: -2 };
 
-  // 直近7回の申込ポイント(観劇×2 + 食事×1) − ペナルティ調整値
+  async function loadPointSettings(){
+    try{
+      const { data, error } = await sb.from('point_rules').select('rule_key, points').eq('is_system', true);
+      if(!error && data){
+        data.forEach(r => {
+          if(r.rule_key && r.points !== null) pointSettings[r.rule_key] = r.points;
+        });
+      }
+    }catch(e){ console.warn('ポイント設定の取得に失敗、既定値を使用します', e); }
+  }
+
+  // 直近7回の申込ポイント(観劇×設定値 + 食事×設定値) − ペナルティ調整値
   function computeNetScore(pid, penaltyPoints){
     const rc = recentCounts[pid];
     if(rc === undefined || rc === null) return null;
     const mc = recentMealCounts[pid] || 0;
-    return (rc * 2) + (mc * 1) - (penaltyPoints || 0);
+    return (rc * pointSettings.theater_point) + (mc * pointSettings.meal_point) - (penaltyPoints || 0);
   }
 
   async function loadRegistrations(eventId){
@@ -1567,6 +1580,7 @@ ${body}
     try{
       await waitForLib(10000);
       sb = getSb();
+      await loadPointSettings();
       try { window.emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
       const { data: { session } } = await sb.auth.getSession();
       if(session){
@@ -1635,15 +1649,16 @@ ${body}
     document.getElementById('changeNote').value = '';
     document.getElementById('changeCancel').checked = false;
 
-    // 締切前なら-1、締切後なら-2を初期値としてサジェスト(スタッフが後で調整可能)
+    // 締切前ならbefore_deadline_penalty、締切後ならafter_deadline_penaltyを初期値としてサジェスト(スタッフが後で調整可能)
     const ev = events.find(e => e.id === currentEventId);
     const deadline = ev?.application_deadline ? new Date(ev.application_deadline) : null;
     const isAfterDeadline = deadline ? (new Date() > deadline) : true;
-    document.getElementById('changePenaltyPoints').value = isAfterDeadline ? '-2' : '-1';
+    const suggested = isAfterDeadline ? pointSettings.after_deadline_penalty : pointSettings.before_deadline_penalty;
+    document.getElementById('changePenaltyPoints').value = suggested;
     document.getElementById('changePenaltyHint').textContent =
       (isAfterDeadline
-        ? '締切後の変更のため、初期値は-2にしています。'
-        : '締切前の変更のため、初期値は-1にしています。')
+        ? `締切後の変更のため、初期値は${suggested}にしています。`
+        : `締切前の変更のため、初期値は${suggested}にしています。`)
       + '事情がある場合や代役対応などは0やプラスの値に変更してください。';
 
     document.getElementById('changeModalSave').disabled = true;
