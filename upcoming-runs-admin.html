@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今後の公演日程(私用)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --navy-deep:#efeaf2; --navy-card:#fffdf9; --navy-card-2:#f4eef7; --gold:#9a86c9;
+    --gold-soft:#6d5aa3; --cream:#332c47; --rose:#a5544a; --line:rgba(154,134,201,0.35);
+    --muted:#8b84a0; --ok:#4f8f66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:radial-gradient(ellipse at top, rgba(255,255,255,0.7) 0%, transparent 65%), var(--navy-deep);
+    color:var(--cream); font-family:'Noto Sans JP', sans-serif; padding:0 0 60px;
+  }
+  .hero{ text-align:center; padding:30px 20px 14px; }
+  .eyebrow{ font-family:'Shippori Mincho', serif; font-size:14px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  h1{ font-family:'Shippori Mincho', serif; font-size:20px; margin:8px 0 0; }
+  .sub{ text-align:center; color:var(--muted); font-size:12.5px; margin:6px 0 0; }
+  .divider{ display:flex; align-items:center; justify-content:center; gap:10px; max-width:160px; margin:12px auto 0; opacity:.85; }
+  .divider::before, .divider::after{ content:""; flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--gold), transparent); }
+  .divider .gem{ width:6px; height:6px; background:var(--gold); transform:rotate(45deg); border:1px solid var(--gold-soft); flex-shrink:0; }
+
+  .wrap{ max-width:600px; margin:0 auto; padding:0 16px; }
+
+  .run-card{
+    background:var(--navy-card); border:1px solid var(--gold); border-radius:14px;
+    padding:16px; margin-bottom:14px;
+  }
+  .run-card.arranged{ opacity:.55; }
+  .run-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+  .run-troupe{ font-family:'Shippori Mincho', serif; font-weight:700; color:var(--gold-soft); font-size:15px; }
+  .run-dates{ font-size:13px; color:var(--cream); }
+  .run-title{ font-size:12.5px; color:var(--muted); margin-bottom:10px; line-height:1.6; }
+  .run-alert{
+    font-size:11.5px; font-weight:700; border-radius:999px; padding:3px 10px; display:inline-block;
+  }
+  .run-alert.due{ background:#fbeceb; color:var(--rose); }
+  .run-alert.soon{ background:#fdf1e2; color:#c98a3a; }
+  .run-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px; }
+  .arranged-toggle{ display:flex; align-items:center; gap:8px; font-size:13px; }
+  .arranged-toggle input{ width:18px; height:18px; }
+  .note-input{
+    width:100%; margin-top:8px; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+    background:var(--navy-card-2); color:var(--cream); font-size:12.5px; font-family:inherit;
+  }
+  .del-btn{
+    background:none; border:1px solid var(--line); color:var(--rose); border-radius:8px;
+    padding:6px 10px; font-size:11.5px; cursor:pointer; font-family:inherit;
+  }
+
+  .add-card{
+    background:var(--navy-card-2); border:1px dashed var(--gold-soft); border-radius:14px;
+    padding:16px; margin-bottom:20px;
+  }
+  .add-card h2{ font-family:'Shippori Mincho', serif; font-size:14.5px; color:var(--gold-soft); margin:0 0 10px; }
+  .add-row{ display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .add-row select, .add-row input{
+    flex:1; min-width:110px; padding:9px 10px; border:1px solid var(--line); border-radius:8px;
+    background:var(--navy-card); color:var(--cream); font-size:13px; font-family:inherit;
+  }
+  .add-btn{
+    width:100%; padding:11px; border:1px solid var(--gold-soft); border-radius:8px;
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    color:#fffaf3; font-weight:700; font-size:14px; cursor:pointer; font-family:inherit;
+  }
+
+  .empty{ text-align:center; color:var(--muted); font-size:13px; padding:30px 0; }
+  .status-msg{ text-align:center; font-size:12.5px; margin-top:10px; }
+  .status-msg.err{ color:var(--rose); }
+  .status-msg.ok{ color:var(--ok); }
+
+  #authGate{ position:fixed; inset:0; background:var(--navy-deep); display:flex; align-items:center; justify-content:center; padding:20px; z-index:2000; }
+  #authGate .box{ max-width:340px; width:100%; background:var(--navy-card); border:1px solid var(--gold); border-radius:14px; padding:28px 24px; }
+  #authGate .title{ text-align:center; margin-bottom:18px; font-family:'Shippori Mincho',serif; font-size:13px; letter-spacing:.16em; color:var(--gold-soft); font-weight:700; }
+  #authGate label{ display:block; margin-bottom:14px; }
+  #authGate .lbl{ font-size:13px; color:var(--gold-soft); font-weight:700; display:block; margin-bottom:6px; }
+  #authGate input{ width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:8px; background:var(--navy-card-2); color:var(--cream); font-size:15px; font-family:inherit; box-sizing:border-box; }
+  #authGate button{ width:100%; padding:13px; border:1px solid var(--gold-soft); border-radius:8px; background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fffaf3; font-weight:700; font-size:15px; cursor:pointer; font-family:'Shippori Mincho','Noto Sans JP',sans-serif; }
+  #authGate .err{ text-align:center; font-size:12.5px; color:var(--rose); margin-top:12px; display:none; }
+</style>
+</head>
+<body>
+
+<div id="authGate">
+  <form class="box" id="loginForm">
+    <div class="title">管理者ログイン</div>
+    <label>
+      <span class="lbl">メールアドレス</span>
+      <input type="email" id="loginEmail" required autocomplete="username">
+    </label>
+    <label>
+      <span class="lbl">パスワード</span>
+      <input type="password" id="loginPassword" required autocomplete="current-password">
+    </label>
+    <button type="submit" id="loginBtn">ログイン</button>
+    <p class="err" id="loginError"></p>
+  </form>
+</div>
+
+<div class="hero">
+  <div class="eyebrow">私用</div>
+  <h1>今後の公演日程</h1>
+  <div class="divider"><span class="gem"></span></div>
+  <p class="sub">まだ観劇会になっていない公演の一覧です。日程調整が済んだらチェックしてください。</p>
+</div>
+
+<div class="wrap">
+  <div class="add-card">
+    <h2>＋ 公演を追加</h2>
+    <div class="add-row">
+      <select id="addTroupe">
+        <option value="花">花組</option>
+        <option value="月">月組</option>
+        <option value="雪">雪組</option>
+        <option value="星">星組</option>
+        <option value="宙">宙組</option>
+      </select>
+      <input type="date" id="addStart" placeholder="初日">
+      <input type="date" id="addEnd" placeholder="千秋楽">
+    </div>
+    <div class="add-row">
+      <input type="text" id="addTitle" placeholder="作品名(わかれば)">
+    </div>
+    <button class="add-btn" id="addBtn">この内容で追加する</button>
+  </div>
+
+  <div id="runList"><p class="empty">読み込み中…</p></div>
+  <p class="status-msg" id="statusMsg"></p>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function escapeHtml(s){
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function fmtDateJp(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${w})`;
+  }
+  function daysUntil(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    return Math.round((d - today) / 86400000);
+  }
+
+  async function loadRuns(){
+    const list = document.getElementById('runList');
+    list.innerHTML = '<p class="empty">読み込み中…</p>';
+    const { data, error } = await sb
+      .from('upcoming_runs')
+      .select('*')
+      .order('run_start_date', { ascending: true });
+    if(error){
+      list.innerHTML = '<p class="empty">読み込みに失敗しました。</p>';
+      return;
+    }
+    if(!data || !data.length){
+      list.innerHTML = '<p class="empty">登録されている公演がありません。</p>';
+      return;
+    }
+
+    list.innerHTML = data.map(r=>{
+      // 日程調整の目安:初日の3〜4ヶ月前(=120〜90日前)
+      const daysToAdjustFrom = daysUntil(r.run_start_date) - 90;   // 90日前を過ぎたら「そろそろ」
+      const daysToAdjustTo   = daysUntil(r.run_start_date) - 120;  // 120日前はまだ先
+      let alert = '';
+      if(!r.arranged){
+        if(daysToAdjustTo <= 0 && daysToAdjustFrom >= -30){
+          alert = daysToAdjustFrom >= 0
+            ? `<span class="run-alert due">日程調整の時期です(初日の${Math.abs(daysToAdjustFrom)}日前)</span>`
+            : `<span class="run-alert soon">まもなく調整時期(初日の約90〜120日前)</span>`;
+        }
+      }
+      return `
+        <div class="run-card ${r.arranged?'arranged':''}" data-id="${r.id}">
+          <div class="run-head">
+            <span class="run-troupe">${escapeHtml(r.troupe)}組</span>
+            <span class="run-dates">${fmtDateJp(r.run_start_date)} 〜 ${fmtDateJp(r.run_end_date)}</span>
+          </div>
+          ${r.work_title ? `<div class="run-title">${escapeHtml(r.work_title)}</div>` : ''}
+          ${alert}
+          <div class="run-foot">
+            <label class="arranged-toggle">
+              <input type="checkbox" data-toggle="${r.id}" ${r.arranged ? 'checked' : ''}>
+              日程調整済み(伊庭)
+            </label>
+            <button class="del-btn" data-del="${r.id}">削除</button>
+          </div>
+          <input type="text" class="note-input" data-note="${r.id}" placeholder="メモ(任意)" value="${escapeHtml(r.notes || '')}">
+        </div>
+      `;
+    }).join('');
+
+    list.querySelectorAll('[data-toggle]').forEach(cb=>{
+      cb.addEventListener('change', async (e)=>{
+        const id = e.target.dataset.toggle;
+        const checked = e.target.checked;
+        const { data: { user } } = await sb.auth.getUser();
+        await sb.from('upcoming_runs').update({
+          arranged: checked,
+          arranged_by: checked ? '伊庭' : null,
+          arranged_at: checked ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        }).eq('id', id);
+        loadRuns();
+      });
+    });
+
+    list.querySelectorAll('[data-note]').forEach(inp=>{
+      inp.addEventListener('blur', async (e)=>{
+        const id = e.target.dataset.note;
+        await sb.from('upcoming_runs').update({
+          notes: e.target.value, updated_at: new Date().toISOString()
+        }).eq('id', id);
+      });
+    });
+
+    list.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        if(!confirm('この公演を削除しますか？')) return;
+        const id = e.target.dataset.del;
+        await sb.from('upcoming_runs').delete().eq('id', id);
+        loadRuns();
+      });
+    });
+  }
+
+  document.getElementById('addBtn').addEventListener('click', async ()=>{
+    const statusMsg = document.getElementById('statusMsg');
+    statusMsg.className = 'status-msg'; statusMsg.textContent = '';
+    const troupe = document.getElementById('addTroupe').value;
+    const start = document.getElementById('addStart').value;
+    const end = document.getElementById('addEnd').value;
+    const title = document.getElementById('addTitle').value.trim();
+    if(!start){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '初日を入力してください。';
+      return;
+    }
+    const { error } = await sb.from('upcoming_runs').insert({
+      troupe, run_start_date: start, run_end_date: end || null,
+      work_title: title || null, arranged: false
+    });
+    if(error){
+      statusMsg.classList.add('err');
+      statusMsg.textContent = '追加に失敗しました:' + error.message;
+      return;
+    }
+    document.getElementById('addStart').value = '';
+    document.getElementById('addEnd').value = '';
+    document.getElementById('addTitle').value = '';
+    statusMsg.classList.add('ok');
+    statusMsg.textContent = '追加しました。';
+    loadRuns();
+  });
+
+  async function init(){
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      document.getElementById('authGate').style.display = 'none';
+      await loadRuns();
+    } else {
+      document.getElementById('authGate').style.display = 'flex';
+    }
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errEl.style.display = 'none';
+    btn.disabled = true; btn.textContent = 'ログインしています…';
+    try{
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      document.getElementById('authGate').style.display = 'none';
+      await loadRuns();
+    }catch(err){
+      errEl.textContent = 'ログインに失敗しました。メールアドレスとパスワードをご確認ください。';
+      errEl.style.display = 'block';
+    }finally{
+      btn.disabled = false; btn.textContent = 'ログイン';
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>

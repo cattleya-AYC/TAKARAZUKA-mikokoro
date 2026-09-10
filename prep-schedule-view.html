@@ -40,14 +40,49 @@
   .tag.soon{background:#fdf1e2;color:var(--warn);}
   .tag.auto{background:var(--card2);color:var(--gold-soft);}
   .tag.staff{background:var(--gold-soft);color:#fff;}
+
+  .next-run-box{
+    background:#fff8f3;border:1px solid #e3c8b4;border-radius:14px;padding:14px 16px;margin-bottom:18px;
+  }
+  .next-run-box .label{font-size:11.5px;font-weight:700;color:#8b5a3c;margin-bottom:6px;}
+  .next-run-box .main{font-size:14px;font-weight:700;color:var(--cream);}
+  .next-run-box .sub2{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🗓 準備スケジュール</h1>
   <p class="sub">観劇会本番までの準備タスクの進み具合です(閲覧のみ)。</p>
+  <div id="nextRunBox"></div>
   <div id="content"><p class="loading">📡 読み込み中‼️</p></div>
 </div>
+
+<script>
+  (async function loadNextRun(){
+    try{
+      const box = document.getElementById('nextRunBox');
+      const { data, error } = await supabase
+        .createClient("https://uyhqnyrnhdjpgrceitgh.supabase.co", "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow")
+        .from('upcoming_runs')
+        .select('*')
+        .eq('arranged', false)
+        .order('run_start_date', { ascending: true })
+        .limit(1);
+      if(error || !data || !data.length) return;
+      const r = data[0];
+      const d = new Date(r.run_start_date + 'T00:00:00');
+      const w = ['日','月','火','水','木','金','土'][d.getDay()];
+      const label = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${w})`;
+      box.innerHTML = `
+        <div class="next-run-box">
+          <div class="label">📅 未着手の直近公演(伊庭さん日程調整待ち)</div>
+          <div class="main">${r.troupe}組(${label}〜)</div>
+          <div class="sub2">${r.work_title ? r.work_title + ' ／ ' : ''}初日の3〜4ヶ月前が日程調整の目安です</div>
+        </div>
+      `;
+    }catch(e){ console.warn('次回公演の取得に失敗', e); }
+  })();
+</script>
 
 <script>
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
