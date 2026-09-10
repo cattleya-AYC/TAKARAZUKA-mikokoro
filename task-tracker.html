@@ -151,7 +151,7 @@
     { key:'giftform',      name:'差し入れフォーム作成',                     offset:-15,  staff:'西中' },
     { key:'giftInviteMail',name:'差し入れ協力お願いメール配信(参加者へお知らせ)', offset:-14, staff:'西中' },
     { key:'giftstart',     name:'差し入れ募集開始',                         offset:-14,  isAuto:true },
-    { key:'agencyPay',     name:'阪急交通社への振り込み',                   offset:-14,  staff:'岩本' },
+    { key:'agencyPay',     name:'阪急交通社への振り込み',                   offset:-9,   staff:'岩本' },
     { key:'coupon',        name:'チケットクーポン受け取り',                 offset:-10,  staff:'伊庭' },
     { key:'namecard',      name:'名刺・席札作成',                           offset:-3,   staff:'原田' },
     { key:'envelope',      name:'配布時のチケット封筒準備',                 offset:-3,   staff:'伊庭' },
@@ -161,6 +161,8 @@
     { key:'giftThanks',    name:'差し入れ協力者へお礼メール',               offset:4,    staff:'西中' },
     { key:'agencyDesk',    name:'阪急交通社窓口(申し込み)',                 offset:-143, staff:'水無瀬' },
     { key:'appInput',      name:'決定内容アプリ入力(見積受領後)',           offset:-136, staff:'水無瀬' },
+    { key:'agencyHeadcount',name:'阪急交通社へ人数報告(取り消し含む)',      offset:-60,  staff:'水無瀬', useRunStart:true, runOffset:-31 },
+    { key:'agencyFinal',   name:'阪急交通社最終人数連絡',                   offset:-15,  staff:'水無瀬' },
   ];
 
   function addDays(base, diff){ const d = new Date(base.getTime()); d.setDate(d.getDate()+diff); return d; }
@@ -216,7 +218,9 @@
         const eventDate = new Date(ev.event_date + 'T00:00:00');
         const eventLabel = `第${ev.event_number ?? '◯'}回 ${ev.troupe ?? '◯'}組(${fmtDateJp(eventDate)})`;
         TASK_DEFS.forEach(def=>{
-          const due = addDays(eventDate, def.offset);
+          const due = (def.useRunStart && ev.run_start_date)
+            ? addDays(new Date(ev.run_start_date + 'T00:00:00'), def.runOffset)
+            : addDays(eventDate, def.offset);
           const progress = progressMap[`${ev.id}_${def.key}`];
           allTasks.push({
             eventId: ev.id,
