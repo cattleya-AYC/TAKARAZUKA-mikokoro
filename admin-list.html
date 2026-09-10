@@ -213,6 +213,13 @@
     color:var(--cream); border-radius:8px; padding:11px 13px; font-size:14px; font-family:inherit; resize:vertical;
   }
   .modal-box textarea:focus{ outline:none; border-color:var(--gold); }
+  .modal-box input[type=number]{
+    width:100%; background:var(--navy-card-2); border:1px solid var(--line);
+    color:var(--cream); border-radius:8px; padding:11px 13px; font-size:14px; font-family:inherit;
+    margin-bottom:4px; box-sizing:border-box;
+  }
+  .modal-box input[type=number]:focus{ outline:none; border-color:var(--gold); }
+  .modal-hint{ font-size:11.5px; color:var(--muted); font-weight:400; margin:-4px 0 12px; display:block; }
   .modal-checkbox{ display:flex; align-items:center; gap:8px; margin:12px 0 18px; font-size:13px; }
   .modal-checkbox input{ width:16px; height:16px; accent-color:var(--gold); }
   .modal-btn-row{ display:flex; gap:10px; }
@@ -433,10 +440,9 @@
     <label>新しく記録する内容</label>
     <textarea id="modalTextarea" placeholder="例:当日11時にドタキャン連絡あり。理由は体調不良とのこと。過去にも直前キャンセルが1回あり。"></textarea>
 
-    <label class="modal-checkbox">
-      <input type="checkbox" id="modalIncrement" checked>
-      <span>ペナルティポイントを +1 する</span>
-    </label>
+    <label>スコアへの影響</label>
+    <span class="modal-hint">マイナス=減点(ペナルティ) / プラス=加点(ボーナス)。0のままなら点数は変わりません。</span>
+    <input type="number" id="modalPointsInput" step="1" placeholder="例: -2 / -1 / +1">
 
     <div class="modal-btn-row">
       <button class="cancel" id="modalCancel">閉じる</button>
@@ -476,10 +482,9 @@
       <label style="margin-top:6px;">変更内容・理由(必須)</label>
       <textarea id="changeNote" placeholder="例:8/30 21:00 LINEにて連絡。同伴者が来られなくなったため1枚に変更希望。"></textarea>
 
-      <label class="modal-checkbox">
-        <input type="checkbox" id="changePenalty" checked>
-        <span>ペナルティポイントを +1 する</span>
-      </label>
+      <label>スコアへの影響</label>
+      <span class="modal-hint" id="changePenaltyHint">締切前の変更依頼は-1、締切後に理由なく変更した場合は-2が目安です。事情がある場合や代役対応などは0やプラスの値にしても構いません。</span>
+      <input type="number" id="changePenaltyPoints" step="1" placeholder="例: -2 / -1 / 0">
     </div>
 
     <div class="modal-btn-row" style="margin-top:16px;">
@@ -780,7 +785,16 @@
 
   let currentRows = [];
   let recentCounts = {};
+  let recentMealCounts = {};
   let changeLogsMap = {};
+
+  // 直近7回の申込ポイント(観劇×2 + 食事×1) − ペナルティ調整値
+  function computeNetScore(pid, penaltyPoints){
+    const rc = recentCounts[pid];
+    if(rc === undefined || rc === null) return null;
+    const mc = recentMealCounts[pid] || 0;
+    return (rc * 2) + (mc * 1) - (penaltyPoints || 0);
+  }
 
   async function loadRegistrations(eventId){
     const tbody = document.getElementById('tableBody');
@@ -813,19 +827,24 @@
       countBadge.textContent = '0件';
       document.getElementById('statusBreakdown').textContent = '';
       recentCounts = {};
+      recentMealCounts = {};
       return;
     }
 
-    // 直近7回の参加回数を取得（今日より前に開催された過去の回だけを対象）
+    // 直近7回の参加回数を取得（募集締切済みの過去の回だけを対象。観劇×2+食事×1でポイント計算）
     recentCounts = {};
+    recentMealCounts = {};
     const pids = [...new Set(currentRows.map(r => r.participants?.id).filter(Boolean))];
     if(pids.length > 0){
       const { data: recentData, error: recentErr } = await sb
         .from('v_recent_participation')
-        .select('participant_id, recent_count')
+        .select('participant_id, recent_count, recent_meal_count')
         .in('participant_id', pids);
       if(!recentErr && recentData){
-        recentData.forEach(row => { recentCounts[row.participant_id] = row.recent_count; });
+        recentData.forEach(row => {
+          recentCounts[row.participant_id] = row.recent_count;
+          recentMealCounts[row.participant_id] = row.recent_meal_count;
+        });
       }
     }
     console.log('[DEBUG] ②participant結合後の件数(currentRows):', currentRows.length, '/ pids数:', pids.length);
@@ -930,8 +949,8 @@
   function netScoreSortValue(r){
     const pid = r.participants?.id;
     const points = r.participants?.penalty_points || 0;
-    const recentCount = recentCounts[pid];
-    return (recentCount === undefined || recentCount === null ? 0 : recentCount) - points;
+    const score = computeNetScore(pid, points);
+    return score === null ? 0 : score;
   }
 
   function defaultSort(rows){
@@ -1007,8 +1026,8 @@
       const tr = document.createElement('tr');
       const status = r.status || '審査中';
       const points = p.penalty_points || 0;
-      const recentCount = recentCounts[p.id];
-      const netScore = (recentCount === undefined || recentCount === null) ? '-' : (recentCount - points);
+      const netScoreRaw = computeNetScore(p.id, points);
+      const netScore = netScoreRaw === null ? '-' : netScoreRaw;
       const rowId = r.id;
       if(status === '参加決定') tr.classList.add('row-accepted');
       if(status === 'お断り') tr.classList.add('row-declined');
@@ -1022,7 +1041,7 @@
         <td class="name">
           <span class="grade-tag">${escapeHtml(a.grade || '')}</span>
           <button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button>
-          <button class="submit-count ${netScore !== '-' && netScore <= 0 ? 'multi' : ''}" data-detail="${rowId}" title="直近7回の参加数−ペナルティ(タップで変更履歴を表示)">${netScore}</button>
+          <button class="submit-count ${netScoreRaw !== null && netScoreRaw <= 0 ? 'multi' : ''}" data-detail="${rowId}" title="直近7回の申込ポイント(観劇×2+食事×1)−ペナルティ調整(タップで変更履歴を表示)">${netScore}</button>
         </td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
         <td class="tight-col">${companionBadges(a.companion_type)}</td>
@@ -1069,8 +1088,8 @@
         const p = r.participants || {};
         const a = r.answers || {};
         const points = p.penalty_points || 0;
-        const recentCount = recentCounts[p.id];
-        const netScore = (recentCount === undefined || recentCount === null) ? '-' : (recentCount - points);
+        const netScoreRaw2 = computeNetScore(p.id, points);
+        const netScore = netScoreRaw2 === null ? '-' : netScoreRaw2;
         const mealOn = a.meal === 'ご参加';
         const seatOn = a.seat_pref === '連席希望';
         const mealMark = mealOn
@@ -1225,7 +1244,7 @@
 
     modalCurrentPid = pid;
     document.getElementById('modalName').textContent = `${pname} さん`;
-    document.getElementById('modalPoints').textContent = `現在のペナルティポイント:${points}`;
+    document.getElementById('modalPoints').textContent = `現在のスコア調整値:${points > 0 ? '−' + points : (points < 0 ? '+' + Math.abs(points) : '0')}`;
 
     const historyBox = document.getElementById('modalHistory');
     if(notes.trim()){
@@ -1237,7 +1256,7 @@
     }
 
     document.getElementById('modalTextarea').value = '';
-    document.getElementById('modalIncrement').checked = true;
+    document.getElementById('modalPointsInput').value = '';
     document.getElementById('penaltyModal').classList.add('show');
   }
 
@@ -1255,7 +1274,7 @@
     const statusMsg = document.getElementById('statusMsg');
     const saveBtn = document.getElementById('modalSave');
     const text = document.getElementById('modalTextarea').value.trim();
-    const doIncrement = document.getElementById('modalIncrement').checked;
+    const scoreDelta = parseInt(document.getElementById('modalPointsInput').value, 10) || 0;
 
     if(!text){
       alert('記録する内容を入力してください。');
@@ -1275,7 +1294,8 @@
       const existingNotes = target?.participants?.penalty_notes || '';
       const dateStr = new Date().toLocaleDateString('ja-JP');
       const newNotes = existingNotes ? `${existingNotes}\n[${dateStr}] ${text}` : `[${dateStr}] ${text}`;
-      const newPoints = doIncrement ? existingPoints + 1 : existingPoints;
+      // スコアへの影響(scoreDelta)がそのまま点数に反映されるよう、penalty_pointsは逆符号で保存する
+      const newPoints = existingPoints - scoreDelta;
 
       const { error } = await sb
         .from('participants')
@@ -1614,7 +1634,18 @@ ${body}
     document.getElementById('changeCurrentInfo').classList.add('empty');
     document.getElementById('changeNote').value = '';
     document.getElementById('changeCancel').checked = false;
-    document.getElementById('changePenalty').checked = true;
+
+    // 締切前なら-1、締切後なら-2を初期値としてサジェスト(スタッフが後で調整可能)
+    const ev = events.find(e => e.id === currentEventId);
+    const deadline = ev?.application_deadline ? new Date(ev.application_deadline) : null;
+    const isAfterDeadline = deadline ? (new Date() > deadline) : true;
+    document.getElementById('changePenaltyPoints').value = isAfterDeadline ? '-2' : '-1';
+    document.getElementById('changePenaltyHint').textContent =
+      (isAfterDeadline
+        ? '締切後の変更のため、初期値は-2にしています。'
+        : '締切前の変更のため、初期値は-1にしています。')
+      + '事情がある場合や代役対応などは0やプラスの値に変更してください。';
+
     document.getElementById('changeModalSave').disabled = true;
     document.getElementById('changeModal').classList.add('show');
   }
@@ -1689,7 +1720,7 @@ ${body}
     const newCount = document.querySelector('input[name=changeCount]:checked')?.value || before.participant_count || '1';
     const newMeal = document.querySelector('input[name=changeMeal]:checked')?.value || before.meal;
     const note = document.getElementById('changeNote').value.trim();
-    const addPenalty = document.getElementById('changePenalty').checked;
+    const scoreDelta = parseInt(document.getElementById('changePenaltyPoints').value, 10) || 0;
 
     const afterSummary = isCancel
       ? 'キャンセル'
@@ -1721,16 +1752,18 @@ ${body}
         });
       if(logErr) throw logErr;
 
-      if(addPenalty && target.participants?.id){
+      if(scoreDelta !== 0 && target.participants?.id){
         const existingPoints = target.participants.penalty_points || 0;
         const existingNotes = target.participants.penalty_notes || '';
         const dateStr = new Date().toLocaleDateString('ja-JP');
+        const signLabel = scoreDelta > 0 ? `+${scoreDelta}` : `${scoreDelta}`;
         const newNotes = existingNotes
-          ? `${existingNotes}\n[${dateStr}] (変更記録) ${note}`
-          : `[${dateStr}] (変更記録) ${note}`;
+          ? `${existingNotes}\n[${dateStr}] (変更記録${signLabel}) ${note}`
+          : `[${dateStr}] (変更記録${signLabel}) ${note}`;
+        // スコアへの影響(scoreDelta)がそのまま点数に反映されるよう、penalty_pointsは逆符号で保存する
         await sb
           .from('participants')
-          .update({ penalty_points: existingPoints + 1, penalty_notes: newNotes })
+          .update({ penalty_points: existingPoints - scoreDelta, penalty_notes: newNotes })
           .eq('id', target.participants.id);
       }
 
