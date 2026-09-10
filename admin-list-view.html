@@ -769,7 +769,10 @@
         .select('participant_id, recent_count, recent_meal_count')
         .in('participant_id', pids);
       if(!recentErr && recentData){
-        recentData.forEach(row => { recentCounts[row.participant_id] = row.recent_count; });
+        recentData.forEach(row => {
+          recentCounts[row.participant_id] = row.recent_count;
+          recentMealCounts[row.participant_id] = row.recent_meal_count;
+        });
       }
     }
 
