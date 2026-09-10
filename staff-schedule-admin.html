@@ -98,8 +98,6 @@
     <div id="pairSelectorArea"></div>
   </div>
 
-  <div class="panel" id="gatherTimeNote" style="text-align:center;font-family:'Shippori Mincho',serif;font-size:16px;font-weight:700;color:var(--gold-soft);"></div>
-
   <div id="rowsArea"></div>
 
   <div class="panel" style="text-align:center;">
@@ -107,13 +105,13 @@
   </div>
 
   <div class="panel">
-    <h2 style="font-family:'Shippori Mincho',serif;font-size:15px;text-align:center;margin:0 0 10px;color:var(--gold-soft);">🔢 担当回数(チケット受け取り・店支払いは除く)</h2>
+    <h2 style="font-family:'Shippori Mincho',serif;font-size:15px;text-align:center;margin:0 0 10px;color:var(--gold-soft);">🔢 担当回数(固定担当・テーブルリーダーは除く)</h2>
     <div id="staffTally" style="display:flex;flex-direction:column;gap:6px;"></div>
   </div>
 
   <div class="top-actions">
     <button class="btn-sub" onclick="autoAssignAll()">🔀 まだ未割当の分を自動割り当て</button>
-    <button class="btn-main" onclick="saveAll()">保存する</button>
+    <button class="btn-main" id="saveAllBtn" onclick="saveAll()">保存する</button>
   </div>
 
   <div style="text-align:center;color:var(--muted);margin:26px 0 10px;font-size:13px;">◆ ◇ ◆</div>
@@ -132,7 +130,7 @@
   </div>
 
   <div class="top-actions">
-    <button class="btn-main" onclick="saveBelongings()">持ち物リストを保存する</button>
+    <button class="btn-main" id="saveBelongingsBtn" onclick="saveBelongings()">持ち物リストを保存する</button>
   </div>
 </div>
 
@@ -264,16 +262,13 @@
     return names;
   }
 
-  // お菓子当番のチームから、残り2チームへの仕事の割り振りを自動で決めるルール
+  // お菓子当番のチームから「チケット抽選係」「食事なしチケット渡し」を自動で決めるルール
   // A=原田・太田, B=伊庭・岩本, C=西中・水無瀬 (DUTY_PAIRSのインデックス0,1,2に対応)
-  // teamA担当:チケット抽選係・食事なしチケット渡し / teamB担当:メッセージカード配布・チケット封入・撮影(食事中)
   const PAIR_AUTO_RULE = {
-    0: { teamA: 1, teamB: 2 }, // お菓子=Aチーム → teamA=Bチーム, teamB=Cチーム
-    1: { teamA: 2, teamB: 0 }, // お菓子=Bチーム → teamA=Cチーム, teamB=Aチーム
-    2: { teamA: 1, teamB: 0 }  // お菓子=Cチーム → teamA=Bチーム, teamB=Aチーム
+    0: { lottery: 1, pass: 2 }, // お菓子=Aチーム → 抽選=Bチーム, 食事なし渡し=Cチーム
+    1: { lottery: 2, pass: 0 }, // お菓子=Bチーム → 抽選=Cチーム, 食事なし渡し=Aチーム
+    2: { lottery: 1, pass: 0 }  // お菓子=Cチーム → 抽選=Bチーム, 食事なし渡し=Aチーム
   };
-  const TEAM_A_TASKS = ['チケット抽選係', '食事なしの参加者へチケット渡し(インフォ前)'];
-  const TEAM_B_TASKS = ['メッセージカード配布', 'チケット封入', '撮影(食事中)'];
 
   function autoAssignPairsFromDuty(dutyNames){
     if(!dutyNames || !dutyNames.length) return;
@@ -282,23 +277,30 @@
     const rule = PAIR_AUTO_RULE[dutyIdx];
     if(!rule) return;
 
-    const teamAPair = DUTY_PAIRS[rule.teamA];
-    const teamBPair = DUTY_PAIRS[rule.teamB];
-
-    TEAM_A_TASKS.forEach(taskName=>{
-      const row = rows.find(r=>r.task_name === taskName);
-      if(row && (!row.assigned_staff || !row.assigned_staff.length)){
-        row.fixed_staff = teamAPair.slice();
-        row.assigned_staff = teamAPair.slice();
-      }
-    });
-    TEAM_B_TASKS.forEach(taskName=>{
-      const row = rows.find(r=>r.task_name === taskName);
-      if(row && (!row.assigned_staff || !row.assigned_staff.length)){
-        row.fixed_staff = teamBPair.slice();
-        row.assigned_staff = teamBPair.slice();
-      }
-    });
+    const lotteryRow = rows.find(r=>r.task_name === 'チケット抽選係');
+    if(lotteryRow && (!lotteryRow.assigned_staff || !lotteryRow.assigned_staff.length)){
+      const pair = DUTY_PAIRS[rule.lottery].slice();
+      lotteryRow.fixed_staff = pair.slice();
+      lotteryRow.assigned_staff = pair;
+    }
+    const passRow = rows.find(r=>r.task_name === '食事なしの参加者へチケット渡し(インフォ前)');
+    if(passRow && (!passRow.assigned_staff || !passRow.assigned_staff.length)){
+      const pair = DUTY_PAIRS[rule.pass].slice();
+      passRow.fixed_staff = pair.slice();
+      passRow.assigned_staff = pair;
+    }
+    const msgRow = rows.find(r=>r.task_name === 'メッセージカード配布');
+    if(msgRow && (!msgRow.assigned_staff || !msgRow.assigned_staff.length)){
+      const pair = DUTY_PAIRS[rule.pass].slice(); // お菓子でも抽選でもない残りのチーム
+      msgRow.fixed_staff = pair.slice();
+      msgRow.assigned_staff = pair;
+    }
+    const packRow = rows.find(r=>r.task_name === 'チケット封入');
+    if(packRow && (!packRow.assigned_staff || !packRow.assigned_staff.length)){
+      const pair = DUTY_PAIRS[rule.pass].slice(); // お菓子でも抽選でもない残りのチーム
+      packRow.fixed_staff = pair.slice();
+      packRow.assigned_staff = pair;
+    }
   }
 
   async function onEventChange(){
@@ -384,8 +386,7 @@
 
   // --- テンプレート読み込み(既存データが無い場合のみ) ---
   async function loadTemplateIfEmpty(){
-    const hasRealRows = rows.some(r => !r.from_duty); // 当番の自動同期行だけの場合は「空」扱い
-    if(hasRealRows){
+    if(rows.length){
       if(!confirm('すでにこの回のスケジュールがあります。テンプレートで上書きしますか？(保存前なら元に戻せます)')) return;
     }
     try{
@@ -503,18 +504,8 @@
     area.innerHTML = html;
   }
 
-  // 集合時間(13時公演は11:15、11時公演は10:15)
-  function renderGatherTimeNote(){
-    const el = document.getElementById('gatherTimeNote');
-    if(!el) return;
-    if(!currentEvent || !currentEvent.show_time){ el.textContent = ''; return; }
-    const gatherTime = currentEvent.show_time === '11:00' ? '10:15' : '11:15';
-    el.innerHTML = `⏰ 集合時間：${gatherTime}`;
-  }
-
   // --- 描画 ---
   function renderRows(){
-    renderGatherTimeNote();
     renderPairSelector();
     const area = document.getElementById('rowsArea');
     area.innerHTML = '';
@@ -581,14 +572,14 @@
     renderStaffTally();
   }
 
-  const TALLY_EXCLUDED_TASK_NAMES = ['チケット引取り', '店支払い']; // 準備期間の仕事の延長のため、当日業務カウントからは除外
-
   function renderStaffTally(){
     const area = document.getElementById('staffTally');
     if(!area) return;
     const counts = {}; STAFF_LIST.forEach(s=>counts[s]=0);
     rows.forEach(row=>{
-      if(row.task_name && TALLY_EXCLUDED_TASK_NAMES.includes(row.task_name)) return;
+      if(row.task_name && row.task_name.includes('テーブルリーダー')) return; // 進行担当は除外
+      const fully = isFullyFixedRow(row);
+      if(fully && !row.is_duty_linked && !row.from_duty) return; // 固定担当(伊庭・岩本など、当番系以外)は除外
       (row.assigned_staff||[]).forEach(name=>{
         if(counts[name] !== undefined) counts[name]++;
       });
@@ -600,11 +591,9 @@
     ).join('');
   }
 
-  // 座席表の色分け・飲み物カード設置の追加枠から除外する人(チケット封入チーム)
-  const EXTRA_EXCLUDE_PACK_TASKS = ['飲み物カード設置'];
+  // 座席表の色分けの追加枠から除外する人(チケット封入チーム)
   function getExtraExcluded(row){
-    if(!row.task_name) return [];
-    if(!row.task_name.includes('色分け') && !EXTRA_EXCLUDE_PACK_TASKS.includes(row.task_name)) return [];
+    if(!row.task_name || !row.task_name.includes('色分け')) return [];
     const packRow = rows.find(r=>r.task_name === 'チケット封入');
     return packRow && packRow.assigned_staff ? packRow.assigned_staff : [];
   }
@@ -642,11 +631,12 @@
     return counts;
   }
 
-  // 今回のイベント内での現在の合計件数(チケット受け取り・店支払いは除く)
+  // 今回のイベント内での現在の合計件数(固定担当・テーブルリーダーは除く)
   function currentEventCounts(){
     const counts = {}; STAFF_LIST.forEach(s=>counts[s]=0);
     rows.forEach(r=>{
-      if(r.task_name && TALLY_EXCLUDED_TASK_NAMES.includes(r.task_name)) return;
+      if(r.task_name && r.task_name.includes('テーブルリーダー')) return;
+      if(isFullyFixedRow(r) && !r.is_duty_linked && !r.from_duty) return;
       (r.assigned_staff||[]).forEach(name=>{
         if(counts[name] !== undefined) counts[name]++;
       });
@@ -664,9 +654,8 @@
       .flatMap(r=>r.assigned_staff||[]);
 
     if(row.is_group_task){
-      // 「全員」タイプ:同じ時刻に他の仕事を持っていない人を自動で全員割り当て(チケット封入チームなど除外対象も除く)
-      const extraExcludedGroup = getExtraExcluded(row);
-      row.assigned_staff = STAFF_LIST.filter(name => !usedAtThisTime.includes(name) && !extraExcludedGroup.includes(name));
+      // 「全員」タイプ:同じ時刻に他の仕事を持っていない人を自動で全員割り当て
+      row.assigned_staff = STAFF_LIST.filter(name => !usedAtThisTime.includes(name));
       renderRows();
       return;
     }
@@ -699,31 +688,42 @@
   }
 
   // --- 保存(既存行を全削除してから再作成) ---
+  let isSavingAll = false;
   async function saveAll(){
+    if(isSavingAll){ return; } // 二重クリック・二重実行防止
     if(!currentEvent){ setStatus('観劇会が選択されていません'); return; }
-    const { error: delErr } = await sb
-      .from('event_staff_assignments')
-      .delete()
-      .eq('event_id', currentEvent.id);
-    if(delErr){ setStatus('保存に失敗しました(削除時): ' + delErr.message); return; }
+    isSavingAll = true;
+    const btn = document.getElementById('saveAllBtn');
+    const prevLabel = btn ? btn.textContent : null;
+    if(btn){ btn.disabled = true; btn.textContent = '保存中…'; }
+    try{
+      const { error: delErr } = await sb
+        .from('event_staff_assignments')
+        .delete()
+        .eq('event_id', currentEvent.id);
+      if(delErr){ setStatus('保存に失敗しました(削除時): ' + delErr.message); return; }
 
-    if(rows.length === 0){ setStatus('保存しました(スケジュールなし)'); return; }
+      if(rows.length === 0){ setStatus('保存しました(スケジュールなし)'); return; }
 
-    const payload = rows.map(r=>({
-      event_id: currentEvent.id,
-      task_type_id: r.task_type_id,
-      task_name: r.task_name,
-      time_label: r.time_label,
-      required_count: r.required_count,
-      assigned_staff: r.assigned_staff,
-      note: r.note,
-      sort_order: r.sort_order || 0
-    }));
-    const { error: insErr } = await sb.from('event_staff_assignments').insert(payload);
-    if(insErr){ setStatus('保存に失敗しました: ' + insErr.message); return; }
-    isDirty = false;
-    setStatus('保存しました！');
-    await loadExistingRows();
+      const payload = rows.map(r=>({
+        event_id: currentEvent.id,
+        task_type_id: r.task_type_id,
+        task_name: r.task_name,
+        time_label: r.time_label,
+        required_count: r.required_count,
+        assigned_staff: r.assigned_staff,
+        note: r.note,
+        sort_order: r.sort_order || 0
+      }));
+      const { error: insErr } = await sb.from('event_staff_assignments').insert(payload);
+      if(insErr){ setStatus('保存に失敗しました: ' + insErr.message); return; }
+      isDirty = false;
+      setStatus('保存しました！');
+      await loadExistingRows();
+    } finally {
+      isSavingAll = false;
+      if(btn){ btn.disabled = false; btn.textContent = prevLabel || '保存する'; }
+    }
   }
 
   // ================= 持ち物リスト =================
@@ -842,29 +842,40 @@
     });
   }
 
+  let isSavingBelongings = false;
   async function saveBelongings(){
+    if(isSavingBelongings){ return; }
     if(!currentEvent){ setStatus('観劇会が選択されていません'); return; }
-    const { error: delErr } = await sb
-      .from('event_belongings')
-      .delete()
-      .eq('event_id', currentEvent.id);
-    if(delErr){ setStatus('持ち物リストの保存に失敗しました(削除時): ' + delErr.message); return; }
+    isSavingBelongings = true;
+    const btn = document.getElementById('saveBelongingsBtn');
+    const prevLabel = btn ? btn.textContent : null;
+    if(btn){ btn.disabled = true; btn.textContent = '保存中…'; }
+    try{
+      const { error: delErr } = await sb
+        .from('event_belongings')
+        .delete()
+        .eq('event_id', currentEvent.id);
+      if(delErr){ setStatus('持ち物リストの保存に失敗しました(削除時): ' + delErr.message); return; }
 
-    if(belongings.length === 0){ setStatus('保存しました(持ち物リストなし)'); belongingsDirty=false; return; }
+      if(belongings.length === 0){ setStatus('保存しました(持ち物リストなし)'); belongingsDirty=false; return; }
 
-    const payload = belongings.map(b=>({
-      event_id: currentEvent.id,
-      belonging_type_id: b.belonging_type_id,
-      item_name: b.item_name,
-      assigned_staff: b.assigned_staff,
-      note: b.note,
-      sort_order: b.sort_order || 0
-    }));
-    const { error: insErr } = await sb.from('event_belongings').insert(payload);
-    if(insErr){ setStatus('持ち物リストの保存に失敗しました: ' + insErr.message); return; }
-    belongingsDirty = false;
-    setStatus('持ち物リストを保存しました！');
-    await loadExistingBelongings();
+      const payload = belongings.map(b=>({
+        event_id: currentEvent.id,
+        belonging_type_id: b.belonging_type_id,
+        item_name: b.item_name,
+        assigned_staff: b.assigned_staff,
+        note: b.note,
+        sort_order: b.sort_order || 0
+      }));
+      const { error: insErr } = await sb.from('event_belongings').insert(payload);
+      if(insErr){ setStatus('持ち物リストの保存に失敗しました: ' + insErr.message); return; }
+      belongingsDirty = false;
+      setStatus('持ち物リストを保存しました！');
+      await loadExistingBelongings();
+    } finally {
+      isSavingBelongings = false;
+      if(btn){ btn.disabled = false; btn.textContent = prevLabel || '持ち物リストを保存する'; }
+    }
   }
 </script>
 </body>
