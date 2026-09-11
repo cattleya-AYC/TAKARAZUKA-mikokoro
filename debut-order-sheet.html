@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>出番表 作成ツール</title>
+<style>
+  :root{
+    --bg:#faf7f5; --card:#fff; --ink:#2b2320; --sub:#7a6f68;
+    --line:#e8e0da; --accent:#b5626f; --accent2:#8a6d9c;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Hiragino Sans","Yu Gothic",sans-serif;font-size:15px;line-height:1.6;padding-bottom:60px;}
+  header{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;padding:16px;}
+  header h1{margin:0;font-size:18px;}
+  header p{margin:4px 0 0;font-size:12px;opacity:.85;}
+  main{padding:14px;max-width:860px;margin:0 auto;}
+  .card{background:var(--card);border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,.06);}
+  .card h2{margin:0 0 12px;font-size:15px;border-left:4px solid var(--accent);padding-left:8px;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .field{flex:1 1 160px;}
+  .field label{display:block;font-size:12px;color:var(--sub);margin-bottom:3px;}
+  input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px;}
+  .btn{display:inline-block;padding:9px 16px;border-radius:8px;border:none;font-size:13px;cursor:pointer;font-weight:bold;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-sub{background:#fff;color:var(--accent2);border:1px solid var(--accent2);}
+  .btn-danger{background:transparent;color:#b3453f;border:1px solid #e0bcb9;}
+  .btn-sm{padding:5px 10px;font-size:12px;}
+
+  .act-block{margin-bottom:22px;}
+  .act-title-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .act-title-row .badge{background:var(--accent2);color:#fff;font-size:12px;padding:4px 10px;border-radius:12px;}
+
+  .scene{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px;background:#fdfbfa;}
+  .scene .headrow{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .scene .headrow input{flex:1;}
+  .frame-picker{display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--sub);}
+  .frame-picker button{width:30px;height:30px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:13px;}
+  .frame-picker button.sel{background:var(--accent2);color:#fff;border-color:var(--accent2);}
+  .frames{display:flex;gap:10px;flex-wrap:wrap;}
+  .frame-unit{width:150px;}
+  .frame-unit .stage-svg{width:150px;height:98px;}
+  .stairs-toggle{font-size:11px;color:var(--sub);display:flex;align-items:center;gap:4px;margin-top:4px;justify-content:center;}
+
+  .note{font-size:12px;color:var(--sub);background:#f4eeea;padding:8px 10px;border-radius:8px;}
+
+  /* ---- 印刷用スタイル ---- */
+  .print-sheet{display:none;}
+  @media print{
+    body *{visibility:hidden;}
+    .print-sheet, .print-sheet *{visibility:visible;}
+    .print-sheet{display:block;position:absolute;top:0;left:0;width:100%;}
+    .print-page{page-break-after:always;padding:14mm;}
+    .print-page:last-child{page-break-after:auto;}
+    .p-header{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:10px;}
+    .p-header .title{font-size:20px;font-weight:bold;}
+    .p-header .meta{font-size:12px;color:#333;margin-top:4px;}
+    .p-scene{margin-bottom:14px;}
+    .p-scene .name{font-weight:bold;font-size:14px;margin-bottom:6px;border-bottom:1px dashed #999;padding-bottom:2px;}
+    .p-frames{display:flex;gap:10px;}
+    .p-frame{width:32%;}
+    .p-frame svg{width:100%;height:auto;}
+    .p-margin-note{margin-top:24px;border-top:1px dashed #bbb;padding-top:10px;font-size:11px;color:#666;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎭 出番表 作成ツール</h1>
+  <p>場面ごとに枠を追加して、印刷後に手書きで書き込む用紙を作ります</p>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>基本情報（自動取込み予定・現在は手入力）</h2>
+    <div class="row">
+      <div class="field"><label>一幕タイトル</label><input type="text" id="title1" placeholder="例：〇〇〇〇"></div>
+      <div class="field"><label>二幕タイトル</label><input type="text" id="title2" placeholder="一幕と同じ場合も可"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>出演タレント名</label><input type="text" id="talentName"></div>
+      <div class="field"><label>組名</label><input type="text" id="groupName"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>公演期間</label><input type="text" id="runPeriod" placeholder="例：2026/10/1〜10/15"></div>
+      <div class="field"><label>劇場名</label><input type="text" id="venueName"></div>
+    </div>
+    <p class="note">この4項目（タレント名・組名・公演期間・劇場名）は、後で既存データから自動入力に差し替え可能です。今は手入力でOKです。</p>
+  </div>
+
+  <div id="actsWrap"></div>
+
+  <div class="card" style="text-align:center;">
+    <button class="btn btn-primary" onclick="doPrint()">🖨 出番表を印刷する</button>
+    <p class="note" style="margin-top:10px;">印刷ダイアログで「ヘッダーとフッター」をオフにすると、URLの余計な印字が入りません。</p>
+  </div>
+
+</main>
+
+<!-- 印刷用の実体（画面には出さず、印刷時だけ表示） -->
+<div class="print-sheet" id="printSheet"></div>
+
+<script>
+const STAGE_NO_STAIRS = `
+<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 30 L290 30 L290 145 C 200 175, 100 175, 10 145 Z" fill="none" stroke="#000" stroke-width="4"/>
+  <ellipse cx="150" cy="140" rx="95" ry="22" fill="none" stroke="#000" stroke-width="3"/>
+</svg>`;
+
+// 仮の「階段あり」バージョン（実物の絵ができ次第、差し替え可）
+const STAGE_STAIRS = `
+<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg">
+  <path d="M10 30 L290 30 L290 145 C 200 175, 100 175, 10 145 Z" fill="none" stroke="#000" stroke-width="4"/>
+  <ellipse cx="150" cy="140" rx="95" ry="22" fill="none" stroke="#000" stroke-width="3"/>
+  <line x1="70" y1="120" x2="230" y2="120" stroke="#000" stroke-width="1.5"/>
+  <line x1="80" y1="128" x2="220" y2="128" stroke="#000" stroke-width="1.5"/>
+  <line x1="90" y1="136" x2="210" y2="136" stroke="#000" stroke-width="1.5"/>
+</svg>`;
+
+let seq = 1;
+const state = { act1: [], act2: [] };
+
+function newScene(){
+  return { id: 'sc'+(seq++), name: '', frames: [{ stairs:false }] };
+}
+
+function addScene(actKey){
+  state[actKey].push(newScene());
+  render();
+}
+function removeScene(actKey, id){
+  state[actKey] = state[actKey].filter(s => s.id !== id);
+  render();
+}
+function setFrameCount(actKey, id, count){
+  const sc = state[actKey].find(s=>s.id===id);
+  const cur = sc.frames.length;
+  if(count > cur){ for(let i=cur;i<count;i++) sc.frames.push({stairs:false}); }
+  else { sc.frames = sc.frames.slice(0, count); }
+  render();
+}
+function toggleStairs(actKey, id, idx){
+  const sc = state[actKey].find(s=>s.id===id);
+  sc.frames[idx].stairs = !sc.frames[idx].stairs;
+  render();
+}
+function updateSceneName(actKey, id, val){
+  const sc = state[actKey].find(s=>s.id===id);
+  sc.name = val;
+}
+
+function renderActEditor(actKey, label){
+  const scenes = state[actKey];
+  let html = `<div class="act-block"><div class="act-title-row"><span class="badge">${label}</span></div>`;
+  scenes.forEach(sc=>{
+    html += `<div class="scene">
+      <div class="headrow">
+        <input type="text" placeholder="場面名（例：〇幕〇場）" value="${escapeAttr(sc.name)}"
+          oninput="updateSceneName('${actKey}','${sc.id}',this.value)">
+        <button class="btn btn-danger btn-sm" onclick="removeScene('${actKey}','${sc.id}')">削除</button>
+      </div>
+      <div class="frame-picker">
+        枠の数：
+        ${[1,2,3].map(n=>`<button class="${sc.frames.length===n?'sel':''}" onclick="setFrameCount('${actKey}','${sc.id}',${n})">${n}</button>`).join('')}
+        <span>（掛け持ちがなければ1）</span>
+      </div>
+      <div class="frames">
+        ${sc.frames.map((f,idx)=>`
+          <div class="frame-unit">
+            <div class="stage-svg">${f.stairs ? STAGE_STAIRS : STAGE_NO_STAIRS}</div>
+            <label class="stairs-toggle">
+              <input type="checkbox" ${f.stairs?'checked':''} onchange="toggleStairs('${actKey}','${sc.id}',${idx})">
+              階段あり
+            </label>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  });
+  html += `<button class="btn btn-sub" onclick="addScene('${actKey}')">＋ 場面を追加</button></div>`;
+  return html;
+}
+
+function render(){
+  document.getElementById('actsWrap').innerHTML =
+    `<div class="card">${renderActEditor('act1','一幕')}</div>` +
+    `<div class="card">${renderActEditor('act2','二幕')}</div>`;
+  buildPrintSheet();
+}
+
+function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
+function escapeHtml(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function buildPrintSheet(){
+  const talent = document.getElementById('talentName').value;
+  const group = document.getElementById('groupName').value;
+  const run = document.getElementById('runPeriod').value;
+  const venue = document.getElementById('venueName').value;
+  const title1 = document.getElementById('title1').value;
+  const title2 = document.getElementById('title2').value;
+
+  function actPage(title, scenes){
+    return `<div class="print-page">
+      <div class="p-header">
+        <div class="title">${escapeHtml(title)||'（演目タイトル未入力）'}</div>
+        <div class="meta">${escapeHtml(talent)}　／　${escapeHtml(group)}　／　${escapeHtml(run)}　／　${escapeHtml(venue)}</div>
+      </div>
+      ${scenes.map(sc=>`
+        <div class="p-scene">
+          <div class="name">${escapeHtml(sc.name)||'（場面名未入力）'}</div>
+          <div class="p-frames">
+            ${sc.frames.map(f=>`<div class="p-frame">${f.stairs?STAGE_STAIRS:STAGE_NO_STAIRS}</div>`).join('')}
+          </div>
+        </div>
+      `).join('')}
+      <div class="p-margin-note">※ 上記以外のメモはこの余白にご記入ください</div>
+    </div>`;
+  }
+
+  document.getElementById('printSheet').innerHTML =
+    actPage(title1, state.act1) + actPage(title2, state.act2);
+}
+
+function doPrint(){
+  buildPrintSheet();
+  window.print();
+}
+
+document.querySelectorAll('#title1,#title2,#talentName,#groupName,#runPeriod,#venueName')
+  .forEach(el => el.addEventListener('input', buildPrintSheet));
+
+state.act1.push(newScene());
+state.act2.push(newScene());
+render();
+</script>
+</body>
+</html>
