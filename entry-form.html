@@ -221,22 +221,6 @@
     color:var(--gold-soft); margin:12px 0 0; letter-spacing:.05em;
   }
 
-  .school-toggle-wrap{ text-align:right; margin:-8px 0 18px; }
-  .school-toggle-btn{
-    background:none; border:none; padding:4px 2px; font-size:12px;
-    color:var(--gold-soft); text-decoration:underline; cursor:pointer; font-family:inherit;
-  }
-  .school-role-area{
-    background:var(--navy-card-2); border:1px dashed var(--gold); border-radius:10px;
-    padding:14px 14px 16px; margin:-6px 0 18px;
-  }
-  .school-role-area .toggle-group{ margin-bottom:12px; }
-  .school-role-area .field{ margin-bottom:10px; }
-  .school-toggle-cancel{
-    display:block; margin:2px auto 0; background:none; border:none;
-    font-size:11.5px; color:var(--muted-text); text-decoration:underline; cursor:pointer; font-family:inherit;
-  }
-
   .notice-box{
     background:var(--navy-card-2); border:1px solid var(--line); border-radius:8px;
     padding:14px 16px; font-size:12.5px; line-height:1.85; color:var(--cream); margin-bottom:18px;
@@ -458,32 +442,14 @@
       <p class="sub">下記の内容をご入力・お選びください。</p>
 
       <label class="field">
-        <span class="lbl" id="gradeLabel">お申込み者の回生(数字のみ) <span class="req">必須</span></span>
-        <input type="text" name="grade" id="gradeInput" required placeholder="例:32">
+        <span class="lbl">お申込み者の回生(数字のみ) <span class="req">必須</span></span>
+        <input type="text" name="grade" required placeholder="例:32 ／ 在校生は学年とクラス">
       </label>
 
       <label class="field">
-        <span class="lbl" id="fullNameLabel">お名前 <span class="req">必須</span></span>
-        <input type="text" name="full_name" id="fullNameInput" required placeholder="小林 聖子">
+        <span class="lbl">お名前(保護者の方はお子様のお名前もあわせて) <span class="req">必須</span></span>
+        <input type="text" name="full_name" required placeholder="小林 聖子">
       </label>
-
-      <div class="school-toggle-wrap">
-        <button type="button" class="school-toggle-btn" id="schoolToggleBtn">在校生・保護者の方はこちら</button>
-      </div>
-
-      <div class="school-role-area" id="schoolRoleArea" style="display:none;">
-        <div class="toggle-group" id="schoolRoleGroup">
-          <label class="toggle-opt"><input type="radio" name="school_role" value="student">在校生本人</label>
-          <label class="toggle-opt"><input type="radio" name="school_role" value="parent">保護者</label>
-        </div>
-
-        <label class="field" id="schoolNoteField" style="display:none;">
-          <span class="lbl" id="schoolNoteLabel">学年・クラス</span>
-          <input type="text" name="school_note" id="schoolNoteInput" placeholder="例:2年3組">
-        </label>
-
-        <button type="button" class="school-toggle-cancel" id="schoolRoleCancelBtn">同窓生に戻す</button>
-      </div>
 
       <label class="field">
         <span class="lbl">同伴者 <span class="req">必須</span></span>
@@ -942,14 +908,52 @@
           <label class="radio-opt"><input type="radio" name="companion_type" value="一般"> それ以外(一般)</label>
         </div>
       </label>
+      <div id="companionDetailArea"></div>
       <label class="field">
         <span class="lbl">当日の座席のご希望 <span class="req">必須</span></span>
         <div class="radio-group">
           <label class="radio-opt"><input type="radio" name="seat_pref" value="連席希望" required> 連席希望</label>
           <label class="radio-opt"><input type="radio" name="seat_pref" value="抽選"> バラバラでも良い(抽選)</label>
         </div>
+      </label>
+      <label class="field">
+        <span class="lbl">お申込み多数の場合、抽選で同伴者分の枚数が確保できなかった際 <span class="req">必須</span></span>
+        <div class="radio-group">
+          <label class="radio-opt"><input type="radio" name="solo_if_reduced" value="1人でも参加する" required> 1人でも参加する</label>
+          <label class="radio-opt"><input type="radio" name="solo_if_reduced" value="参加しない"> 同伴者と一緒でなければ参加しない</label>
+        </div>
       </label>`;
   }
+
+  // 同伴者の種別(同窓生/一般)に応じて、追加の入力欄を出し分ける
+  function renderCompanionDetail(type){
+    const area = document.getElementById('companionDetailArea');
+    if(!area) return;
+    if(type === '同窓生、または在校生'){
+      area.innerHTML = `
+        <label class="field">
+          <span class="lbl">同伴者の回生(数字のみ) <span class="req">必須</span></span>
+          <input type="text" name="companion_grade" required placeholder="例:32 ／ 在校生は学年とクラス">
+        </label>
+        <label class="field">
+          <span class="lbl">同伴者のお名前 <span class="req">必須</span></span>
+          <input type="text" name="companion_name" required placeholder="小林 聖子">
+        </label>`;
+    } else if(type === '一般'){
+      area.innerHTML = `
+        <label class="field">
+          <span class="lbl">同伴者のお名前 <span class="req">必須</span></span>
+          <input type="text" name="companion_name" required placeholder="小林 聖子">
+        </label>
+        <label class="field">
+          <span class="lbl">ご関係 <span class="req">必須</span></span>
+          <input type="text" name="companion_relation" required placeholder="例:友人、母、姉妹など">
+        </label>`;
+    } else {
+      area.innerHTML = '';
+    }
+  }
+
   renderCompanions(1); // デフォルト:同伴者なし・1枚
   document.getElementById('countGroup').addEventListener('change', (e)=>{
     if(e.target.name==='participant_count') renderCompanions(e.target.value);
@@ -966,63 +970,12 @@
       e.target.closest('.radio-opt')?.classList.add('checked');
       e.target.closest('.toggle-opt')?.classList.add('checked');
     }
+    if(e.target.name==='companion_type'){
+      renderCompanionDetail(e.target.value);
+    }
   });
   // 初期状態(同伴者なし)のハイライトを反映
   document.querySelector('#countGroup input[value="1"]').closest('.toggle-opt').classList.add('checked');
-
-  // 在校生・保護者用の入力切り替え(デフォルトは同窓生=何もしなくてOK)
-  const gradeInput = document.getElementById('gradeInput');
-  const fullNameLabel = document.getElementById('fullNameLabel');
-  const schoolToggleBtn = document.getElementById('schoolToggleBtn');
-  const schoolRoleArea = document.getElementById('schoolRoleArea');
-  const schoolRoleGroup = document.getElementById('schoolRoleGroup');
-  const schoolNoteField = document.getElementById('schoolNoteField');
-  const schoolNoteLabel = document.getElementById('schoolNoteLabel');
-  const schoolNoteInput = document.getElementById('schoolNoteInput');
-  const schoolRoleCancelBtn = document.getElementById('schoolRoleCancelBtn');
-
-  const GRADE_DEFAULT_PLACEHOLDER = '例:32';
-  const NAME_DEFAULT_LABEL = 'お名前 <span class="req">必須</span>';
-
-  schoolToggleBtn.addEventListener('click', ()=>{
-    schoolRoleArea.style.display = schoolRoleArea.style.display === 'none' ? 'block' : 'none';
-  });
-
-  schoolRoleGroup.addEventListener('change', (e)=>{
-    if(e.target.name !== 'school_role') return;
-    const role = e.target.value;
-    schoolNoteField.style.display = 'block';
-    schoolNoteInput.required = true;
-    schoolNoteInput.value = '';
-
-    if(role === 'student'){
-      gradeInput.value = '在校生';
-      fullNameLabel.innerHTML = 'お名前(ご本人) <span class="req">必須</span>';
-      schoolNoteLabel.textContent = '学年・クラス';
-      schoolNoteInput.placeholder = '例:2年3組';
-    } else if(role === 'parent'){
-      gradeInput.value = '保護者';
-      fullNameLabel.innerHTML = 'お名前(保護者ご本人) <span class="req">必須</span>';
-      schoolNoteLabel.textContent = '学年・クラス・お子様のお名前';
-      schoolNoteInput.placeholder = '例:2年3組 小林 花子';
-    }
-    gradeInput.readOnly = true;
-  });
-
-  schoolRoleCancelBtn.addEventListener('click', ()=>{
-    schoolRoleGroup.querySelectorAll('input[name="school_role"]').forEach(r=>{
-      r.checked = false;
-      r.closest('.toggle-opt')?.classList.remove('checked');
-    });
-    gradeInput.readOnly = false;
-    gradeInput.value = '';
-    gradeInput.placeholder = GRADE_DEFAULT_PLACEHOLDER;
-    fullNameLabel.innerHTML = NAME_DEFAULT_LABEL;
-    schoolNoteField.style.display = 'none';
-    schoolNoteInput.required = false;
-    schoolNoteInput.value = '';
-    schoolRoleArea.style.display = 'none';
-  });
 
   function showValidationMsg(msg){
     const box = document.getElementById('validationMsg');
@@ -1034,6 +987,7 @@
 
   const seatPrefLabel = { '連席希望':'連席希望', '抽選':'バラバラでも良い(抽選)' };
   const companionTypeLabel = { '同窓生、または在校生':'同窓生、または在校生', '一般':'それ以外(一般)' };
+  const soloIfReducedLabel = { '1人でも参加する':'1人でも参加する', '参加しない':'同伴者と一緒でなければ参加しない' };
 
   function escapeHtml(str){
     return (str == null ? '' : String(str)).replace(/[&<>"']/g, s => ({
@@ -1041,20 +995,22 @@
     }[s]));
   }
 
-  const schoolRoleLabel = { student:'在校生本人', parent:'保護者' };
-
   function renderConfirmRows(data){
     const rows = [];
-    rows.push(['区分', schoolRoleLabel[data.school_role] || '同窓生']);
     rows.push(['回生', data.grade]);
     rows.push(['お名前', data.full_name]);
-    if(data.school_role && data.school_note){
-      rows.push([data.school_role === 'parent' ? '学年・クラス・お子様のお名前' : '学年・クラス', data.school_note]);
-    }
     rows.push(['申込枚数', `${data.participant_count}枚`]);
     if(Number(data.participant_count) > 1){
       rows.push(['同伴者について', companionTypeLabel[data.companion_type] || data.companion_type || '']);
+      if(data.companion_type === '同窓生、または在校生'){
+        rows.push(['同伴者の回生', data.companion_grade]);
+        rows.push(['同伴者のお名前', data.companion_name]);
+      } else if(data.companion_type === '一般'){
+        rows.push(['同伴者のお名前', data.companion_name]);
+        rows.push(['ご関係', data.companion_relation]);
+      }
       rows.push(['座席希望', seatPrefLabel[data.seat_pref] || data.seat_pref || '']);
+      rows.push(['1人になった場合', soloIfReducedLabel[data.solo_if_reduced] || data.solo_if_reduced || '']);
     } else {
       rows.push(['同伴者', 'なし']);
     }
