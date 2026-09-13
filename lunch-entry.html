@@ -191,6 +191,11 @@
         <select id="meal1"><option value="">選択してください</option></select>
         <div class="field-error" id="meal1Error">お食事を選択してください。</div>
       </label>
+      <div class="field" id="onigiri1Field" style="display:none">
+        <span class="lbl">おにぎりを2個お選びください <span class="req">必須</span></span>
+        <div class="radio-grid" id="onigiri1Grid"></div>
+        <div class="field-error" id="onigiri1Error">おにぎりを2個選んでください。</div>
+      </div>
       <label class="field">
         <span class="lbl">お飲み物 <span class="req">必須</span></span>
         <div class="radio-grid" id="drinks1"></div>
@@ -205,6 +210,11 @@
         <select id="meal2"><option value="">選択してください</option></select>
         <div class="field-error" id="meal2Error">お食事を選択してください。</div>
       </label>
+      <div class="field" id="onigiri2Field" style="display:none">
+        <span class="lbl">おにぎりを2個お選びください <span class="req">必須</span></span>
+        <div class="radio-grid" id="onigiri2Grid"></div>
+        <div class="field-error" id="onigiri2Error">おにぎりを2個選んでください。</div>
+      </div>
       <label class="field">
         <span class="lbl">お飲み物 <span class="req">必須</span></span>
         <div class="radio-grid" id="drinks2"></div>
@@ -250,7 +260,22 @@
 <script>
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
-  const DRINKS = ["ホットコーヒー","アイスコーヒー","ホット紅茶","アイス紅茶"];
+  const DRINKS_DEFAULT = ["ホットコーヒー","アイスコーヒー","ホット紅茶","アイス紅茶"];
+  // 特定の回だけお飲み物を差し替える(今回はコーヒー・紅茶なし、台湾茶のみ)
+  const DRINKS_OVERRIDE_BY_EVENT = {
+    "812072a7-aa14-4ed7-bd5f-743e6f34d1a7": ["ホット台湾茶","アイス台湾茶"]
+  };
+  function getDrinksForEvent(eventId){
+    return DRINKS_OVERRIDE_BY_EVENT[eventId] || DRINKS_DEFAULT;
+  }
+
+  // イレギュラーメニュー「おにぎり2個セット」用(この名前のメニューが選ばれた時だけ11種から2個選ばせる)
+  const ONIGIRI_MENU_NAME = "おにぎり2個セット";
+  const ONIGIRI_OPTIONS = [
+    "白米:鮭とごまむすび","白米:焼き梅むすび","白米:佃煮昆布むすび","白米:ツナマヨむすび","白米:肉味噌むすび","白米:辛子明太子むすび",
+    "玄米:鮭とごまむすび","玄米:焼き梅むすび","玄米:佃煮昆布むすび","玄米:辛子明太子むすび","玄米:肉味噌むすび"
+  ];
+
   let sb = null, eventRow = null, settingsRow = null, menus = [];
 
   function waitForLib(timeoutMs){
@@ -380,10 +405,67 @@
     fillMealSelect(document.getElementById('meal2'));
 
     function fillDrinks(el, group){
-      el.innerHTML = DRINKS.map(d=>`<label class="radio-opt"><input type="radio" name="${group}" value="${d}">${d}</label>`).join('');
+      const drinkList = getDrinksForEvent(eventRow.id);
+      el.innerHTML = drinkList.map(d=>`<label class="radio-opt"><input type="radio" name="${group}" value="${d}">${d}</label>`).join('');
     }
     fillDrinks(document.getElementById('drinks1'), 'drink1');
     fillDrinks(document.getElementById('drinks2'), 'drink2');
+
+    function fillOnigiri(el, group){
+      el.innerHTML = ONIGIRI_OPTIONS.map(o=>`<label class="radio-opt"><input type="checkbox" name="${group}" value="${o}">${o}</label>`).join('');
+      wireOnigiriGroup(group);
+    }
+    fillOnigiri(document.getElementById('onigiri1Grid'), 'onigiri1');
+    fillOnigiri(document.getElementById('onigiri2Grid'), 'onigiri2');
+
+    document.getElementById('meal1').addEventListener('change', ()=>syncOnigiriUI('meal1','onigiri1Field','onigiri1'));
+    document.getElementById('meal2').addEventListener('change', ()=>syncOnigiriUI('meal2','onigiri2Field','onigiri2'));
+    syncOnigiriUI('meal1','onigiri1Field','onigiri1');
+    syncOnigiriUI('meal2','onigiri2Field','onigiri2');
+  }
+
+  // チェックボックスは2個までに制限(2個選ぶと残りをdisable)
+  function wireOnigiriGroup(name){
+    const boxes = ()=>Array.from(document.querySelectorAll(`input[name="${name}"]`));
+    boxes().forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const checked = boxes().filter(b=>b.checked);
+        boxes().forEach(b=>{
+          b.closest('.radio-opt').classList.toggle('checked', b.checked);
+          b.disabled = !b.checked && checked.length >= 2;
+        });
+      });
+    });
+  }
+
+  // メニューが「おにぎり2個セット」の時だけ、11種選択エリアを表示する
+  function syncOnigiriUI(mealSelectId, fieldId, groupName){
+    const m = menuById(document.getElementById(mealSelectId).value);
+    const isOnigiri = !!(m && m.name === ONIGIRI_MENU_NAME);
+    document.getElementById(fieldId).style.display = isOnigiri ? 'block' : 'none';
+    if(!isOnigiri){
+      document.querySelectorAll(`input[name="${groupName}"]`).forEach(cb=>{
+        cb.checked = false; cb.disabled = false;
+        cb.closest('.radio-opt').classList.remove('checked');
+      });
+      document.getElementById(fieldId.replace('Field','Error')).classList.remove('show');
+    }
+  }
+
+  function isOnigiriSelected(mealSelectId){
+    const m = menuById(document.getElementById(mealSelectId).value);
+    return !!(m && m.name === ONIGIRI_MENU_NAME);
+  }
+  function getCheckedOnigiri(groupName){
+    return Array.from(document.querySelectorAll(`input[name="${groupName}"]:checked`)).map(c=>c.value);
+  }
+  function buildMenuName(mealSelectId, groupName){
+    const m = menuById(document.getElementById(mealSelectId).value);
+    if(m && m.name === ONIGIRI_MENU_NAME){
+      const picks = getCheckedOnigiri(groupName);
+      return `${m.name}(${picks.join('・')})`;
+    }
+    return m.name;
   }
 
   // ラジオ/トグルのハイライト
@@ -412,6 +494,7 @@
         r.closest('.radio-opt')?.classList.remove('checked');
       });
       ['meal2Error','drink2Error','relationError'].forEach(id=>document.getElementById(id).classList.remove('show'));
+      syncOnigiriUI('meal2','onigiri2Field','onigiri2');
     }
     updateTotal();
   }
@@ -442,6 +525,11 @@
     const meal1 = document.getElementById('meal1').value;
     setError('meal1','meal1Error', meal1===''); if(meal1==='') ok = false;
 
+    if(isOnigiriSelected('meal1')){
+      const bad1 = getCheckedOnigiri('onigiri1').length !== 2;
+      document.getElementById('onigiri1Error').classList.toggle('show', bad1); if(bad1) ok = false;
+    }
+
     const drink1 = document.querySelector('input[name="drink1"]:checked');
     document.getElementById('drink1Error').classList.toggle('show', !drink1); if(!drink1) ok = false;
 
@@ -451,6 +539,11 @@
 
       const meal2 = document.getElementById('meal2').value;
       setError('meal2','meal2Error', meal2===''); if(meal2==='') ok = false;
+
+      if(isOnigiriSelected('meal2')){
+        const bad2 = getCheckedOnigiri('onigiri2').length !== 2;
+        document.getElementById('onigiri2Error').classList.toggle('show', bad2); if(bad2) ok = false;
+      }
 
       const drink2 = document.querySelector('input[name="drink2"]:checked');
       document.getElementById('drink2Error').classList.toggle('show', !drink2); if(!drink2) ok = false;
@@ -472,10 +565,12 @@
     const name = document.getElementById('nameInput').value.trim().replace(/[\s\u3000]/g, '');
     const count = getPartyCount();
     const m1 = menuById(document.getElementById('meal1').value);
+    const menuName1 = buildMenuName('meal1','onigiri1');
     const drink1 = document.querySelector('input[name="drink1"]:checked').value;
-    let m2, drink2, relation = '';
+    let m2, menuName2, drink2, relation = '';
     if(count === 2){
       m2 = menuById(document.getElementById('meal2').value);
+      menuName2 = buildMenuName('meal2','onigiri2');
       drink2 = document.querySelector('input[name="drink2"]:checked').value;
       relation = document.querySelector('input[name="relation"]:checked').value;
     }
@@ -499,9 +594,9 @@
       if(orderErr) throw orderErr;
 
       await sb.from('meal_order_items').delete().eq('meal_order_id', orderRow.id);
-      const items = [{ meal_order_id:orderRow.id, person_no:1, menu_id:m1.id, menu_name:m1.name, price:m1.price, drink:drink1 }];
+      const items = [{ meal_order_id:orderRow.id, person_no:1, menu_id:m1.id, menu_name:menuName1, price:m1.price, drink:drink1 }];
       if(count === 2){
-        items.push({ meal_order_id:orderRow.id, person_no:2, menu_id:m2.id, menu_name:m2.name, price:m2.price, drink:drink2 });
+        items.push({ meal_order_id:orderRow.id, person_no:2, menu_id:m2.id, menu_name:menuName2, price:m2.price, drink:drink2 });
       }
       const { error: itemErr } = await sb.from('meal_order_items').insert(items);
       if(itemErr) throw itemErr;
@@ -512,11 +607,11 @@
       document.getElementById('doneMeetingPlace').textContent = settingsRow.meeting_place || '―';
       document.getElementById('doneMeetingTime').textContent = settingsRow.meeting_time || '―';
 
-      document.getElementById('doneOrder1').textContent = `${m1.name} / ${drink1}`;
+      document.getElementById('doneOrder1').textContent = `${menuName1} / ${drink1}`;
       const row2 = document.getElementById('doneOrder2Row');
       if(count === 2){
         document.getElementById('doneOrder2Label').textContent = relation ? `2人目(${relation})` : '2人目';
-        document.getElementById('doneOrder2').textContent = `${m2.name} / ${drink2}`;
+        document.getElementById('doneOrder2').textContent = `${menuName2} / ${drink2}`;
         row2.style.display = 'flex';
       } else {
         row2.style.display = 'none';
