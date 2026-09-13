@@ -190,9 +190,10 @@
         <span class="lbl">お食事 <span class="req">必須</span></span>
         <select id="meal1"><option value="">選択してください</option></select>
         <div class="field-error" id="meal1Error">お食事を選択してください。</div>
+        <button type="button" id="onigiri1JumpBtn" style="display:none;width:auto;margin-top:8px;padding:9px 16px;font-size:13px;">🍙 おにぎりを選ぶ</button>
       </label>
       <div class="field" id="onigiri1Field" style="display:none">
-        <span class="lbl">おにぎりを2個お選びください <span class="req">必須</span></span>
+        <span class="lbl">2種類のおにぎりをお選びください <span class="req">必須</span></span>
         <div class="radio-grid" id="onigiri1Grid"></div>
         <div class="field-error" id="onigiri1Error">おにぎりを2個選んでください。</div>
       </div>
@@ -209,9 +210,10 @@
         <span class="lbl">お食事 <span class="req">必須</span></span>
         <select id="meal2"><option value="">選択してください</option></select>
         <div class="field-error" id="meal2Error">お食事を選択してください。</div>
+        <button type="button" id="onigiri2JumpBtn" style="display:none;width:auto;margin-top:8px;padding:9px 16px;font-size:13px;">🍙 おにぎりを選ぶ</button>
       </label>
       <div class="field" id="onigiri2Field" style="display:none">
-        <span class="lbl">おにぎりを2個お選びください <span class="req">必須</span></span>
+        <span class="lbl">2種類のおにぎりをお選びください <span class="req">必須</span></span>
         <div class="radio-grid" id="onigiri2Grid"></div>
         <div class="field-error" id="onigiri2Error">おにぎりを2個選んでください。</div>
       </div>
@@ -260,6 +262,8 @@
 <script>
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  // 差し入れ代込みの注記を出す回(今回は花組エリザベートのみ)
+  const GIFT_INCLUDED_EVENT_IDS = ["812072a7-aa14-4ed7-bd5f-743e6f34d1a7"];
   const DRINKS_DEFAULT = ["ホットコーヒー","アイスコーヒー","ホット紅茶","アイス紅茶"];
   // 特定の回だけお飲み物を差し替える(今回はコーヒー・紅茶なし、台湾茶のみ)
   const DRINKS_OVERRIDE_BY_EVENT = {
@@ -270,7 +274,8 @@
   }
 
   // イレギュラーメニュー「おにぎり2個セット」用(この名前のメニューが選ばれた時だけ11種から2個選ばせる)
-  const ONIGIRI_MENU_NAME = "おにぎり2個セット";
+  const ONIGIRI_MENU_NAME = "おにぎり2個セット"; // 参考表示用(実際の判定はメニュー名に「おにぎり」を含むかどうかで行う)
+  function isOnigiriMenu(m){ return !!(m && m.name && m.name.includes('おにぎり')); }
   const ONIGIRI_OPTIONS = [
     "白米:鮭とごまむすび","白米:焼き梅むすび","白米:佃煮昆布むすび","白米:ツナマヨむすび","白米:肉味噌むすび","白米:辛子明太子むすび",
     "玄米:鮭とごまむすび","玄米:焼き梅むすび","玄米:佃煮昆布むすび","玄米:辛子明太子むすび","玄米:肉味噌むすび"
@@ -393,7 +398,7 @@
         <div class="menu-body">
           <div class="menu-name">${m.name}</div>
           <div class="menu-price">${m.price.toLocaleString('ja-JP')}円</div>
-          <div style="font-size:10.5px;color:var(--muted);margin-top:2px;">(ジェンヌさんへの差し入れ代含む)</div>
+          ${GIFT_INCLUDED_EVENT_IDS.includes(eventRow.id) ? `<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">(ジェンヌさんへの差し入れ代含む)</div>` : ''}
         </div>
       </div>
     `).join('');
@@ -439,11 +444,13 @@
     });
   }
 
-  // メニューが「おにぎり2個セット」の時だけ、11種選択エリアを表示する
+  // メニューが「おにぎり2個セット」の時だけ、11種選択エリアとボタンを表示する
   function syncOnigiriUI(mealSelectId, fieldId, groupName){
     const m = menuById(document.getElementById(mealSelectId).value);
-    const isOnigiri = !!(m && m.name === ONIGIRI_MENU_NAME);
+    const isOnigiri = isOnigiriMenu(m);
     document.getElementById(fieldId).style.display = isOnigiri ? 'block' : 'none';
+    const btn = document.getElementById(fieldId.replace('Field','JumpBtn'));
+    if(btn) btn.style.display = isOnigiri ? 'block' : 'none';
     if(!isOnigiri){
       document.querySelectorAll(`input[name="${groupName}"]`).forEach(cb=>{
         cb.checked = false; cb.disabled = false;
@@ -453,16 +460,30 @@
     }
   }
 
+  // 「おにぎりを選ぶ」ボタン → 選択エリアまでスクロールして少し目立たせる
+  function wireOnigiriJumpButton(btnId, fieldId){
+    document.getElementById(btnId).addEventListener('click', ()=>{
+      const field = document.getElementById(fieldId);
+      field.scrollIntoView({ behavior:'smooth', block:'center' });
+      field.style.transition = 'box-shadow .2s';
+      field.style.boxShadow = '0 0 0 3px var(--gold)';
+      field.style.borderRadius = '8px';
+      setTimeout(()=>{ field.style.boxShadow = 'none'; }, 1200);
+    });
+  }
+  wireOnigiriJumpButton('onigiri1JumpBtn','onigiri1Field');
+  wireOnigiriJumpButton('onigiri2JumpBtn','onigiri2Field');
+
   function isOnigiriSelected(mealSelectId){
     const m = menuById(document.getElementById(mealSelectId).value);
-    return !!(m && m.name === ONIGIRI_MENU_NAME);
+    return isOnigiriMenu(m);
   }
   function getCheckedOnigiri(groupName){
     return Array.from(document.querySelectorAll(`input[name="${groupName}"]:checked`)).map(c=>c.value);
   }
   function buildMenuName(mealSelectId, groupName){
     const m = menuById(document.getElementById(mealSelectId).value);
-    if(m && m.name === ONIGIRI_MENU_NAME){
+    if(isOnigiriMenu(m)){
       const picks = getCheckedOnigiri(groupName);
       return `${m.name}(${picks.join('・')})`;
     }
