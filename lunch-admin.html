@@ -288,6 +288,21 @@
   const EMAILJS_SERVICE_ID = "service_qpuxvaj";
   const EMAILJS_GENERIC_TEMPLATE_ID = "template_khkmzni"; // 汎用テンプレート({{subject}}/{{message}})
   const PARTICIPANT_FORM_BASE = "https://takarazuka-mikokoro.vercel.app/lunch-entry.html";
+  const OFFICIAL_LINE_URL = "https://lin.ee/S21MDzhw";
+  const NO_REPLY_FOOTER =
+`
+
+――――――――――――――――
+※このメールは送信専用のアドレスからお送りしております。
+大変恐れ入りますが、本メールに直接ご返信いただいても内容を確認することができず、
+どなたにも届かない仕組みとなっております。
+
+お問い合わせ・ご報告・ご確認などがございましたら、お手数をおかけいたしますが、
+下記の公式LINEよりご連絡くださいますようお願い申し上げます。
+
+【公式LINE】
+${OFFICIAL_LINE_URL}
+――――――――――――――――`;
   let sb = null;
 
   window.addEventListener('error', (ev)=>{
@@ -665,7 +680,7 @@ ${deadline}
 それでは、当日皆さまにお会いできますことを、スタッフ一同楽しみにしております。
 
 どうぞよろしくお願いいたします。
-小林タカラヅカ倶楽部`;
+小林タカラヅカ倶楽部${NO_REPLY_FOOTER}`;
 
     const btn = document.getElementById('testMailBtn');
     btn.disabled = true; btn.textContent = '送信中…';
@@ -763,7 +778,7 @@ ${deadline}
 それでは、当日皆さまにお会いできますことを、スタッフ一同楽しみにしております。
 
 どうぞよろしくお願いいたします。
-小林タカラヅカ倶楽部`;
+小林タカラヅカ倶楽部${NO_REPLY_FOOTER}`;
         try{
           await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
             email: r.email,
@@ -840,8 +855,18 @@ ${deadline}
       }, { onConflict: 'event_id' });
       if(settingsErr) throw settingsErr;
 
-      // 既存メニューを入れ替え
-      await sb.from('meal_menus').delete().eq('event_id', selectedEvent.id);
+      // 既存メニューを入れ替え(削除が本当に効いたか確認してから追加する)
+      const { data: existingMenuRows, error: existingErr } = await sb
+        .from('meal_menus').select('id').eq('event_id', selectedEvent.id);
+      if(existingErr) throw existingErr;
+
+      const { error: menuDeleteErr, count: deletedCount } = await sb
+        .from('meal_menus').delete({ count:'exact' }).eq('event_id', selectedEvent.id);
+      if(menuDeleteErr) throw menuDeleteErr;
+      if((existingMenuRows||[]).length > 0 && deletedCount !== existingMenuRows.length){
+        throw new Error(`既存メニューの削除に失敗した可能性があります(削除対象${existingMenuRows.length}件中${deletedCount}件のみ削除)。メニューが重複する恐れがあるため保存を中止しました。もう一度お試しください。`);
+      }
+
       const cards = Array.from(document.querySelectorAll('#menuCards .menu-card'));
       const menuRows = [];
       for(let i=0;i<cards.length;i++){
