@@ -335,16 +335,16 @@
     await startApp();
   }
 
-  // 観劇会申込データ（registrations + participants）から、お食事「出席」の人だけを自動取得
+  // 観劇会申込データ（registrations + participants）から、参加「決定」かつお食事「出席」の人だけを自動取得
   async function loadRegistrants(eventId){
     const { data, error } = await sb
       .from('registrations')
-      .select('id, answers, participant_id, participants(name)')
+      .select('id, answers, status, participant_id, participants(name)')
       .eq('event_id', eventId);
     if(error) throw error;
 
     registrants = (data || [])
-      .filter(r => r.answers?.meal === 'ご参加')
+      .filter(r => r.answers?.meal === 'ご参加' && r.status === '参加決定')
       .map(r => ({
         name: r.answers?.full_name || r.participants?.name || '(不明)',
         party_count: Number(r.answers?.participant_count || 1)
