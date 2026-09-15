@@ -133,6 +133,7 @@
   #dataTable th.tight-col, #dataTable td.tight-col{ padding-left:1px; padding-right:1px; }
   .grade-tag{ display:inline-block; width:1.6em; font-size:11px; color:var(--muted); text-align:right; margin-right:2px; }
   #dataTable .grade-tag{ width:1.3em; font-size:10px; margin-right:1px; }
+  .score-breakdown{ display:block; font-size:10px; color:var(--muted); line-height:1.4; margin-top:1px; white-space:nowrap; }
   #dataTable .name-btn{ font-size:12.5px; max-width:none; white-space:nowrap; }
   #dataTable .submit-count{ min-width:16px; height:16px; padding:0 3px; margin-left:3px; font-size:9.5px; }
 
@@ -671,7 +672,8 @@
     <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">メニュー選択フォームURL</label>
     <input type="text" id="mealMenuFormUrl" placeholder="例:https://takarazuka-mikokoro.vercel.app/申し込みフォーム.html" style="width:100%;margin-bottom:10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
     <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">お申し込み締切(そのフォームに設定した日付と合わせてください)</label>
-    <input type="text" id="mealMenuDeadline" placeholder="例:9月7日(日)" style="width:100%;margin-bottom:10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
+    <input type="date" id="mealMenuDeadline" style="width:100%;margin-bottom:10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
+    <p style="margin:-6px 0 10px;font-size:11px;color:var(--muted);">※ この日付は開催回に保存され、タスクスケジュール画面にも自動で表示されます</p>
     <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">補足メッセージ(任意)</label>
     <textarea id="mealMenuBody" placeholder="例:お手数をおかけしますが、期限までにご選択をお願いいたします。" style="width:100%;min-height:90px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
     <button type="button" id="mealMenuSendBtn" style="margin-top:10px;background:var(--ok);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">お食事メニューご案内メールを送信(お食事ご参加の方のみ)</button>
@@ -740,7 +742,7 @@
   async function loadEvents(){
     const { data, error } = await sb
       .from('events')
-      .select('id, title, event_number, troupe, event_date, show_time, work_title')
+      .select('id, title, event_number, troupe, event_date, show_time, work_title, meal_deadline')
       .order('event_date', { ascending: false });
     if(error) throw error;
     events = data || [];
@@ -805,6 +807,17 @@
     if(recentCount === undefined || recentCount === null) return '-';
     const mealCount = recentMealCounts[pid] || 0;
     return (recentCount * pointRules.theater_point) + (mealCount * pointRules.meal_point) - (penaltyPoints || 0);
+  }
+
+  // 名前の下に表示する内訳テキスト(例:「観劇5×2 + 食事3×1 − 罰0」)。データが無い場合は空文字
+  function scoreBreakdownText(pid, penaltyPoints){
+    const recentCount = recentCounts[pid];
+    if(recentCount === undefined || recentCount === null) return '';
+    const mealCount = recentMealCounts[pid] || 0;
+    const penalty = penaltyPoints || 0;
+    let text = `観劇${recentCount}×${pointRules.theater_point} + 食事${mealCount}×${pointRules.meal_point}`;
+    if(penalty !== 0) text += ` − 罰${penalty}`;
+    return `<span class="score-breakdown">${text}</span>`;
   }
 
   async function loadRegistrations(eventId){
@@ -1050,6 +1063,7 @@
           <span class="grade-tag">${escapeHtml(a.grade || '')}</span>
           <button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button>
           <button class="submit-count ${netScore !== '-' && netScore <= 0 ? 'multi' : ''}" data-detail="${rowId}" title="直近7回の観劇×${pointRules.theater_point}+食事×${pointRules.meal_point}−ペナルティ(タップで変更履歴を表示)">${netScore}</button>
+          ${scoreBreakdownText(p.id, points)}
         </td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
         <td class="tight-col">${companionBadges(a.companion_type)}</td>
@@ -1378,9 +1392,11 @@
   function updateMealMenuHeaderPreview(){
     const ev = events.find(e => e.id === currentEventId);
     const preview = document.getElementById('mealMenuHeaderPreview');
-    if(!ev){ preview.textContent = '先に公演を選んでください'; return; }
+    const deadlineInput = document.getElementById('mealMenuDeadline');
+    if(!ev){ preview.textContent = '先に公演を選んでください'; deadlineInput.value = ''; return; }
     const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
     preview.textContent = `件名:「【小林タカラヅカ倶楽部】お食事メニュー選択のお願い」／対象:${title}`;
+    deadlineInput.value = ev.meal_deadline || '';
   }
 
 
@@ -1482,12 +1498,13 @@ ${deadline ? `\n【お申し込み締切】\n${deadline}\n` : ''}${extraBody ? `
       return;
     }
 
-    const deadlineText = document.getElementById('mealMenuDeadline').value.trim();
-    if(!deadlineText){
+    const deadlineDateStr = document.getElementById('mealMenuDeadline').value;
+    if(!deadlineDateStr){
       statusEl.classList.add('err');
       statusEl.textContent = 'お食事フォームに設定した締切日を入力してください。';
       return;
     }
+    const deadlineText = formatDateJp(deadlineDateStr);
 
     const extraBody = document.getElementById('mealMenuBody').value.trim();
 
@@ -1509,6 +1526,14 @@ ${deadline ? `\n【お申し込み締切】\n${deadline}\n` : ''}${extraBody ? `
     }
 
     if(!confirm(`お食事ご参加の参加決定者 ${recipients.length}名にメニュー選択のご案内メールを送信します。締切は${deadlineText}になります。よろしいですか？`)) return;
+
+    // タスクスケジュール画面で自動表示できるよう、締切日をこの開催回に保存しておく
+    try{
+      await sb.from('events').update({ meal_deadline: deadlineDateStr }).eq('id', ev.id);
+      ev.meal_deadline = deadlineDateStr;
+    }catch(err){
+      console.warn('meal_deadlineの保存に失敗:', err);
+    }
 
     const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
     const subject = `【小林タカラヅカ倶楽部】お食事メニュー選択のお願い`;
