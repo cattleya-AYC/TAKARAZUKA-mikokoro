@@ -664,6 +664,20 @@
   </div>
 </div>
 
+<div class="net-score-summary-wrap print-hide-block" id="mealMenuSection">
+  <div class="net-score-summary" style="padding:16px;margin-top:14px;min-width:0;">
+    <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:var(--ok);">🍽 お食事メニュー選択のご案内メール</p>
+    <p style="margin:0 0 10px;font-size:12px;color:var(--muted);word-break:break-word;overflow-wrap:break-word;" id="mealMenuHeaderPreview">先に公演を選んでください</p>
+    <p style="margin:0 0 10px;font-size:12px;color:var(--muted);" id="mealMenuDeadlinePreview"></p>
+    <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">メニュー選択フォームURL</label>
+    <input type="text" id="mealMenuFormUrl" placeholder="例:https://takarazuka-mikokoro.vercel.app/申し込みフォーム.html" style="width:100%;margin-bottom:10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
+    <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">補足メッセージ(任意)</label>
+    <textarea id="mealMenuBody" placeholder="例:お手数をおかけしますが、期限までにご選択をお願いいたします。" style="width:100%;min-height:90px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
+    <button type="button" id="mealMenuSendBtn" style="margin-top:10px;background:var(--ok);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">お食事メニューご案内メールを送信(お食事ご参加の方のみ)</button>
+    <p class="status-msg" id="mealMenuStatus" style="padding:8px 0 0;text-align:left;"></p>
+  </div>
+</div>
+
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
 <script>
@@ -1359,6 +1373,24 @@
     preview.textContent = `件名:「【小林タカラヅカ倶楽部】差し入れ・お手紙 ご協力のお願い」／対象:${title}`;
   }
 
+  // 送信ボタンを押した時点から7日後・17:00固定で締切を自動計算(入力不要)
+  function computeMealDeadlineText(){
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    d.setHours(17, 0, 0, 0);
+    return `${d.getMonth()+1}月${d.getDate()}日(${weekdayJp[d.getDay()]}) 17:00`;
+  }
+
+  function updateMealMenuHeaderPreview(){
+    const ev = events.find(e => e.id === currentEventId);
+    const preview = document.getElementById('mealMenuHeaderPreview');
+    const deadlinePreview = document.getElementById('mealMenuDeadlinePreview');
+    if(!ev){ preview.textContent = '先に公演を選んでください'; deadlinePreview.textContent = ''; return; }
+    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+    preview.textContent = `件名:「【小林タカラヅカ倶楽部】お食事メニュー選択のお願い」／対象:${title}`;
+    deadlinePreview.textContent = `選択締切(送信時刻から自動計算):${computeMealDeadlineText()}`;
+  }
+
   async function sendGiftLetterEmail(){
     const statusEl = document.getElementById('giftLetterStatus');
     statusEl.className = 'status-msg'; statusEl.textContent = '';
@@ -1432,6 +1464,94 @@ ${deadline ? `\n【お申し込み締切】\n${deadline}\n` : ''}${extraBody ? `
     if(failedNames.length === 0){
       statusEl.classList.add('ok');
       statusEl.textContent = `送信完了:${successCount}名に送信しました。`;
+    } else {
+      statusEl.classList.add('err');
+      statusEl.textContent = `送信完了:${successCount}名成功 / ${failedNames.length}名失敗(${failedNames.join('、')})`;
+    }
+    btn.disabled = false;
+  }
+
+  async function sendMealMenuEmail(){
+    const statusEl = document.getElementById('mealMenuStatus');
+    statusEl.className = 'status-msg'; statusEl.textContent = '';
+
+    const ev = events.find(e => e.id === currentEventId);
+    if(!ev){
+      statusEl.classList.add('err');
+      statusEl.textContent = '先に公演を選んでください。';
+      return;
+    }
+
+    const formUrl = document.getElementById('mealMenuFormUrl').value.trim();
+    if(!formUrl){
+      statusEl.classList.add('err');
+      statusEl.textContent = 'メニュー選択フォームのURLを入力してください。';
+      return;
+    }
+
+    const extraBody = document.getElementById('mealMenuBody').value.trim();
+    const deadlineText = computeMealDeadlineText();
+
+    const decided = currentRows.filter(r => r.status === '参加決定' && r.answers?.meal === 'ご参加' && r.answers?.email);
+    const recipients = [];
+    const seen = new Set();
+    decided.forEach(r=>{
+      const email = r.answers.email.trim();
+      if(!seen.has(email)){
+        seen.add(email);
+        recipients.push({ email, name: r.answers.full_name || r.participants?.name || 'ご参加者' });
+      }
+    });
+
+    if(recipients.length === 0){
+      statusEl.classList.add('err');
+      statusEl.textContent = '参加決定かつお食事ご参加の方でメールアドレスが登録されている人が見つかりませんでした。';
+      return;
+    }
+
+    if(!confirm(`お食事ご参加の参加決定者 ${recipients.length}名にメニュー選択のご案内メールを送信します。締切は${deadlineText}になります。よろしいですか？`)) return;
+
+    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+    const subject = `【小林タカラヅカ倶楽部】お食事メニュー選択のお願い`;
+
+    const btn = document.getElementById('mealMenuSendBtn');
+    btn.disabled = true;
+    let successCount = 0;
+    const failedNames = [];
+
+    for(let i = 0; i < recipients.length; i++){
+      const r = recipients[i];
+      statusEl.className = 'status-msg';
+      statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
+      const message =
+`${r.name}様
+
+いつも観劇会の活動にご理解とご協力を賜り、誠にありがとうございます。
+
+${title}のお食事について、メニューのご選択をお願いいたします。
+下記フォームより、期限までにご選択くださいますようお願いいたします。
+
+${formUrl}
+
+【選択締切】
+${deadlineText}
+${extraBody ? `\n${extraBody}\n` : ''}
+小林タカラヅカ倶楽部`;
+      try{
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+          email: r.email, subject, message
+        });
+        successCount++;
+      }catch(err){
+        console.warn('送信失敗:', r.email, err);
+        failedNames.push(r.name);
+      }
+    }
+
+    statusEl.className = 'status-msg';
+    if(failedNames.length === 0){
+      statusEl.classList.add('ok');
+      statusEl.textContent = `送信完了:${successCount}名に送信しました。(締切:${deadlineText})`;
     } else {
       statusEl.classList.add('err');
       statusEl.textContent = `送信完了:${successCount}名成功 / ${failedNames.length}名失敗(${failedNames.join('、')})`;
@@ -1548,6 +1668,7 @@ ${body}
         await loadAgencyInfo(currentEventId);
         updateEmergencyHeaderPreview();
         updateGiftLetterHeaderPreview();
+        updateMealMenuHeaderPreview();
       }
       sel.addEventListener('change', ()=>{
         currentEventId = sel.value;
@@ -1556,6 +1677,7 @@ ${body}
         loadAgencyInfo(currentEventId);
         updateEmergencyHeaderPreview();
         updateGiftLetterHeaderPreview();
+        updateMealMenuHeaderPreview();
       });
       document.getElementById('refreshBtn').addEventListener('click', ()=>{
         if(currentEventId){
@@ -1569,6 +1691,7 @@ ${body}
       document.getElementById('changeBtn').addEventListener('click', openChangeModal);
       document.getElementById('emergencySendBtn').addEventListener('click', sendEmergencyEmail);
       document.getElementById('giftLetterSendBtn').addEventListener('click', sendGiftLetterEmail);
+      document.getElementById('mealMenuSendBtn').addEventListener('click', sendMealMenuEmail);
       document.querySelectorAll('th.sortable').forEach(th=>{
         th.addEventListener('click', ()=>{
           const key = th.getAttribute('data-sort');
