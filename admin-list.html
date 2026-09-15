@@ -798,6 +798,7 @@
   let currentRows = [];
   let recentCounts = {};
   let recentMealCounts = {};
+  let recentEventNumbers = {};
   let pointRules = { theater_point: 2, meal_point: 1 }; // point_rules取得失敗時のフォールバック値
   let changeLogsMap = {};
 
@@ -809,13 +810,15 @@
     return (recentCount * pointRules.theater_point) + (mealCount * pointRules.meal_point) - (penaltyPoints || 0);
   }
 
-  // 名前の下に表示する内訳テキスト(例:「観劇5×2 + 食事3×1 − 罰0」)。データが無い場合は空文字
+  // 名前の下に表示する内訳テキスト(例:「観劇5×2(14.15.17.19.20.21.22) + 食事3×1 − 罰0」)。データが無い場合は空文字
   function scoreBreakdownText(pid, penaltyPoints){
     const recentCount = recentCounts[pid];
     if(recentCount === undefined || recentCount === null) return '';
     const mealCount = recentMealCounts[pid] || 0;
     const penalty = penaltyPoints || 0;
-    let text = `観劇${recentCount}×${pointRules.theater_point} + 食事${mealCount}×${pointRules.meal_point}`;
+    const nums = recentEventNumbers[pid] || [];
+    const numsText = nums.length > 0 ? `(${nums.join('.')})` : '';
+    let text = `観劇${recentCount}×${pointRules.theater_point}${numsText} + 食事${mealCount}×${pointRules.meal_point}`;
     if(penalty !== 0) text += ` − 罰${penalty}`;
     return `<span class="score-breakdown">${text}</span>`;
   }
@@ -856,6 +859,7 @@
 
     // 直近7回の参加回数を取得（今日より前に開催された過去の回だけを対象）
     recentCounts = {};
+    recentEventNumbers = {};
     const pids = [...new Set(currentRows.map(r => r.participants?.id).filter(Boolean))];
     if(pids.length > 0){
       const { data: recentData, error: recentErr } = await sb
@@ -866,6 +870,31 @@
         recentData.forEach(row => {
           recentCounts[row.participant_id] = row.recent_count;
           recentMealCounts[row.participant_id] = row.recent_meal_count;
+        });
+      }
+
+      // 内訳表示用に、直近7回に含まれる開催回番号を取得(v_recent_participationと同じロジックをJS側で再現)
+      const nowIso = new Date().toISOString();
+      const { data: recentRegRows, error: recentRegErr } = await sb
+        .from('registrations')
+        .select('participant_id, status, events!inner(event_number, event_date, application_deadline)')
+        .in('participant_id', pids)
+        .lt('events.application_deadline', nowIso);
+      if(!recentRegErr && recentRegRows){
+        const grouped = {};
+        recentRegRows.forEach(row => {
+          if(row.status === 'キャンセル') return;
+          if(!grouped[row.participant_id]) grouped[row.participant_id] = [];
+          grouped[row.participant_id].push(row);
+        });
+        Object.keys(grouped).forEach(pid => {
+          const top7 = grouped[pid]
+            .sort((a, b) => new Date(b.events.event_date) - new Date(a.events.event_date))
+            .slice(0, 7);
+          recentEventNumbers[pid] = top7
+            .map(row => row.events.event_number)
+            .filter(n => n !== null && n !== undefined)
+            .sort((a, b) => a - b);
         });
       }
     }
