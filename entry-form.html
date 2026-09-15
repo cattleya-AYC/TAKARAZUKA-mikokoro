@@ -749,6 +749,23 @@
       return;
     }
 
+    // 締切から1週間以内なら、次回の開催回が既に登録されていても
+    // 「ご登録ありがとうございました」画面を優先して表示する
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const recentCutoffIso = new Date(nowMs - ONE_WEEK_MS).toISOString();
+    const { data: recentClosedData } = await sb
+      .from('events')
+      .select('*')
+      .lt('application_deadline', nowIso)
+      .gte('application_deadline', recentCutoffIso)
+      .order('application_deadline', { ascending: false })
+      .limit(1);
+
+    if(recentClosedData && recentClosedData.length > 0){
+      renderThankYou(recentClosedData[0]);
+      return;
+    }
+
     if(upcomingEvents.length > 0){
       upcomingEvents.sort((a,b)=> new Date(a.recruitment_start_date) - new Date(b.recruitment_start_date));
       const nextEvent = upcomingEvents[0];
