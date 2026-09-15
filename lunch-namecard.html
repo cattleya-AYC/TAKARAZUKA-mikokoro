@@ -233,9 +233,9 @@
     const file = document.getElementById('bgInput').files[0];
     try{
       if(file){
-        const compressedFile = await compressImageFile(file);
-        const path = `namecard-bg-${selectedEvent.id}-${Date.now()}.jpg`;
-        const { error: upErr } = await sb.storage.from('public photo').upload(path, compressedFile, { upsert:true });
+        const ext = file.name.split('.').pop();
+        const path = `namecard-bg-${selectedEvent.id}-${Date.now()}.${ext}`;
+        const { error: upErr } = await sb.storage.from('public photo').upload(path, file, { upsert:true });
         if(upErr) throw upErr;
         const { data } = sb.storage.from('public photo').getPublicUrl(path);
         bgUrl = data.publicUrl;
@@ -250,6 +250,48 @@
       statusEl.textContent = '保存に失敗しました:' + (err.message || err);
     }
   });
+
+  // 文字列を、括弧の中は無視して指定の区切り文字で分割する(ネストした括弧に対応)
+  function splitTopLevelJp(str, delimiter){
+    const parts = [];
+    let depth = 0, current = '';
+    for(const ch of str){
+      if(ch === '(' || ch === '（') depth++;
+      if(ch === ')' || ch === '）') depth--;
+      if(ch === delimiter && depth === 0){
+        parts.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    parts.push(current);
+    return parts;
+  }
+
+  // 花組の「おにぎり豚汁セット(A・B)」は2種類のおにぎりの組み合わせ名なので分解する(該当しなければnull)
+  function extractOnigiriFlavors(menuName){
+    const m = (menuName || '').match(/^おにぎり豚汁セット\((.+)\)$/);
+    if(!m) return null;
+    return splitTopLevelJp(m[1], '・').map(s=>s.trim()).filter(Boolean);
+  }
+
+  // おにぎりの種類名から補足の（）書きと「むすび／おむすび」を省く(例:「限定おむすび(…)」→「限定」)
+  function shortenOnigiriName(flavor){
+    let name = flavor.replace(/\([^()]*\)\s*$/, '').trim();
+    name = name.replace(/(お)?むすび$/, '').trim();
+    return name || flavor;
+  }
+
+  // 花組のおにぎりセットだけ、名刺の表示を「短縮したおにぎり名2つ」「アイス/ホットのみ」にする
+  function formatCardMenuDrink(menuName, drink){
+    const flavors = extractOnigiriFlavors(menuName);
+    if(!flavors) return { menu: menuName, drink: drink };
+    const shortMenu = flavors.map(shortenOnigiriName).join('・');
+    const d = drink || '';
+    const shortDrink = d.startsWith('アイス') ? 'アイス' : d.startsWith('ホット') ? 'ホット' : d;
+    return { menu: shortMenu, drink: shortDrink };
+  }
 
   document.getElementById('loadBtn').addEventListener('click', async ()=>{
     const statusEl = document.getElementById('loadStatus');
@@ -273,21 +315,23 @@
         const i1 = items.find(i=>i.person_no===1);
         const i2 = items.find(i=>i.person_no===2);
         if(i1 && i1.menu_name){
+          const fmt = formatCardMenuDrink(i1.menu_name, i1.drink || '');
           cards.push({
             header,
             name: `${o.representative_name}様`,
-            menu: i1.menu_name,
-            drink: i1.drink || '',
+            menu: fmt.menu,
+            drink: fmt.drink,
             isCompanion:false
           });
         }
         if(o.party_count >= 2 && i2 && i2.menu_name){
+          const fmt2 = formatCardMenuDrink(i2.menu_name, i2.drink || '');
           cards.push({
             header,
             name: `${o.representative_name}様`,
             relationLine: (o.relation && o.relation !== 'その他') ? `${o.relation}様` : 'ご同伴者様',
-            menu: i2.menu_name,
-            drink: i2.drink || '',
+            menu: fmt2.menu,
+            drink: fmt2.drink,
             isCompanion:true
           });
         }
@@ -347,34 +391,6 @@
   });
 
   // --- 背景デザインのライブラリ(複数登録・スタッフ画面で選択) ---
-
-  // アップロード前に画像を自動で縮小・圧縮する(名刺サイズには大きすぎる画像を軽くする)
-  function compressImageFile(file, maxWidth = 1100, quality = 0.82){
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const reader = new FileReader();
-      reader.onload = (e) => { img.src = e.target.result; };
-      reader.onerror = reject;
-      img.onload = () => {
-        const ratio = Math.min(1, maxWidth / img.width);
-        const w = Math.round(img.width * ratio);
-        const h = Math.round(img.height * ratio);
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
-        canvas.toBlob((blob) => {
-          if(!blob) return reject(new Error('画像の圧縮に失敗しました'));
-          resolve(new File([blob], 'compressed.jpg', { type: 'image/jpeg' }));
-        }, 'image/jpeg', quality);
-      };
-      img.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
   async function loadBgLibrary(){
     const listEl = document.getElementById('bgLibraryList');
     const { data, error } = await sb
@@ -407,9 +423,9 @@
     if(!label){ statusEl.classList.add('err'); statusEl.textContent = 'デザイン名を入力してください。'; return; }
     if(!file){ statusEl.classList.add('err'); statusEl.textContent = '画像を選んでください。'; return; }
     try{
-      const compressedFile = await compressImageFile(file);
-      const path = `namecard-bg-lib-${Date.now()}.jpg`;
-      const { error: upErr } = await sb.storage.from('public photo').upload(path, compressedFile, { upsert:true });
+      const ext = file.name.split('.').pop();
+      const path = `namecard-bg-lib-${Date.now()}.${ext}`;
+      const { error: upErr } = await sb.storage.from('public photo').upload(path, file, { upsert:true });
       if(upErr) throw upErr;
       const { data } = sb.storage.from('public photo').getPublicUrl(path);
       const { error } = await sb.from('namecard_backgrounds').insert({

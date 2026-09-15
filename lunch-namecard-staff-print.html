@@ -68,22 +68,18 @@
 
   @media print{
     @page{ size: A4 portrait; margin: 11mm 14mm; }
-    html, body{
-      background:#fff !important;
-      -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;
-    }
+    body{ background:#fff !important; }
     .hero, .section, .actions{ display:none !important; }
     #printArea{ display:block !important; }
     .namecard-grid{
       display:grid; grid-template-columns:91mm 91mm; grid-auto-rows:55mm;
-      width:182mm;
+      width:182mm; border:1px dashed #999;
     }
     .pnamecard{
       width:91mm; height:55mm; box-sizing:border-box; overflow:hidden;
       background-size:cover; background-position:center; background-color:#fff;
       display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
       padding:4mm 5mm; break-inside:avoid; font-family:'Shippori Mincho', 'Noto Sans JP', serif;
-      -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;
     }
     .pnamecard .nc-header{ font-size:8pt; color:#555; font-weight:700; letter-spacing:.05em; }
     .pnamecard .nc-name{ font-size:20pt; font-weight:700; color:#111; margin:2mm 0 1.5mm; line-height:1.25; }
@@ -200,6 +196,48 @@
     renderPreview();
   }
 
+  // 文字列を、括弧の中は無視して指定の区切り文字で分割する(ネストした括弧に対応)
+  function splitTopLevelJp(str, delimiter){
+    const parts = [];
+    let depth = 0, current = '';
+    for(const ch of str){
+      if(ch === '(' || ch === '（') depth++;
+      if(ch === ')' || ch === '）') depth--;
+      if(ch === delimiter && depth === 0){
+        parts.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    parts.push(current);
+    return parts;
+  }
+
+  // 花組の「おにぎり豚汁セット(A・B)」は2種類のおにぎりの組み合わせ名なので分解する(該当しなければnull)
+  function extractOnigiriFlavors(menuName){
+    const m = (menuName || '').match(/^おにぎり豚汁セット\((.+)\)$/);
+    if(!m) return null;
+    return splitTopLevelJp(m[1], '・').map(s=>s.trim()).filter(Boolean);
+  }
+
+  // おにぎりの種類名から補足の（）書きと「むすび／おむすび」を省く(例:「限定おむすび(…)」→「限定」)
+  function shortenOnigiriName(flavor){
+    let name = flavor.replace(/\([^()]*\)\s*$/, '').trim();
+    name = name.replace(/(お)?むすび$/, '').trim();
+    return name || flavor;
+  }
+
+  // 花組のおにぎりセットだけ、名刺の表示を「短縮したおにぎり名2つ」「アイス/ホットのみ」にする
+  function formatCardMenuDrink(menuName, drink){
+    const flavors = extractOnigiriFlavors(menuName);
+    if(!flavors) return { menu: menuName, drink: drink };
+    const shortMenu = flavors.map(shortenOnigiriName).join('・');
+    const d = drink || '';
+    const shortDrink = d.startsWith('アイス') ? 'アイス' : d.startsWith('ホット') ? 'ホット' : d;
+    return { menu: shortMenu, drink: shortDrink };
+  }
+
   document.getElementById('loadBtn').addEventListener('click', async ()=>{
     const statusEl = document.getElementById('loadStatus');
     statusEl.className = 'status'; statusEl.textContent = '';
@@ -222,21 +260,23 @@
         const i1 = items.find(i=>i.person_no===1);
         const i2 = items.find(i=>i.person_no===2);
         if(i1 && i1.menu_name){
+          const fmt = formatCardMenuDrink(i1.menu_name, i1.drink || '');
           cards.push({
             header,
             name: `${o.representative_name}様`,
-            menu: i1.menu_name,
-            drink: i1.drink || '',
+            menu: fmt.menu,
+            drink: fmt.drink,
             isCompanion:false
           });
         }
         if(o.party_count >= 2 && i2 && i2.menu_name){
+          const fmt2 = formatCardMenuDrink(i2.menu_name, i2.drink || '');
           cards.push({
             header,
             name: `${o.representative_name}様`,
             relationLine: (o.relation && o.relation !== 'その他') ? `${o.relation}様` : 'ご同伴者様',
-            menu: i2.menu_name,
-            drink: i2.drink || '',
+            menu: fmt2.menu,
+            drink: fmt2.drink,
             isCompanion:true
           });
         }
