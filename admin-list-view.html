@@ -142,6 +142,7 @@
   }
   .grade-tag{ display:inline-block; width:1.6em; font-size:11px; color:var(--muted); text-align:right; margin-right:2px; }
   #dataTable .grade-tag{ width:1.3em; font-size:10px; margin-right:1px; }
+  .score-breakdown{ display:block; font-size:10px; color:var(--muted); line-height:1.4; margin-top:1px; white-space:nowrap; }
   #dataTable .name-btn{ font-size:12.5px; max-width:none; white-space:nowrap; }
   #dataTable td.name{ max-width:none; white-space:nowrap; }
   .submit-count{
@@ -700,6 +701,7 @@
   let currentRows = [];
   let recentCounts = {};
   let recentMealCounts = {};
+  let recentEventNumbers = {};
   let pointRules = { theater_point: 2, meal_point: 1 }; // point_rules取得失敗時のフォールバック値
   let changeLogsMap = {};
 
@@ -709,6 +711,19 @@
     if(recentCount === undefined || recentCount === null) return '-';
     const mealCount = recentMealCounts[pid] || 0;
     return (recentCount * pointRules.theater_point) + (mealCount * pointRules.meal_point) - (penaltyPoints || 0);
+  }
+
+  // 名前の下に表示する内訳テキスト(例:「観劇5×2(15.16.17.19.20.21) + 食事3×1 − 罰0」)。データが無い場合は空文字
+  function scoreBreakdownText(pid, penaltyPoints){
+    const recentCount = recentCounts[pid];
+    if(recentCount === undefined || recentCount === null) return '';
+    const mealCount = recentMealCounts[pid] || 0;
+    const penalty = penaltyPoints || 0;
+    const nums = recentEventNumbers[pid] || [];
+    const numsText = nums.length > 0 ? `(${nums.join('.')})` : '';
+    let text = `観劇${recentCount}×${pointRules.theater_point}${numsText} + 食事${mealCount}×${pointRules.meal_point}`;
+    if(penalty !== 0) text += ` − 罰${penalty}`;
+    return `<span class="score-breakdown">${text}</span>`;
   }
 
   async function loadRegistrations(eventId){
@@ -743,6 +758,7 @@
 
     // 直近7回の参加回数を取得（今日より前に開催された過去の回だけを対象）
     recentCounts = {};
+    recentEventNumbers = {};
     const pids = [...new Set(currentRows.map(r => r.participants?.id).filter(Boolean))];
     if(pids.length > 0){
       const { data: recentData, error: recentErr } = await sb
@@ -754,6 +770,38 @@
           recentCounts[row.participant_id] = row.recent_count;
           recentMealCounts[row.participant_id] = row.recent_meal_count;
         });
+      }
+
+      // 内訳表示用に、クラブの直近開催7回(v_recent_participationと同じ固定7回)の番号を取得し、
+      // その中でこの人が実際に参加した(status<>キャンセル)回番号だけを抜き出す
+      const nowIso = new Date().toISOString();
+      const { data: recentEventsData, error: recentEventsErr } = await sb
+        .from('events')
+        .select('id, event_number, event_date')
+        .lt('application_deadline', nowIso)
+        .order('event_date', { ascending: false })
+        .limit(7);
+
+      if(!recentEventsErr && recentEventsData && recentEventsData.length > 0){
+        const recentEventIds = recentEventsData.map(e => e.id);
+        const { data: recentRegRows, error: recentRegErr } = await sb
+          .from('registrations')
+          .select('participant_id, status, event_id')
+          .in('participant_id', pids)
+          .in('event_id', recentEventIds);
+        if(!recentRegErr && recentRegRows){
+          const eventNumberById = {};
+          recentEventsData.forEach(e => { eventNumberById[e.id] = e.event_number; });
+          recentRegRows.forEach(row => {
+            if(row.status === 'キャンセル') return;
+            if(!recentEventNumbers[row.participant_id]) recentEventNumbers[row.participant_id] = [];
+            const num = eventNumberById[row.event_id];
+            if(num !== null && num !== undefined) recentEventNumbers[row.participant_id].push(num);
+          });
+          Object.keys(recentEventNumbers).forEach(pid => {
+            recentEventNumbers[pid].sort((a, b) => a - b);
+          });
+        }
       }
     }
 
@@ -936,6 +984,7 @@
           <span class="grade-tag">${escapeHtml(a.grade || '')}</span>
           <button class="name-btn" data-detail="${rowId}">${escapeHtml(p.name || a.full_name || '')}</button>
           <button class="submit-count ${netScore !== '-' && netScore <= 0 ? 'multi' : ''}" data-detail="${rowId}" title="直近7回の観劇×${pointRules.theater_point}+食事×${pointRules.meal_point}−ペナルティ(タップで変更履歴を表示)">${netScore}</button>
+          ${scoreBreakdownText(p.id, points)}
         </td>
         <td>${escapeHtml(a.participant_count || '1')}枚</td>
         <td class="tight-col">${companionBadges(a.companion_type)}</td>
