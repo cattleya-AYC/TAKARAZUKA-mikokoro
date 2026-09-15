@@ -254,6 +254,32 @@
     });
   }
   function yen(n){ return (n||0).toLocaleString('ja-JP') + '円'; }
+
+  // 文字列を、括弧の中は無視して指定の区切り文字で分割する(ネストした括弧に対応)
+  function splitTopLevelJp(str, delimiter){
+    const parts = [];
+    let depth = 0, current = '';
+    for(const ch of str){
+      if(ch === '(' || ch === '（') depth++;
+      if(ch === ')' || ch === '）') depth--;
+      if(ch === delimiter && depth === 0){
+        parts.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+    parts.push(current);
+    return parts;
+  }
+
+  // 花組の「おにぎり豚汁セット(A・B)」は2種類のおにぎりの組み合わせ名なので、
+  // 種類ごとの集計のためにA・Bへ分解する(該当しないメニューはnullを返す)
+  function extractOnigiriFlavors(menuName){
+    const m = menuName.match(/^おにぎり豚汁セット\((.+)\)$/);
+    if(!m) return null;
+    return splitTopLevelJp(m[1], '・').map(s=>s.trim()).filter(Boolean);
+  }
   function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
   function fmtDate(v){ if(!v) return '―'; const d=new Date(v+'T00:00:00'); return `${d.getMonth()+1}月${d.getDate()}日`; }
   function getEventId(){ return new URLSearchParams(window.location.search).get('event_id'); }
@@ -514,9 +540,22 @@
     document.getElementById('grandTotal').textContent = yen(allItems.reduce((s,i)=>s+(i.price||0),0));
 
     const menuMap = {};
-    allItems.forEach(i=>{ if(!i.menu_name) return; if(!menuMap[i.menu_name]) menuMap[i.menu_name]={qty:0,price:i.price}; menuMap[i.menu_name].qty++; });
+    allItems.forEach(i=>{
+      if(!i.menu_name) return;
+      const flavors = extractOnigiriFlavors(i.menu_name);
+      if(flavors){
+        // おにぎりは組み合わせ全体ではなく、種類ごとに数量だけを積み上げる(単価・小計は対象外)
+        flavors.forEach(f=>{
+          if(!menuMap[f]) menuMap[f] = { qty:0, price:null };
+          menuMap[f].qty++;
+        });
+      } else {
+        if(!menuMap[i.menu_name]) menuMap[i.menu_name]={qty:0,price:i.price};
+        menuMap[i.menu_name].qty++;
+      }
+    });
     document.getElementById('menuSummary').innerHTML = Object.entries(menuMap).map(([n,v])=>
-      `<tr><td>${n}</td><td class="num">${v.qty}</td><td class="num">${yen(v.price)}</td><td class="num">${yen(v.qty*v.price)}</td></tr>`).join('');
+      `<tr><td>${n}</td><td class="num">${v.qty}</td><td class="num">${v.price==null ? '－' : yen(v.price)}</td><td class="num">${v.price==null ? '－' : yen(v.qty*v.price)}</td></tr>`).join('');
 
     const drinkMap = {};
     allItems.forEach(i=>{ if(i.drink) drinkMap[i.drink]=(drinkMap[i.drink]||0)+1; });
