@@ -191,6 +191,15 @@
             done: !!(contactProgress && contactProgress.done)
           });
         }
+        // お食事メニュー入力締切(admin-list.htmlの案内メール送信時に保存された日付)
+        if(ev.meal_deadline){
+          const mealDeadlineDue = new Date(ev.meal_deadline + 'T00:00:00');
+          const mealDeadlineProgress = progressMap[`${ev.id}_mealDeadline`];
+          tasks.push({
+            name: 'お食事メニュー入力締切', due: mealDeadlineDue, isAuto: false, staff: '',
+            done: !!(mealDeadlineProgress && mealDeadlineProgress.done)
+          });
+        }
         const dutyStaff = dutyMap[ev.id];
         if(dutyStaff){
           const giftBuyDue = addDays(eventDate, -1);

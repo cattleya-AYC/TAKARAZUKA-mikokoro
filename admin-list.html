@@ -668,9 +668,10 @@
   <div class="net-score-summary" style="padding:16px;margin-top:14px;min-width:0;">
     <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:var(--ok);">🍽 お食事メニュー選択のご案内メール</p>
     <p style="margin:0 0 10px;font-size:12px;color:var(--muted);word-break:break-word;overflow-wrap:break-word;" id="mealMenuHeaderPreview">先に公演を選んでください</p>
-    <p style="margin:0 0 10px;font-size:12px;color:var(--muted);" id="mealMenuDeadlinePreview"></p>
     <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">メニュー選択フォームURL</label>
     <input type="text" id="mealMenuFormUrl" placeholder="例:https://takarazuka-mikokoro.vercel.app/申し込みフォーム.html" style="width:100%;margin-bottom:10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
+    <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">お申し込み締切(そのフォームに設定した日付と合わせてください)</label>
+    <input type="text" id="mealMenuDeadline" placeholder="例:9月7日(日)" style="width:100%;margin-bottom:10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
     <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">補足メッセージ(任意)</label>
     <textarea id="mealMenuBody" placeholder="例:お手数をおかけしますが、期限までにご選択をお願いいたします。" style="width:100%;min-height:90px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
     <button type="button" id="mealMenuSendBtn" style="margin-top:10px;background:var(--ok);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">お食事メニューご案内メールを送信(お食事ご参加の方のみ)</button>
@@ -1373,23 +1374,15 @@
     preview.textContent = `件名:「【小林タカラヅカ倶楽部】差し入れ・お手紙 ご協力のお願い」／対象:${title}`;
   }
 
-  // 送信ボタンを押した時点から7日後・17:00固定で締切を自動計算(入力不要)
-  function computeMealDeadlineText(){
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    d.setHours(17, 0, 0, 0);
-    return `${d.getMonth()+1}月${d.getDate()}日(${weekdayJp[d.getDay()]}) 17:00`;
-  }
-
+  // 送信時点で入力されている「お申し込み締切」欄の文字をそのままメールに使う
   function updateMealMenuHeaderPreview(){
     const ev = events.find(e => e.id === currentEventId);
     const preview = document.getElementById('mealMenuHeaderPreview');
-    const deadlinePreview = document.getElementById('mealMenuDeadlinePreview');
-    if(!ev){ preview.textContent = '先に公演を選んでください'; deadlinePreview.textContent = ''; return; }
+    if(!ev){ preview.textContent = '先に公演を選んでください'; return; }
     const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
     preview.textContent = `件名:「【小林タカラヅカ倶楽部】お食事メニュー選択のお願い」／対象:${title}`;
-    deadlinePreview.textContent = `選択締切(送信時刻から自動計算):${computeMealDeadlineText()}`;
   }
+
 
   async function sendGiftLetterEmail(){
     const statusEl = document.getElementById('giftLetterStatus');
@@ -1489,8 +1482,14 @@ ${deadline ? `\n【お申し込み締切】\n${deadline}\n` : ''}${extraBody ? `
       return;
     }
 
+    const deadlineText = document.getElementById('mealMenuDeadline').value.trim();
+    if(!deadlineText){
+      statusEl.classList.add('err');
+      statusEl.textContent = 'お食事フォームに設定した締切日を入力してください。';
+      return;
+    }
+
     const extraBody = document.getElementById('mealMenuBody').value.trim();
-    const deadlineText = computeMealDeadlineText();
 
     const decided = currentRows.filter(r => r.status === '参加決定' && r.answers?.meal === 'ご参加' && r.answers?.email);
     const recipients = [];
