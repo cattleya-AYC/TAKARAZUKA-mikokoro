@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>誤送信お詫びメール送信(第22回 花観劇会)</title>
+<style>
+  body{ margin:0; padding:24px 16px; background:#f4f0f1; font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Yu Gothic',YuGothic,Meiryo,sans-serif; color:#4b4145; }
+  .card{ max-width:520px; margin:0 auto; background:#fff; border-radius:14px; padding:24px 22px; border:1px solid #e5dcdf; }
+  h1{ font-size:16px; margin:0 0 14px; color:#5c4650; }
+  ul{ font-size:14px; line-height:1.9; padding-left:20px; }
+  button{ width:100%; margin-top:18px; padding:14px; border:0; border-radius:8px; background:#8c5265; color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
+  button:disabled{ opacity:.5; }
+  .status{ margin-top:14px; font-size:13px; white-space:pre-wrap; }
+  .ok{ color:#3f6b4f; } .err{ color:#b0455a; }
+  .msg-preview{ margin-top:16px; padding:12px; background:#faf8f8; border-radius:8px; font-size:12px; white-space:pre-wrap; color:#6b5d63; max-height:220px; overflow:auto; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>第22回 花観劇会:お食事案内メール誤送信のお詫び</h1>
+  <p style="font-size:13px;color:#8f747d;">以下4名(いずれもお断り・お食事案内が誤って届いた方)に、お詫びメールを送信します。</p>
+  <ul id="recipList"></ul>
+  <button id="sendBtn" type="button">この4名にお詫びメールを送信する</button>
+  <p class="status" id="statusEl"></p>
+  <div class="msg-preview" id="preview"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
+  const EMAILJS_SERVICE_ID = "service_qpuxvaj";
+  const EMAILJS_GENERIC_TEMPLATE_ID = "template_khkmzni";
+
+  const recipients = [
+    { name: "池田貴子", email: "fragrant.life2023@gmail.com" },
+    { name: "磯田郁子", email: "ikukoisoda@gmail.com" },
+    { name: "神谷利子", email: "riko.ff.seina@gmail.com" },
+    { name: "長瀬伊津美", email: "itsumi-my1721@docomo.ne.jp" }
+  ];
+
+  const eventTitle = "第22回 花観劇会";
+  const subject = `【小林タカラヅカ倶楽部】メール誤送信のお詫び(${eventTitle})`;
+
+  function buildApologyHtml(name){
+    return `<!doctype html>
+<html lang="ja">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>誤送信のお詫び</title></head>
+<body style="margin:0; padding:0; background-color:#f4f0f1; font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Yu Gothic',YuGothic,Meiryo,sans-serif; color:#4b4145;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f4f0f1;">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #e3dcdf;">
+<tr><td align="center" style="padding:30px 20px 24px; background-color:#efe9ea; border-bottom:1px solid #ddd3d6;">
+<div style="font-size:12px; letter-spacing:3px; color:#a67c52; margin-bottom:10px;">OBAYASHI TAKARAZUKA CLUB</div>
+<div style="font-family:Georgia,'Times New Roman',serif; font-size:22px; color:#5c4650; font-weight:bold;">${eventTitle}</div>
+<div style="margin-top:8px; font-size:14px; color:#8f747d; letter-spacing:1px;">メール誤送信のお詫び</div>
+</td></tr>
+<tr><td style="padding:30px 26px 20px; font-size:15px; line-height:1.9;">
+<p style="margin:0 0 22px; font-weight:bold; color:#4a3d42;">${name}様</p>
+<p style="margin:0 0 18px;">この度は、${eventTitle}にお申し込みいただき、誠にありがとうございました。</p>
+<p style="margin:0 0 18px;">今回は抽選の結果、大変恐れ入りますが、ご参加いただくことが叶わず、既にご連絡させていただいております通りとなりました。ご期待に沿えず、誠に申し訳ございません。</p>
+<p style="margin:0 0 18px;">また、その後に「お食事メニューご登録のお願い」と題したメールを、こちらの手違いにより誤ってお送りしてしまいました。今回はご参加いただけないため、そちらのメールはお手数ですが破棄していただきますようお願い申し上げます。</p>
+<p style="margin:0 0 26px;">行き違いによりご迷惑・ご心配をおかけいたしましたこと、重ねてお詫び申し上げます。</p>
+<p style="margin:0 0 6px;">今後とも、小林タカラヅカ倶楽部をどうぞよろしくお願いいたします。</p>
+<p style="margin:0; font-weight:bold; color:#5c4650;">小林タカラヅカ倶楽部</p>
+</td></tr>
+<tr><td style="padding:20px 26px 26px; background:#f4f0f1; border-top:1px solid #e5dcdf;">
+<div style="font-size:12px; line-height:1.8; color:#887a7f;">
+※このメールは送信専用のアドレスからお送りしております。ご返信いただいても内容を確認することができません。<br><br>
+お問い合わせは公式LINEよりお願いいたします。
+</div>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+  }
+
+  const list = document.getElementById('recipList');
+  recipients.forEach(r => {
+    const li = document.createElement('li');
+    li.textContent = `${r.name} 様 (${r.email})`;
+    list.appendChild(li);
+  });
+  document.getElementById('preview').textContent = buildApologyHtml('（お名前）').replace(/<[^>]+>/g, '').trim();
+
+  const sendBtn = document.getElementById('sendBtn');
+  const statusElInit = document.getElementById('statusEl');
+  sendBtn.disabled = true;
+  statusElInit.textContent = '読み込み中…';
+
+  // CDNの読み込みが遅い/失敗する環境があるため、最大10秒ポーリングで待つ
+  let waited = 0;
+  const waitForEmailJs = setInterval(() => {
+    waited += 200;
+    if(window.emailjs){
+      clearInterval(waitForEmailJs);
+      try{
+        window.emailjs.init(EMAILJS_PUBLIC_KEY);
+        sendBtn.disabled = false;
+        statusElInit.textContent = '';
+      }catch(e){
+        console.warn('EmailJS初期化失敗', e);
+        statusElInit.className = 'status err';
+        statusElInit.textContent = 'メール送信ライブラリの初期化に失敗しました。ページを再読み込みしてください。';
+      }
+    } else if(waited >= 10000){
+      clearInterval(waitForEmailJs);
+      statusElInit.className = 'status err';
+      statusElInit.textContent = 'メール送信ライブラリの読み込みに失敗しました。通信環境を確認し、ページを再読み込みしてください。';
+    }
+  }, 200);
+
+  const BCC_EMAIL = 'mari247k@gmail.com';
+
+  document.getElementById('sendBtn').addEventListener('click', async () => {
+    if(!confirm(`${recipients.length}名にお詫びメールを送信します。よろしいですか？`)) return;
+    const statusEl = document.getElementById('statusEl');
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+    let success = 0;
+    const failed = [];
+    for(let i = 0; i < recipients.length; i++){
+      const r = recipients[i];
+      statusEl.className = 'status';
+      statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
+      const message = buildApologyHtml(r.name);
+      try{
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+          email: r.email, subject, message
+        });
+        success++;
+        // 控えとして、まりさん宛にも同じ内容を送信(BCC相当)
+        try{
+          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+            email: BCC_EMAIL, subject: `[控え:${r.name}様宛] ${subject}`, message
+          });
+        }catch(bccErr){
+          console.warn('控え送信失敗:', r.name, bccErr);
+        }
+      }catch(err){
+        console.warn('送信失敗:', r.email, err);
+        failed.push(r.name);
+      }
+    }
+    statusEl.className = 'status';
+    if(failed.length === 0){
+      statusEl.classList.add('ok');
+      statusEl.textContent = `送信完了:${success}名に送信しました。`;
+    } else {
+      statusEl.classList.add('err');
+      statusEl.textContent = `送信完了:${success}名成功 / ${failed.length}名失敗(${failed.join('、')})`;
+    }
+    btn.disabled = false;
+  });
+</script>
+</body>
+</html>
