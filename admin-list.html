@@ -676,7 +676,10 @@
     <p style="margin:-6px 0 10px;font-size:11px;color:var(--muted);">※ この日付は開催回に保存され、タスクスケジュール画面にも自動で表示されます</p>
     <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">補足メッセージ(任意)</label>
     <textarea id="mealMenuBody" placeholder="例:お手数をおかけしますが、期限までにご選択をお願いいたします。" style="width:100%;min-height:90px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
-    <button type="button" id="mealMenuSendBtn" style="margin-top:10px;background:var(--ok);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">お食事メニューご案内メールを送信(お食事ご参加の方のみ)</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+      <button type="button" id="mealMenuTestSendBtn" style="background:transparent;color:var(--ok);border:1px solid var(--ok);border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">テスト送信(mari247k@gmail.com宛)</button>
+      <button type="button" id="mealMenuSendBtn" style="background:var(--ok);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">お食事メニューご案内メールを送信(お食事ご参加の方のみ)</button>
+    </div>
     <p class="status-msg" id="mealMenuStatus" style="padding:8px 0 0;text-align:left;"></p>
   </div>
 </div>
@@ -1612,6 +1615,71 @@ ${extraBody ? `\n${extraBody}\n` : ''}
     btn.disabled = false;
   }
 
+  async function sendMealMenuTestEmail(){
+    const statusEl = document.getElementById('mealMenuStatus');
+    statusEl.className = 'status-msg'; statusEl.textContent = '';
+
+    const ev = events.find(e => e.id === currentEventId);
+    if(!ev){
+      statusEl.classList.add('err');
+      statusEl.textContent = '先に公演を選んでください。';
+      return;
+    }
+
+    const formUrl = document.getElementById('mealMenuFormUrl').value.trim();
+    if(!formUrl){
+      statusEl.classList.add('err');
+      statusEl.textContent = 'メニュー選択フォームのURLを入力してください。';
+      return;
+    }
+
+    const deadlineDateStr = document.getElementById('mealMenuDeadline').value;
+    if(!deadlineDateStr){
+      statusEl.classList.add('err');
+      statusEl.textContent = 'お食事フォームに設定した締切日を入力してください。';
+      return;
+    }
+    const deadlineText = formatDateJp(deadlineDateStr);
+    const extraBody = document.getElementById('mealMenuBody').value.trim();
+
+    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+    const subject = `【テスト送信】【小林タカラヅカ倶楽部】お食事メニュー選択のお願い`;
+    const testEmail = 'mari247k@gmail.com';
+    const message =
+`（これはテスト送信です。実際の参加者には送信されていません）
+
+テスト 様
+
+いつも観劇会の活動にご理解とご協力を賜り、誠にありがとうございます。
+
+${title}のお食事について、メニューのご選択をお願いいたします。
+下記フォームより、期限までにご選択くださいますようお願いいたします。
+
+${formUrl}
+
+【選択締切】
+${deadlineText}
+${extraBody ? `\n${extraBody}\n` : ''}
+小林タカラヅカ倶楽部`;
+
+    const btn = document.getElementById('mealMenuTestSendBtn');
+    btn.disabled = true;
+    statusEl.className = 'status-msg';
+    statusEl.textContent = `テスト送信中… (${testEmail})`;
+    try{
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+        email: testEmail, subject, message
+      });
+      statusEl.className = 'status-msg ok';
+      statusEl.textContent = `テスト送信完了:${testEmail} に送信しました。(一斉送信は行われていません)`;
+    }catch(err){
+      console.warn('テスト送信失敗:', err);
+      statusEl.className = 'status-msg err';
+      statusEl.textContent = 'テスト送信に失敗しました。';
+    }
+    btn.disabled = false;
+  }
+
   async function sendEmergencyEmail(){
     const statusEl = document.getElementById('emergencyStatus');
     statusEl.className = 'status-msg'; statusEl.textContent = '';
@@ -1745,6 +1813,7 @@ ${body}
       document.getElementById('emergencySendBtn').addEventListener('click', sendEmergencyEmail);
       document.getElementById('giftLetterSendBtn').addEventListener('click', sendGiftLetterEmail);
       document.getElementById('mealMenuSendBtn').addEventListener('click', sendMealMenuEmail);
+      document.getElementById('mealMenuTestSendBtn').addEventListener('click', sendMealMenuTestEmail);
       document.querySelectorAll('th.sortable').forEach(th=>{
         th.addEventListener('click', ()=>{
           const key = th.getAttribute('data-sort');
