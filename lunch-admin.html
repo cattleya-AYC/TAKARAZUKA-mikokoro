@@ -600,6 +600,95 @@ ${OFFICIAL_LINE_URL}
     const d = new Date(v + 'T00:00:00');
     return `${d.getMonth()+1}月${d.getDate()}日`;
   }
+
+  function escapeHtml(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // 組ごとのメールカラーテーマ(entry-form.htmlの組カラーに合わせたもの)
+  function getTroupeEmailTheme(troupe){
+    const themes = {
+      '花': { headerBg:'#f9e9ee', headerBorder:'#e7cdd5', title:'#8c5265', button:'#a86579', boxBg:'#f5edef', boxBorder:'#b27b8b', boxValue:'#85566a' },
+      '月': { headerBg:'#f8f1df', headerBorder:'#e6d7ad', title:'#8a6d23', button:'#b9973f', boxBg:'#f6f0dd', boxBorder:'#b9973f', boxValue:'#7c631f' },
+      '雪': { headerBg:'#e9f3ec', headerBorder:'#c9e1d1', title:'#3f6b4f', button:'#5a8f6d', boxBg:'#eef5ef', boxBorder:'#5a8f6d', boxValue:'#3f6b4f' },
+      '星': { headerBg:'#e8eff8', headerBorder:'#c9d9ee', title:'#355a85', button:'#4d7bab', boxBg:'#eef2f8', boxBorder:'#4d7bab', boxValue:'#355a85' },
+      '宙': { headerBg:'#f0e9f6', headerBorder:'#dcc9ea', title:'#6a4a85', button:'#8f65ab', boxBg:'#f3eef8', boxBorder:'#8f65ab', boxValue:'#6a4a85' }
+    };
+    return themes[troupe] || themes['花'];
+  }
+
+  // お食事メニュー案内メール用のHTMLテンプレート(admin-list.htmlと共通デザイン・色は組カラーに自動追従)
+  function buildMealMenuEmailHtml({ recipientName, eventTitle, formUrl, deadlineShort, isTest, troupe }){
+    const t = getTroupeEmailTheme(troupe);
+    const name = escapeHtml(recipientName);
+    const title = escapeHtml(eventTitle);
+    const url = escapeHtml(formUrl);
+    const deadline = escapeHtml(deadlineShort);
+    return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} お食事メニューご登録のお願い</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f8f5f6; font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Yu Gothic',YuGothic,Meiryo,sans-serif; color:#4b4145;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f8f5f6;">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #eadfe3;">
+<tr><td align="center" style="padding:32px 20px 26px; background-color:${t.headerBg}; border-bottom:1px solid ${t.headerBorder};">
+<div style="font-size:12px; letter-spacing:3px; color:#a67c52; margin-bottom:10px;">OBAYASHI TAKARAZUKA CLUB</div>
+<div style="font-family:Georgia,'Times New Roman',serif; font-size:25px; line-height:1.5; color:${t.title}; font-weight:bold;">${title}</div>
+<div style="margin-top:8px; font-size:14px; color:#8f747d; letter-spacing:1px;">お食事メニューご登録のお願い</div>
+<div style="width:48px; height:1px; background:#c7a16b; margin:18px auto 0;"></div>
+</td></tr>
+<tr><td style="padding:32px 28px 16px; font-size:15px; line-height:1.9;">
+<p style="margin:0 0 24px; font-weight:bold; color:#4a3d42;">${name}様${isTest ? '<span style="font-weight:normal; color:#9a858c;">（テスト送信です）</span>' : ''}</p>
+<p style="margin:0 0 18px;">この度は、<strong style="color:${t.title};">${title}</strong>にお申し込みいただき、誠にありがとうございました。</p>
+<p style="margin:0 0 18px;">またこの度は、お食事会からのご参加もいただき、重ねてお礼申し上げます。</p>
+<p style="margin:0 0 18px;">さて、当日のお食事メニューとお飲み物につきまして、下記フォームより選択・ご入力をお願いいたします。</p>
+<p style="margin:0 0 26px;">ご入力いただいた内容をもとに、レストランへの手配を進めさせていただきます。お手数をおかけいたしますが、締め切りまでにご入力いただけますと幸いです。</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px; background:#fff9fa; border:1px solid #ead6dc; border-radius:12px;">
+<tr><td align="center" style="padding:26px 18px;">
+<div style="font-size:13px; color:#9b7b85; letter-spacing:1px; margin-bottom:14px;">お食事・お飲み物のご登録</div>
+<a href="${url}" style="display:inline-block; background:${t.button}; color:#ffffff; text-decoration:none; font-size:16px; font-weight:bold; padding:14px 34px; border-radius:8px;">お食事申込フォームを開く</a>
+<div style="margin-top:20px; font-size:12px; color:#a18f95;">ボタンを押して申込フォームへお進みください</div>
+</td></tr>
+</table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;">
+<tr><td align="center" style="padding:17px 12px; background:${t.boxBg}; border-left:4px solid ${t.boxBorder}; border-radius:6px;">
+<div style="font-size:12px; color:#8c747c; letter-spacing:1px; margin-bottom:4px;">登録締め切り</div>
+<div style="font-size:21px; font-weight:bold; color:${t.boxValue};">${deadline}</div>
+</td></tr>
+</table>
+<p style="margin:0 0 18px;">ご不明な点がございましたら、いつでも公式LINEよりお問い合わせください。</p>
+<p style="margin:0 0 28px;">それでは、当日皆さまにお会いできますことを、スタッフ一同楽しみにしております。</p>
+<p style="margin:0 0 6px;">どうぞよろしくお願いいたします。</p>
+<p style="margin:0; font-weight:bold; color:#755563;">小林タカラヅカ倶楽部</p>
+</td></tr>
+<tr><td style="padding:10px 28px 30px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#faf8f8; border-radius:10px;">
+<tr><td align="center" style="padding:22px 18px;">
+<div style="font-size:14px; font-weight:bold; color:#62565a; margin-bottom:12px;">お問い合わせは公式LINEへ</div>
+<a href="${OFFICIAL_LINE_URL}" style="display:inline-block; background:#06c755; color:#ffffff; text-decoration:none; font-size:14px; font-weight:bold; padding:12px 28px; border-radius:7px;">公式LINEを開く</a>
+</td></tr>
+</table>
+</td></tr>
+<tr><td style="padding:24px 28px 30px; background:#f4f0f1; border-top:1px solid #e5dcdf;">
+<div style="font-size:12px; line-height:1.8; color:#887a7f;">
+※このメールは送信専用のアドレスからお送りしております。<br><br>
+大変恐れ入りますが、本メールに直接ご返信いただいても内容を確認することができず、どなたにも届かない仕組みとなっております。<br><br>
+お問い合わせ・ご報告・ご確認などがございましたら、お手数をおかけいたしますが、上記の<strong>公式LINE</strong>よりご連絡くださいますようお願い申し上げます。
+</div>
+<div style="width:42px; height:1px; background:#c8a87a; margin:22px auto;"></div>
+<div style="text-align:center; font-size:11px; letter-spacing:1px; color:#a39499;">小林タカラヅカ倶楽部</div>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+  }
+
   function updateLineMessage(){
     const box = document.getElementById('lineBox');
     const url = document.getElementById('lineMessage')._formUrl || '';
@@ -658,29 +747,11 @@ ${time}
     const troupe = document.getElementById('troupeInput').value || '○○組';
     const deadline = fmtDateJp(document.getElementById('deadlineInput').value) || '○月○日';
     const eventNumber = selectedEvent?.event_number ?? '◯';
-    const subject = `【テスト】【小林タカラヅカ倶楽部】${date} ${troupe}公演 お食事メニューのご案内`;
-    const message =
-`テスト太郎様(テスト送信です)
-
-この度は、第${eventNumber}回 ${troupe}観劇会${selectedEvent?.work_title ? `『${selectedEvent.work_title}』` : ''}にお申し込みいただき、誠にありがとうございました。
-
-またこの度は、お食事会からのご参加もいただき、重ねてお礼申し上げます。
-
-さて、当日のお食事メニューとお飲み物につきまして、下記フォームより選択・ご入力をお願いいたします。ご入力いただいた内容をもとに、レストランへの手配を進めさせていただきます。
-
-お手数をおかけいたしますが、締め切りまでにご入力いただけますと幸いです。
-
-▼ お食事申込フォーム
-${url}
-
-【登録締め切り】
-${deadline}
-
-ご不明な点がございましたら、いつでも公式LINEよりお問い合わせください。
-それでは、当日皆さまにお会いできますことを、スタッフ一同楽しみにしております。
-
-どうぞよろしくお願いいたします。
-小林タカラヅカ倶楽部${NO_REPLY_FOOTER}`;
+    const eventTitle = `第${eventNumber}回 ${troupe}観劇会${selectedEvent?.work_title ? `『${selectedEvent.work_title}』` : ''}`;
+    const subject = `【テスト】【小林タカラヅカ倶楽部】${eventTitle} お食事メニューご登録のお願い`;
+    const message = buildMealMenuEmailHtml({
+      recipientName: 'テスト太郎', eventTitle, formUrl: url, deadlineShort: deadline, isTest: true, troupe
+    });
 
     const btn = document.getElementById('testMailBtn');
     btn.disabled = true; btn.textContent = '送信中…';
@@ -747,7 +818,8 @@ ${deadline}
       const troupe = document.getElementById('troupeInput').value || '○○組';
       const deadline = fmtDateJp(document.getElementById('deadlineInput').value);
       const eventNumber = selectedEvent?.event_number ?? '◯';
-      const subject = `【小林タカラヅカ倶楽部】${date} ${troupe}公演 お食事メニューのご案内`;
+      const eventTitle = `第${eventNumber}回 ${troupe}観劇会${selectedEvent?.work_title ? `『${selectedEvent.work_title}』` : ''}`;
+      const subject = `【小林タカラヅカ倶楽部】${eventTitle} お食事メニューご登録のお願い`;
 
       mailBtn.disabled = true;
       let successCount = 0;
@@ -757,28 +829,9 @@ ${deadline}
         const r = recipients[i];
         statusEl.className = 'status';
         statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
-        const message =
-`${r.name}様
-
-この度は、第${eventNumber}回 ${troupe}観劇会${selectedEvent?.work_title ? `『${selectedEvent.work_title}』` : ''}にお申し込みいただき、誠にありがとうございました。
-
-またこの度は、お食事会からのご参加もいただき、重ねてお礼申し上げます。
-
-さて、当日のお食事メニューとお飲み物につきまして、下記フォームより選択・ご入力をお願いいたします。ご入力いただいた内容をもとに、レストランへの手配を進めさせていただきます。
-
-お手数をおかけいたしますが、締め切りまでにご入力いただけますと幸いです。
-
-▼ お食事申込フォーム
-${url}
-
-【登録締め切り】
-${deadline}
-
-ご不明な点がございましたら、いつでも公式LINEよりお問い合わせください。
-それでは、当日皆さまにお会いできますことを、スタッフ一同楽しみにしております。
-
-どうぞよろしくお願いいたします。
-小林タカラヅカ倶楽部${NO_REPLY_FOOTER}`;
+        const message = buildMealMenuEmailHtml({
+          recipientName: r.name, eventTitle, formUrl: url, deadlineShort: deadline, isTest: false, troupe
+        });
         try{
           await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
             email: r.email,
