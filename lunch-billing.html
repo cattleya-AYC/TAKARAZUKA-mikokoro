@@ -65,6 +65,21 @@
   .total-cell{ font-weight:700; color:var(--rose); }
   .table-wrap{ overflow-x:auto; }
   .copy-btn{ background:var(--navy-card-2); color:var(--gold-soft); border:1px solid var(--gold-soft); border-radius:6px; padding:6px 10px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .row-btns{ display:flex; gap:6px; flex-wrap:wrap; }
+  .mail-btn{ background:var(--gold-soft); color:#fff; border:1px solid var(--gold-soft); border-radius:6px; padding:6px 10px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .mail-btn:disabled{ background:var(--navy-card-2); color:var(--muted); border-color:var(--line); cursor:not-allowed; }
+  .sent-mark{ display:block; font-size:10.5px; color:var(--ok); margin-top:4px; white-space:nowrap; }
+  .no-mail{ display:block; font-size:10.5px; color:var(--muted); margin-top:4px; white-space:nowrap; }
+  .mail-bar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; padding:12px; margin-bottom:14px; border:1px dashed var(--line); border-radius:10px; background:var(--navy-card-2); }
+  .mail-bar label.chk{ display:flex; align-items:center; gap:6px; margin:0; font-size:12.5px; cursor:pointer; }
+  .mail-bar label.chk input{ width:auto; }
+  .test-on{ outline:2px solid var(--rose); }
+  #mailModal{ position:fixed; inset:0; z-index:5000; background:rgba(40,30,50,.55); display:none; align-items:center; justify-content:center; padding:12px; }
+  #mailModal .box{ background:var(--navy-card); border-radius:14px; width:100%; max-width:680px; max-height:94vh; display:flex; flex-direction:column; overflow:hidden; }
+  #mailModal .head{ padding:12px 16px; border-bottom:1px solid var(--line); font-size:13px; }
+  #mailModal .head b{ color:var(--gold-soft); }
+  #mailModal iframe{ flex:1; width:100%; min-height:60vh; border:0; background:#f8f5f6; }
+  #mailModal .foot{ padding:12px 16px; border-top:1px solid var(--line); display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
   .search{ width:100%; max-width:300px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; background:var(--navy-card-2); color:var(--cream); margin-bottom:14px; }
   .empty-note{ padding:20px; text-align:center; color:var(--muted); }
   @media(max-width:800px){ .info{ grid-template-columns:1fr; } .grid2{ grid-template-columns:1fr; } }
@@ -78,7 +93,7 @@
     h1{ font-size:16px; margin:0; }
     .wrap{ max-width:none; padding:0; }
 
-    .actions, .search, .copy-btn, #saveBankBtn, .bank-section{ display:none !important; }
+    .actions, .search, .copy-btn, .mail-btn, .mail-bar, .sent-mark, .no-mail, #saveBankBtn, .bank-section{ display:none !important; }
 
     .info{ grid-template-columns:repeat(3,1fr); gap:4px; margin-bottom:8px; }
     .info-card{ border:1px solid #999 !important; background:#fff !important; padding:6px; border-radius:0; }
@@ -196,6 +211,11 @@
         <input class="search" id="search" placeholder="お名前で検索" style="margin-bottom:0;flex:1;min-width:180px;">
         <button class="secondary" id="printBtn" type="button">印刷</button>
       </div>
+      <div class="mail-bar" id="mailBar">
+        <label class="chk"><input type="checkbox" id="testMode"> テストモード(全部 mari247k@gmail.com に届く)</label>
+        <button class="primary" id="bulkMailBtn" type="button" style="margin-left:auto;">未送信の方へまとめてメール送信</button>
+        <p class="status" id="mailStatus" style="width:100%;margin:0;"></p>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>名前</th><th>人数</th><th class="num">チケット代</th><th class="num">食事代</th><th class="num">合計請求額</th><th></th></tr></thead>
@@ -207,17 +227,34 @@
   </div>
 </div>
 
+<div id="mailModal">
+  <div class="box">
+    <div class="head" id="mailModalHead"></div>
+    <iframe id="mailPreview" title="メールプレビュー"></iframe>
+    <div class="foot">
+      <button class="secondary" id="mailCancelBtn" type="button">閉じる</button>
+      <button class="primary" id="mailSendBtn" type="button">この内容で送信</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
 <script>
   const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_ChLAh-7Y10km0WzbAZfE7A_dnWkJkow";
+  const EMAILJS_PUBLIC_KEY = "gfU-zetxSygFe1qwW";
+  const EMAILJS_SERVICE_ID = "service_qpuxvaj";
+  const EMAILJS_GENERIC_TEMPLATE_ID = "template_khkmzni";
+  const TEST_EMAIL = "mari247k@gmail.com";
+  const OFFICIAL_LINE_URL = "https://lin.ee/S21MDzhw";
   let sb = null, eventRow = null, bankInfo = null, savedForThisEvent = false, registrations = [], orders = [];
 
   function waitForLib(timeoutMs){
     return new Promise((resolve, reject)=>{
       const start = Date.now();
       const check = ()=>{
-        if(window.supabase) resolve();
+        if(window.supabase && window.emailjs) resolve();
         else if(Date.now() - start > timeoutMs) reject(new Error('読み込みに失敗しました'));
         else setTimeout(check, 150);
       };
@@ -288,7 +325,12 @@
     if(regErr) throw regErr;
     registrations = (regRows || [])
       .filter(r => r.status !== 'お断り' && r.status !== 'キャンセル')
-      .map(r => ({ name: r.answers?.full_name || '(不明)', count: Number(r.answers?.participant_count) || 1 }));
+      .map(r => ({
+        name: r.answers?.full_name || '(不明)',
+        count: Number(r.answers?.participant_count) || 1,
+        email: (r.answers?.email || '').trim(),
+        status: r.status || ''
+      }));
 
     await loadOrders(eventId);
 
@@ -331,6 +373,7 @@
   async function init(){
     await waitForLib(10000);
     sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    try { window.emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
 
     const { data: { session } } = await sb.auth.getSession();
     if(session){
@@ -464,7 +507,7 @@
       const order = orderByName(r.name);
       const ticketPrice = unit * r.count;
       const mealPrice = order ? order.items.reduce((s,i)=>s+(i.price||0),0) : 0;
-      return { name:r.name, count:r.count, ticketPrice, mealPrice, total:ticketPrice+mealPrice, order };
+      return { name:r.name, count:r.count, email:r.email, status:r.status, ticketPrice, mealPrice, total:ticketPrice+mealPrice, order };
     });
   }
 
@@ -512,6 +555,283 @@
     return lines.join('\n');
   }
 
+  // ===================== 請求メール(HTMLメール) =====================
+  let currentRows = [];
+  let modalRow = null;
+
+  function escapeHtml(str){
+    return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  // 組ごとのメールカラーテーマ(day-before-notice.html / admin-list.html / lunch-admin.html と共通)
+  function getTroupeEmailTheme(troupe){
+    const themes = {
+      '花': { headerBg:'#f9e9ee', headerBorder:'#e7cdd5', title:'#8c5265', accent:'#85566a' },
+      '月': { headerBg:'#f8f1df', headerBorder:'#e6d7ad', title:'#8a6d23', accent:'#7c631f' },
+      '雪': { headerBg:'#e9f3ec', headerBorder:'#c9e1d1', title:'#3f6b4f', accent:'#3f6b4f' },
+      '星': { headerBg:'#e8eff8', headerBorder:'#c9d9ee', title:'#355a85', accent:'#355a85' },
+      '宙': { headerBg:'#f0e9f6', headerBorder:'#dcc9ea', title:'#6a4a85', accent:'#6a4a85' }
+    };
+    return themes[troupe] || themes['花'];
+  }
+
+  // 送信済みの記録(この端末のブラウザに保存。二重送信の目印用)
+  function sentKey(){ return 'billingMailSent:' + (eventRow?.id || ''); }
+  function getSentMap(){
+    try{ return JSON.parse(localStorage.getItem(sentKey()) || '{}'); }catch(e){ return {}; }
+  }
+  function markSent(row){
+    try{
+      const m = getSentMap();
+      m[normalizeName(row.name)] = { at: new Date().toISOString(), total: row.total };
+      localStorage.setItem(sentKey(), JSON.stringify(m));
+    }catch(e){}
+  }
+  function sentInfo(row){ return getSentMap()[normalizeName(row.name)] || null; }
+  function fmtSentAt(iso){
+    const d = new Date(iso);
+    return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+  function canEmail(row){ return !!row.email && row.status === '参加決定'; }
+
+  function rowActionsHtml(row, idx){
+    let mailPart;
+    if(!row.email){
+      mailPart = `<button type="button" class="mail-btn" disabled>メール</button>`;
+    } else if(row.status !== '参加決定'){
+      mailPart = `<button type="button" class="mail-btn" disabled>メール</button>`;
+    } else {
+      mailPart = `<button type="button" class="mail-btn" data-idx="${idx}">メールで送る</button>`;
+    }
+    const sent = sentInfo(row);
+    let note = '';
+    if(sent){
+      const changed = sent.total !== row.total ? '(金額変更あり)' : '';
+      note = `<span class="sent-mark">✓ 送信済 ${fmtSentAt(sent.at)}${changed}</span>`;
+    } else if(!row.email){
+      note = `<span class="no-mail">メール未登録→LINEで</span>`;
+    } else if(row.status !== '参加決定'){
+      note = `<span class="no-mail">${escapeHtml(row.status || '未確定')}のため送信不可</span>`;
+    }
+    return `<div class="row-btns"><button type="button" class="copy-btn" data-idx="${idx}">LINE文をコピー</button>${mailPart}</div>${note}`;
+  }
+
+  function billingSubject(isTest){
+    const d = new Date(eventRow.event_date + 'T00:00:00');
+    return (isTest ? '【テスト】' : '') + `【小林タカラヅカ倶楽部】${d.getMonth()+1}月${d.getDate()}日 ${eventRow.troupe||''}組観劇会 ご請求のご案内`;
+  }
+
+  function buildBillingEmailHtml(row, isTest){
+    const t = getTroupeEmailTheme(eventRow.troupe);
+    const title = escapeHtml(`第${eventRow.event_number ?? ''}回 ${eventRow.troupe || ''}組観劇会`);
+    const workTitle = eventRow.work_title ? `<div style="margin-top:6px; font-size:14px; color:${t.accent};">『${escapeHtml(eventRow.work_title)}』</div>` : '';
+    const seatType = escapeHtml(eventRow.seat_type || 'S席');
+    const seatUnit = Math.max((eventRow.base_price || 0) - AGENCY_FEE, 0);
+    const deadline = fmtDateJpWithWeekday(
+      bankInfo?.payment_deadline
+        ? new Date(bankInfo.payment_deadline + 'T00:00:00')
+        : addDays(new Date(eventRow.event_date + 'T00:00:00'), -30)
+    );
+
+    const cellL = 'padding:9px 0; font-size:14px; color:#4b4145; border-bottom:1px dotted #e5dcdf;';
+    const cellR = cellL + ' text-align:right; white-space:nowrap;';
+    const sectionHead = (label) => `<tr><td colspan="2" style="padding:16px 0 6px; font-size:13px; font-weight:bold; letter-spacing:1px; color:${t.title};">${label}</td></tr>`;
+
+    let itemRows = '';
+    itemRows += sectionHead('🎟 チケット料金');
+    itemRows += `<tr><td style="${cellL}">${seatType}(${row.count}枚)</td><td style="${cellR}">${yen(seatUnit*row.count)}</td></tr>`;
+    itemRows += `<tr><td style="${cellL}">旅行代理店手数料 ${yen(AGENCY_FEE)}×${row.count}枚</td><td style="${cellR}">${yen(AGENCY_FEE*row.count)}</td></tr>`;
+    if(row.order && row.order.items.length){
+      itemRows += sectionHead('🍱 お食事代');
+      const groups = {};
+      row.order.items.forEach(it=>{
+        const k = it.menu_name || '';
+        if(!groups[k]) groups[k] = { qty:0, sum:0 };
+        groups[k].qty += 1; groups[k].sum += (it.price || 0);
+      });
+      Object.entries(groups).forEach(([name, g])=>{
+        itemRows += `<tr><td style="${cellL}">${escapeHtml(name)} × ${g.qty}</td><td style="${cellR}">${yen(g.sum)}</td></tr>`;
+      });
+      itemRows += `<tr><td style="${cellL} color:#887a7f;">小計</td><td style="${cellR} color:#887a7f;">${yen(row.mealPrice)}</td></tr>`;
+    }
+
+    const bankLines = bankInfoLines().map(escapeHtml).join('<br>') || '(振込先は別途ご案内いたします)';
+    const bankNote = bankInfo?.note ? `<div style="margin-top:10px; font-size:12.5px; color:#887a7f; white-space:pre-line;">${escapeHtml(bankInfo.note)}</div>` : '';
+
+    return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} ご請求内容のご案内</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f8f5f6; font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Yu Gothic',YuGothic,Meiryo,sans-serif; color:#4b4145;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f8f5f6;">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #eadfe3;">
+<tr><td align="center" style="padding:32px 20px 26px; background-color:${t.headerBg}; border-bottom:1px solid ${t.headerBorder};">
+<div style="font-size:12px; letter-spacing:3px; color:#a67c52; margin-bottom:10px;">OBAYASHI TAKARAZUKA CLUB</div>
+<div style="font-family:Georgia,'Times New Roman',serif; font-size:23px; line-height:1.5; color:${t.title}; font-weight:bold;">${title}</div>
+${workTitle}
+<div style="margin-top:8px; font-size:14px; color:#8f747d; letter-spacing:1px;">ご請求内容のご案内</div>
+<div style="width:48px; height:1px; background:#c7a16b; margin:18px auto 0;"></div>
+</td></tr>
+<tr><td style="padding:32px 28px 8px; font-size:15px; line-height:1.9;">
+<p style="margin:0 0 22px; font-weight:bold; color:#4a3d42;">${escapeHtml(row.name)}様${isTest ? '<span style="font-weight:normal; color:#9a858c;">(テスト送信です)</span>' : ''}</p>
+<p style="margin:0 0 18px;">このたびは、${escapeHtml(fmtDateJpPlain(eventRow.event_date))}開催の${escapeHtml(eventRow.troupe || '')}組観劇会へのお申込みをいただき、誠にありがとうございます。</p>
+<p style="margin:0 0 8px;">ご請求内容をご確認の上、期日までにお振込みをお願いいたします。</p>
+</td></tr>
+<tr><td style="padding:0 28px 8px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+${itemRows}
+</table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:18px 0 8px; background:${t.headerBg}; border:1px solid ${t.headerBorder}; border-radius:10px;">
+<tr>
+<td style="padding:16px 18px; font-size:15px; font-weight:bold; color:${t.title};">ご請求金額(合計)</td>
+<td style="padding:16px 18px; font-size:22px; font-weight:bold; color:${t.title}; text-align:right; white-space:nowrap;">${yen(row.total)}</td>
+</tr>
+</table>
+</td></tr>
+<tr><td style="padding:14px 28px 8px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#faf8f8; border:1px solid #eadfe3; border-radius:10px;">
+<tr><td style="padding:18px 20px; font-size:14px; line-height:1.9; color:#4b4145;">
+<div style="font-size:13px; font-weight:bold; letter-spacing:1px; color:${t.title}; margin-bottom:6px;">🏦 お振込み先</div>
+${bankLines}
+${bankNote}
+</td></tr>
+</table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:12px; background:#fff7e8; border:1px solid #ecd9ad; border-radius:10px;">
+<tr><td align="center" style="padding:14px 18px; font-size:15px; font-weight:bold; color:#6b5a30;">🕊 振込締切:${escapeHtml(deadline)}</td></tr>
+</table>
+</td></tr>
+<tr><td style="padding:22px 28px 30px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#faf8f8; border-radius:10px;">
+<tr><td align="center" style="padding:22px 18px;">
+<div style="font-size:14px; font-weight:bold; color:#62565a; margin-bottom:6px;">お振込み後は、必ず公式LINEにてご一報くださいませ</div>
+<div style="font-size:12.5px; color:#887a7f; margin-bottom:14px;">お問い合わせも公式LINEにて承っております</div>
+<a href="${OFFICIAL_LINE_URL}" style="display:inline-block; background:#06c755; color:#ffffff; text-decoration:none; font-size:14px; font-weight:bold; padding:12px 28px; border-radius:7px;">公式LINEを開く</a>
+</td></tr>
+</table>
+</td></tr>
+<tr><td style="padding:24px 28px 30px; background:#f4f0f1; border-top:1px solid #e5dcdf;">
+<div style="font-size:12px; line-height:1.8; color:#887a7f;">
+※このメールは送信専用のアドレスからお送りしております。<br><br>
+大変恐れ入りますが、本メールに直接ご返信いただいても内容を確認することができず、どなたにも届かない仕組みとなっております。<br><br>
+お振込みのご報告・お問い合わせなどがございましたら、お手数をおかけいたしますが、上記の<strong>公式LINE</strong>よりご連絡くださいますようお願い申し上げます。
+</div>
+<div style="width:42px; height:1px; background:#c8a87a; margin:22px auto;"></div>
+<div style="text-align:center; font-size:11px; letter-spacing:1px; color:#a39499;">小林タカラヅカ倶楽部</div>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+  }
+
+  function isTestMode(){ return document.getElementById('testMode').checked; }
+
+  async function sendBillingMail(row){
+    const isTest = isTestMode();
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+      email: isTest ? TEST_EMAIL : row.email,
+      subject: billingSubject(isTest),
+      message: buildBillingEmailHtml(row, isTest)
+    });
+    if(!isTest) markSent(row);
+  }
+
+  function openMailPreview(row){
+    modalRow = row;
+    const isTest = isTestMode();
+    const to = isTest ? `${TEST_EMAIL}(テスト)` : row.email;
+    const sent = sentInfo(row);
+    document.getElementById('mailModalHead').innerHTML =
+      `<b>${escapeHtml(row.name)}様</b> 宛 / 送信先:${escapeHtml(to)}<br>件名:${escapeHtml(billingSubject(isTest))}` +
+      (sent && !isTest ? `<br><span style="color:var(--rose);font-weight:700;">⚠ ${fmtSentAt(sent.at)} に送信済みです。もう一度送ると2通目になります。</span>` : '');
+    document.getElementById('mailPreview').srcdoc = buildBillingEmailHtml(row, isTest);
+    const btn = document.getElementById('mailSendBtn');
+    btn.disabled = false;
+    btn.textContent = isTest ? 'テスト送信する' : 'この内容で送信';
+    document.getElementById('mailModal').style.display = 'flex';
+  }
+  function closeMailPreview(){
+    document.getElementById('mailModal').style.display = 'none';
+    modalRow = null;
+  }
+  document.getElementById('mailCancelBtn').addEventListener('click', closeMailPreview);
+  document.getElementById('mailSendBtn').addEventListener('click', async ()=>{
+    if(!modalRow) return;
+    const btn = document.getElementById('mailSendBtn');
+    const statusEl = document.getElementById('mailStatus');
+    const row = modalRow;
+    btn.disabled = true; btn.textContent = '送信中…';
+    statusEl.className = 'status';
+    try{
+      await sendBillingMail(row);
+      statusEl.classList.add('ok');
+      statusEl.textContent = isTestMode()
+        ? `テスト送信しました(${row.name}様の内容 → ${TEST_EMAIL})`
+        : `${row.name}様に請求メールを送信しました。`;
+      closeMailPreview();
+      render();
+    }catch(err){
+      console.error(err);
+      statusEl.classList.add('err');
+      statusEl.textContent = `送信に失敗しました:${row.name}様(${err?.text || err?.message || err})`;
+      btn.disabled = false; btn.textContent = 'もう一度送信';
+    }
+  });
+
+  document.getElementById('testMode').addEventListener('change', ()=>{
+    const on = isTestMode();
+    document.getElementById('mailBar').classList.toggle('test-on', on);
+    document.getElementById('bulkMailBtn').textContent = on
+      ? '先頭1名分をテスト送信'
+      : '未送信の方へまとめてメール送信';
+  });
+
+  document.getElementById('bulkMailBtn').addEventListener('click', async ()=>{
+    const statusEl = document.getElementById('mailStatus');
+    const btn = document.getElementById('bulkMailBtn');
+    statusEl.className = 'status'; statusEl.textContent = '';
+    const all = billingRows();
+    const targets = all.filter(r => canEmail(r) && !sentInfo(r));
+    if(!targets.length){
+      statusEl.classList.add('err');
+      statusEl.textContent = '送信できる未送信の方がいません。';
+      return;
+    }
+    if(isTestMode()){
+      btn.disabled = true;
+      try{
+        await sendBillingMail(targets[0]);
+        statusEl.classList.add('ok');
+        statusEl.textContent = `テスト送信しました(${targets[0].name}様の内容 → ${TEST_EMAIL})`;
+      }catch(err){
+        statusEl.classList.add('err');
+        statusEl.textContent = '送信に失敗しました:' + (err?.text || err?.message || err);
+      }finally{ btn.disabled = false; }
+      return;
+    }
+    const skipped = all.filter(r => !canEmail(r)).length;
+    if(!confirm(`${targets.length}名に請求メールを送信します。` + (skipped ? `\n(メール未登録・未確定の${skipped}名は対象外です。LINEで送ってください)` : '') + '\nよろしいですか？')) return;
+
+    btn.disabled = true;
+    let ok = 0; const failed = [];
+    for(let i=0; i<targets.length; i++){
+      const r = targets[i];
+      statusEl.textContent = `送信中… (${i+1}/${targets.length}) ${r.name}様`;
+      try{ await sendBillingMail(r); ok++; }
+      catch(err){ console.warn('送信失敗', r.email, err); failed.push(r.name); }
+    }
+    btn.disabled = false;
+    statusEl.className = 'status ' + (failed.length ? 'err' : 'ok');
+    statusEl.textContent = failed.length
+      ? `送信完了:${ok}名成功 / ${failed.length}名失敗(${failed.join('、')})`
+      : `送信完了:${ok}名に請求メールを送信しました。`;
+    render();
+  });
+
   function render(){
     const q = document.getElementById('search').value.trim().toLowerCase();
     const rows = billingRows().filter(r => !q || r.name.toLowerCase().includes(q));
@@ -528,7 +848,7 @@
         <td class="num">${yen(row.ticketPrice)}</td>
         <td class="num">${yen(row.mealPrice)}</td>
         <td class="num total-cell">${yen(row.total)}</td>
-        <td><button type="button" class="copy-btn" data-idx="${idx}">LINE文をコピー</button></td>`;
+        <td>${rowActionsHtml(row, idx)}</td>`;
       body.appendChild(tr);
     });
 
@@ -545,6 +865,11 @@
         }
       });
     });
+
+    body.querySelectorAll('.mail-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> openMailPreview(rows[Number(btn.dataset.idx)]));
+    });
+    currentRows = rows;
 
     document.getElementById('grandTotal').textContent = yen(rows.reduce((s,r)=>s+r.total,0));
   }
