@@ -196,10 +196,13 @@
         <div class="field"><label>口座名義</label><input type="text" id="accountHolder" placeholder="例:ヒョウジ タロウ"></div>
         <div class="field">
           <label>振込締切</label>
-          <input type="date" id="paymentDeadline">
+          <div style="display:flex;gap:8px;">
+            <input type="date" id="paymentDeadline" style="flex:1;">
+            <button class="secondary" id="clearDeadlineBtn" type="button" style="white-space:nowrap;padding:8px 12px;font-size:12px;">自動に戻す</button>
+          </div>
         </div>
       </div>
-      <p class="section-sub" style="margin-top:-6px">未入力の場合は開催日の30日前を自動で使用します。遅れそうな時だけここで日付を上書きしてください。</p>
+      <p class="section-sub" style="margin-top:-6px">空欄のままなら自動で決まります:<b>送る日の14日後</b>。ただし代理店への支払日(観劇7日前)の3日前=<b>観劇の10日前</b>より後にはなりません。特別な日にしたい時だけ日付を入れて保存してください。<br><span id="deadlinePreview" style="color:var(--gold-soft);font-weight:700;"></span></p>
       <div class="field"><label>注意事項・振込期限など(任意)</label><textarea id="bankNote" placeholder="例:○月○日までにお振込みください"></textarea></div>
       <button class="primary" id="saveBankBtn" type="button">振込先を保存</button>
       <p class="status" id="bankStatus"></p>
@@ -434,10 +437,17 @@
     document.getElementById('accountNumber').value = b?.account_number || '';
     document.getElementById('accountHolder').value = b?.account_holder || '';
     document.getElementById('bankNote').value = b?.note || '';
-    const defaultDeadline = addDays(new Date(eventRow.event_date + 'T00:00:00'), -30);
     document.getElementById('paymentDeadline').value =
-      (savedForThisEvent && b?.payment_deadline) ? b.payment_deadline : defaultDeadline.toISOString().slice(0,10);
+      (savedForThisEvent && b?.payment_deadline) ? b.payment_deadline : '';
+    updateDeadlinePreview();
   }
+
+  document.getElementById('clearDeadlineBtn').addEventListener('click', ()=>{
+    document.getElementById('paymentDeadline').value = '';
+    const st = document.getElementById('bankStatus');
+    st.className = 'status';
+    st.textContent = '振込締切を空欄にしました。「振込先を保存」を押すと自動計算に戻ります。';
+  });
 
   document.getElementById('saveBankBtn').addEventListener('click', async ()=>{
     const statusEl = document.getElementById('bankStatus');
@@ -458,6 +468,8 @@
       if(error) throw error;
       bankInfo = payload;
       savedForThisEvent = true;
+      updateDeadlinePreview();
+      render();
       statusEl.classList.add('ok');
       statusEl.textContent = 'この公演の振込先を保存しました。';
     }catch(err){
@@ -472,6 +484,40 @@
   const AGENCY_FEE = 200; // 旅行代理店手数料(1枚あたり)
 
   function addDays(base, diff){ const d = new Date(base.getTime()); d.setDate(d.getDate()+diff); return d; }
+
+  // ---- 振込締切の決め方 ----
+  // 1) この公演で日付を手入力して保存してあれば、その日
+  // 2) 自動:送る日(今日)の14日後
+  // 3) ただし代理店への支払日(観劇7日前)の3日前 = 観劇10日前 より後にはしない
+  const DEADLINE_DAYS_AFTER_SEND = 14;
+  const AGENCY_PAY_BEFORE_EVENT = 7;   // 代理店の支払期日:観劇の7日前
+  const AGENCY_MARGIN_DAYS = 3;        // 代理店支払日の何日前までに会員さんの入金を締めるか
+  function computeDeadline(){
+    if(savedForThisEvent && bankInfo?.payment_deadline){
+      return { date: new Date(bankInfo.payment_deadline + 'T00:00:00'), mode:'manual' };
+    }
+    const today = new Date(); today.setHours(0,0,0,0);
+    const ev = new Date(eventRow.event_date + 'T00:00:00');
+    let d = addDays(today, DEADLINE_DAYS_AFTER_SEND);
+    let mode = 'auto';
+    const cap = addDays(ev, -(AGENCY_PAY_BEFORE_EVENT + AGENCY_MARGIN_DAYS));
+    if(d > cap){ d = cap; mode = 'cap'; }
+    if(d < today){ d = today; mode = 'late'; }
+    return { date: d, mode };
+  }
+  function updateDeadlinePreview(){
+    const el = document.getElementById('deadlinePreview');
+    if(!el || !eventRow) return;
+    const { date, mode } = computeDeadline();
+    const label = fmtDateJpWithWeekday(date);
+    const why = {
+      manual: '(手入力した日付)',
+      auto:   '(今日送った場合:送信日の14日後)',
+      cap:    '(今日送った場合:代理店支払日の3日前=観劇10日前で打ち止め)',
+      late:   '(観劇10日前を過ぎているため今日。手入力で調整してください)'
+    }[mode];
+    el.textContent = `→ 今の振込締切:${label} ${why}`;
+  }
   function fmtDateJpPlain(v){
     const d = new Date(v + 'T00:00:00');
     return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
@@ -518,11 +564,7 @@
     const seatTotal = seatUnit * row.count;
     const feeTotal = AGENCY_FEE * row.count;
     const eventDatePlain = fmtDateJpPlain(eventRow.event_date);
-    const paymentDeadline = fmtDateJpWithWeekday(
-      bankInfo?.payment_deadline
-        ? new Date(bankInfo.payment_deadline + 'T00:00:00')
-        : addDays(new Date(eventRow.event_date + 'T00:00:00'), -30)
-    );
+    const paymentDeadline = fmtDateJpWithWeekday(computeDeadline().date);
 
     const lines = [];
     lines.push(`${mark}${row.name}様${mark}`);
@@ -626,11 +668,7 @@
     const workTitle = eventRow.work_title ? `<div style="margin-top:6px; font-size:14px; color:${t.accent};">『${escapeHtml(eventRow.work_title)}』</div>` : '';
     const seatType = escapeHtml(eventRow.seat_type || 'S席');
     const seatUnit = Math.max((eventRow.base_price || 0) - AGENCY_FEE, 0);
-    const deadline = fmtDateJpWithWeekday(
-      bankInfo?.payment_deadline
-        ? new Date(bankInfo.payment_deadline + 'T00:00:00')
-        : addDays(new Date(eventRow.event_date + 'T00:00:00'), -30)
-    );
+    const deadline = fmtDateJpWithWeekday(computeDeadline().date);
 
     const cellL = 'padding:9px 0; font-size:14px; color:#4b4145; border-bottom:1px dotted #e5dcdf;';
     const cellR = cellL + ' text-align:right; white-space:nowrap;';
