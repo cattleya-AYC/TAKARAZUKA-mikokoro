@@ -73,11 +73,14 @@
       const d = new Date(r.run_start_date + 'T00:00:00');
       const w = ['日','月','火','水','木','金','土'][d.getDay()];
       const label = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${w})`;
+      const dl = new Date(d);
+      dl.setDate(dl.getDate() - 127);
+      const dlLabel = `${dl.getFullYear()}/${dl.getMonth()+1}/${dl.getDate()}(${['日','月','火','水','木','金','土'][dl.getDay()]})`;
       box.innerHTML = `
         <div class="next-run-box">
           <div class="label">📅 未着手の直近公演(伊庭さん日程調整待ち)</div>
           <div class="main">${r.troupe}組(${label}〜)</div>
-          <div class="sub2">${r.work_title ? r.work_title + ' ／ ' : ''}初日の3〜4ヶ月前が日程調整の目安です</div>
+          <div class="sub2">${r.work_title ? r.work_title + ' ／ ' : ''}団体申し込み締め切り日：${dlLabel}(初日の127日前)</div>
         </div>
       `;
     }catch(e){ console.warn('次回公演の取得に失敗', e); }
