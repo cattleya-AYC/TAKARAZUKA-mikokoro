@@ -573,10 +573,14 @@
     return ok;
   }
 
+  // 表示上の締切日はそのまま、実際の受付は締切日の2日後の23:59まで延長(遅れて申し込む方への猶予)
+  const DEADLINE_GRACE_DAYS = 2;
   function isPastDeadline(){
     if(!settingsRow.deadline) return false;
     const today = new Date(); today.setHours(0,0,0,0);
-    return today > new Date(settingsRow.deadline + 'T00:00:00');
+    const closeDay = new Date(settingsRow.deadline + 'T00:00:00');
+    closeDay.setDate(closeDay.getDate() + DEADLINE_GRACE_DAYS);
+    return today > closeDay;
   }
 
   document.getElementById('submitBtn').addEventListener('click', async ()=>{
