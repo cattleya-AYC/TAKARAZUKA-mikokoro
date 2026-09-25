@@ -301,22 +301,42 @@
     return `${d.getMonth()+1}月${d.getDate()}日`;
   }
 
+  // 端末の日付(日本時間)で YYYY-MM-DD を作る(toISOStringだとUTCになり朝9時前に1日ずれるため)
+  function localDateStr(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  // 締切(+猶予日数)を過ぎていなければ受付中
+  function isOpenDeadline(deadline){
+    if(!deadline) return true;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const closeDay = new Date(deadline + 'T00:00:00');
+    closeDay.setDate(closeDay.getDate() + DEADLINE_GRACE_DAYS);
+    return today <= closeDay;
+  }
+
   async function findCurrentMealEventId(){
-    const todayStr = new Date().toISOString().slice(0,10);
+    const todayStr = localDateStr(new Date());
     const windowStart = new Date(); windowStart.setDate(windowStart.getDate() - 60);
     const { data: events } = await sb
       .from('events').select('id, event_date')
-      .gte('event_date', windowStart.toISOString().slice(0,10))
+      .gte('event_date', localDateStr(windowStart))
       .order('event_date', { ascending:true });
     if(!events || events.length === 0) return null;
 
     const ids = events.map(e=>e.id);
     const { data: settingsRows } = await sb
-      .from('meal_settings').select('event_id').in('event_id', ids);
-    const withForm = new Set((settingsRows||[]).map(s=>s.event_id));
+      .from('meal_settings').select('event_id, deadline').in('event_id', ids);
+    const deadlineById = new Map((settingsRows||[]).map(s=>[s.event_id, s.deadline]));
+    const withForm = new Set(deadlineById.keys());
 
     const upcoming = events.filter(e => withForm.has(e.id) && e.event_date >= todayStr);
-    if(upcoming.length) return upcoming[0].id;
+
+    // ① まだ受付中のフォームがあれば、その中で一番近い公演を表示(=最新の募集中フォーム)
+    const openOnes = upcoming.filter(e => isOpenDeadline(deadlineById.get(e.id)));
+    if(openOnes.length) return openOnes[0].id;
+
+    // ② 受付中が無ければ、登録済みの中で一番先の(最新の)公演を表示
+    if(upcoming.length) return upcoming[upcoming.length - 1].id;
 
     const past = events.filter(e => withForm.has(e.id) && e.event_date < todayStr);
     if(past.length) return past[past.length - 1].id;
