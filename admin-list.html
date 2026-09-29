@@ -434,10 +434,15 @@
     <label>新しく記録する内容</label>
     <textarea id="modalTextarea" placeholder="例:当日11時にドタキャン連絡あり。理由は体調不良とのこと。過去にも直前キャンセルが1回あり。"></textarea>
 
-    <label class="modal-checkbox">
-      <input type="checkbox" id="modalIncrement" checked>
-      <span>ペナルティポイントを +1 する</span>
-    </label>
+    <label>加算するペナルティポイント</label>
+    <select id="modalPointsAdd" style="width:100%;padding:10px 12px;font-size:15px;border-radius:8px;border:1px solid var(--line);margin-bottom:10px;">
+      <option value="0">加算しない(記録だけ)</option>
+      <option value="1" selected>+1</option>
+      <option value="2">+2</option>
+      <option value="3">+3</option>
+    </select>
+
+    <div id="modalError" style="display:none;margin:0 0 10px;padding:12px;border-radius:10px;background:#fdecea;border:2px solid #d93a2b;color:#b3261e;font-weight:700;font-size:13.5px;line-height:1.7;"></div>
 
     <div class="modal-btn-row">
       <button class="cancel" id="modalCancel">閉じる</button>
@@ -1405,7 +1410,8 @@ ${extraHtml}
     }
 
     document.getElementById('modalTextarea').value = '';
-    document.getElementById('modalIncrement').checked = true;
+    document.getElementById('modalPointsAdd').value = '1';
+    document.getElementById('modalError').style.display = 'none';
     document.getElementById('penaltyModal').classList.add('show');
   }
 
@@ -1423,7 +1429,9 @@ ${extraHtml}
     const statusMsg = document.getElementById('statusMsg');
     const saveBtn = document.getElementById('modalSave');
     const text = document.getElementById('modalTextarea').value.trim();
-    const doIncrement = document.getElementById('modalIncrement').checked;
+    const addPts = parseInt(document.getElementById('modalPointsAdd').value, 10) || 0;
+    const modalError = document.getElementById('modalError');
+    modalError.style.display = 'none';
 
     if(!text){
       alert('記録する内容を入力してください。');
@@ -1437,25 +1445,48 @@ ${extraHtml}
 
     saveBtn.disabled = true;
     saveBtn.textContent = '保存中…';
-    try{
-      const target = currentRows.find(r => r.participants && r.participants.id === modalCurrentPid);
-      const existingPoints = target?.participants?.penalty_points || 0;
-      const existingNotes = target?.participants?.penalty_notes || '';
+    // 1回分の保存処理(最新の値をDBから取り直して加算し、実際に更新されたかを確認する)
+    async function attemptSave(){
+      const { data: cur, error: curErr } = await sb
+        .from('participants').select('penalty_points, penalty_notes').eq('id', modalCurrentPid).single();
+      if(curErr) throw curErr;
+      const existingPoints = cur?.penalty_points || 0;
+      const existingNotes = cur?.penalty_notes || '';
       const dateStr = new Date().toLocaleDateString('ja-JP');
       const newNotes = existingNotes ? `${existingNotes}\n[${dateStr}] ${text}` : `[${dateStr}] ${text}`;
-      const newPoints = doIncrement ? existingPoints + 1 : existingPoints;
+      const newPoints = existingPoints + addPts;
 
-      const { error } = await sb
+      const { data: updated, error } = await sb
         .from('participants')
         .update({ penalty_points: newPoints, penalty_notes: newNotes })
-        .eq('id', modalCurrentPid);
+        .eq('id', modalCurrentPid)
+        .select('id');
       if(error) throw error;
+      // 0件更新 = 権限なし/ログイン切れ。エラーにならず「成功」に見えてしまうのを防ぐ
+      if(!updated || updated.length === 0){
+        throw new Error('保存されませんでした(ログインの期限切れの可能性があります。右上のログアウトで入り直してください)');
+      }
+    }
+
+    try{
+      try{
+        await attemptSave();
+      }catch(e1){
+        // 通信エラー(Load failed)のときだけ、自動でもう1回やり直す
+        if(e1 instanceof TypeError){ await new Promise(r=>setTimeout(r, 800)); await attemptSave(); }
+        else throw e1;
+      }
 
       closePenaltyModal();
       loadRegistrations(currentEventId);
     } catch(e){
+      const msg = (e instanceof TypeError)
+        ? '通信エラーです。電波の良い場所やWi-Fiで、もう一度お試しください。(' + (e.message || '') + ')'
+        : (e.message || String(e));
+      modalError.textContent = '⚠️ 記録に失敗しました:' + msg;
+      modalError.style.display = 'block';
       statusMsg.classList.add('err');
-      statusMsg.textContent = '記録に失敗しました:' + (e.message || '');
+      statusMsg.textContent = '記録に失敗しました:' + msg;
     } finally {
       saveBtn.disabled = false;
       saveBtn.textContent = '記録する';
