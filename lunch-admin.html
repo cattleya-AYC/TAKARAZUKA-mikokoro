@@ -871,11 +871,39 @@ ${time}
   });
 
   // ---- 保存 ----
+  // アップロード前に画像を自動で縮小・JPEG圧縮する(ポスター画像と同じルール)
+  function compressImageFile(file, maxWidth = 1200, quality = 0.85){
+    return new Promise((resolve, reject)=>{
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = ()=>{
+        const scale = Math.min(1, maxWidth / img.naturalWidth);
+        const w = Math.round(img.naturalWidth * scale);
+        const h = Math.round(img.naturalHeight * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('画像の圧縮に失敗しました')), 'image/jpeg', quality);
+      };
+      img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('画像を読み込めませんでした')); };
+      img.src = url;
+    });
+  }
+
   async function uploadImage(file, pathPrefix){
     if(!file) return null;
-    const ext = file.name.split('.').pop();
+    let body = file, ext = file.name.split('.').pop(), contentType = file.type || undefined;
+    try{
+      body = await compressImageFile(file);
+      ext = 'jpg'; contentType = 'image/jpeg';
+    }catch(e){
+      console.warn('圧縮できなかったため元の画像のまま保存します', e);
+    }
     const path = `${pathPrefix}-${Date.now()}.${ext}`;
-    const { error } = await sb.storage.from('public photo').upload(path, file, { upsert:true });
+    const { error } = await sb.storage.from('public photo').upload(path, body, { upsert:true, contentType });
     if(error) throw error;
     const { data } = sb.storage.from('public photo').getPublicUrl(path);
     return data.publicUrl;

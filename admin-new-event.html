@@ -702,7 +702,7 @@
   checkAuth();
 
   document.getElementById('logoutBtn').addEventListener('click', async ()=>{
-    await sb.auth.signOut();
+    await getSupabase().auth.signOut();
     location.reload();
   });
 </script>
