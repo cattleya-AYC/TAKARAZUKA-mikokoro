@@ -327,6 +327,41 @@
   }
   .done-address-title{ margin:0 0 6px; font-size:13.5px; font-weight:800; color:var(--gold-soft); }
   .done-address-text{ margin:0; font-size:12.5px; line-height:1.85; color:var(--muted-text); }
+
+  /* お食事会の予定店 */
+  .meal-venue{
+    background:var(--navy-card-2); border:1px solid var(--gold); border-radius:10px;
+    padding:14px 14px 12px; margin-bottom:12px;
+  }
+  .meal-venue-head{
+    font-size:12px; font-weight:700; color:var(--gold-soft); letter-spacing:.03em; margin:0 0 6px;
+  }
+  .meal-venue-name{
+    font-family:'Shippori Mincho', serif; font-size:17px; font-weight:700; color:var(--cream);
+    line-height:1.5; margin:0;
+  }
+  .meal-venue-imgs{ display:flex; flex-direction:column; gap:14px; margin-top:10px; }
+  .meal-venue-fig{ margin:0; }
+  .meal-venue-fig img{
+    width:100%; height:auto; border-radius:8px; display:block;
+    border:1px solid var(--line); cursor:zoom-in; background:var(--navy-card);
+  }
+  .meal-venue-cap{
+    margin:6px 2px 0; font-size:13px; line-height:1.7; color:var(--cream); font-weight:500;
+    white-space:pre-line;
+  }
+  .meal-venue-note{
+    font-size:12.5px; line-height:1.8; color:var(--cream); margin:10px 0 0; white-space:pre-line;
+  }
+  .meal-venue-link{ display:inline-block; margin-top:8px; font-size:12.5px; color:var(--gold-soft); word-break:break-all; }
+  .meal-venue-caution{ font-size:11.5px; color:var(--muted-text); margin:10px 0 0; line-height:1.7; }
+
+  .img-viewer{
+    position:fixed; inset:0; background:rgba(0,0,0,.85); display:none;
+    align-items:center; justify-content:center; z-index:1000; padding:16px; cursor:zoom-out;
+  }
+  .img-viewer.show{ display:flex; }
+  .img-viewer img{ max-width:100%; max-height:100%; border-radius:6px; }
 </style>
 </head>
 <body>
@@ -465,6 +500,14 @@
       <label class="field">
         <span class="lbl">お食事のご参加 <span class="req">必須</span></span>
         <div class="notice-box" id="mealTimingNotice">読み込み中…</div>
+        <div class="meal-venue" id="mealVenueBox" style="display:none;">
+          <p class="meal-venue-head">🍽 お食事会はこちらを予定しています</p>
+          <p class="meal-venue-name" id="mealVenueName"></p>
+          <div class="meal-venue-imgs" id="mealVenueImgs"></div>
+          <p class="meal-venue-note" id="mealVenueNote" style="display:none;"></p>
+          <a class="meal-venue-link" id="mealVenueLink" href="#" target="_blank" rel="noopener" style="display:none;">お店の情報を見る ›</a>
+          <p class="meal-venue-caution">※都合により、変更となる場合がございます。</p>
+        </div>
         <div class="toggle-group" id="mealGroup">
           <label class="toggle-opt"><input type="radio" name="meal" value="ご参加" required>出席</label>
           <label class="toggle-opt"><input type="radio" name="meal" value="食事は欠席">欠席</label>
@@ -557,6 +600,8 @@
     </div>
   </div>
 </div>
+
+<div class="img-viewer" id="imgViewer"><img id="imgViewerImg" src="" alt="拡大画像"></div>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" async></script>
 <script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
@@ -888,14 +933,91 @@
       mealNotice.textContent = '食事会の開催タイミングは追ってご案内いたします。';
     }
 
+    // お食事会の予定店(店名・画像が登録されている回だけ表示)
+    const hasVenue = renderMealVenue(currentEvent);
+
     // 場所・ご予算の案内文(まりさんが個別に入力していればそちらを優先。無ければ自動の文言)
+    // 予定店が表示されている場合は「場所」は案内済みなので、ご予算のみの文言にする
     document.getElementById('mealPlaceNotice').textContent =
       currentEvent.meal_notice_override && currentEvent.meal_notice_override.trim()
         ? currentEvent.meal_notice_override
-        : 'お食事会の場所・ご予算につきましては、後日あらためてご連絡いたします。';
+        : (hasVenue
+            ? 'お食事会のご予算・メニューにつきましては、後日あらためてご連絡いたします。'
+            : 'お食事会の場所・ご予算につきましては、後日あらためてご連絡いたします。');
 
     document.getElementById('mainContent').style.display = 'block';
   }
+  // ---- お食事会の予定店 ----
+  // events テーブルの meal_venue_name / meal_venue_note / meal_venue_url /
+  // meal_image_url_1・2 / meal_image_caption_1・2 を使う。店名も画像も無い回は何も表示しない。
+  function renderMealVenue(ev){
+    const box = document.getElementById('mealVenueBox');
+    const name = (ev.meal_venue_name || '').trim();
+    const note = (ev.meal_venue_note || '').trim();
+    const url = (ev.meal_venue_url || '').trim();
+    const imgs = [
+        { src: ev.meal_image_url_1, cap: ev.meal_image_caption_1 },
+        { src: ev.meal_image_url_2, cap: ev.meal_image_caption_2 },
+      ]
+      .map(o => ({ src: (o.src || '').trim(), cap: (o.cap || '').trim() }))
+      .filter(o => o.src);
+
+    if(!name && imgs.length === 0){
+      box.style.display = 'none';
+      return false;
+    }
+
+    const nameEl = document.getElementById('mealVenueName');
+    nameEl.textContent = name;
+    nameEl.style.display = name ? 'block' : 'none';
+
+    // 写真は縦に並べ、切り取らずにそのままの縦横比で表示。各写真の下に説明(任意)
+    const imgsEl = document.getElementById('mealVenueImgs');
+    imgsEl.innerHTML = '';
+    imgs.forEach((o, i)=>{
+      const fig = document.createElement('figure');
+      fig.className = 'meal-venue-fig';
+      const img = document.createElement('img');
+      img.src = o.src;
+      img.alt = name ? `${name}の写真${i+1}` : `お食事会の写真${i+1}`;
+      img.loading = 'lazy';
+      img.onerror = ()=>{ fig.remove(); if(!imgsEl.children.length) imgsEl.style.display='none'; };
+      img.addEventListener('click', ()=> openImgViewer(o.src));
+      fig.appendChild(img);
+      if(o.cap){
+        const cap = document.createElement('p');
+        cap.className = 'meal-venue-cap';
+        cap.textContent = o.cap;
+        fig.appendChild(cap);
+      }
+      imgsEl.appendChild(fig);
+    });
+    imgsEl.style.display = imgs.length ? 'flex' : 'none';
+
+    const noteEl = document.getElementById('mealVenueNote');
+    noteEl.textContent = note;
+    noteEl.style.display = note ? 'block' : 'none';
+
+    const linkEl = document.getElementById('mealVenueLink');
+    if(/^https?:\/\//i.test(url)){
+      linkEl.href = url;
+      linkEl.style.display = 'inline-block';
+    } else {
+      linkEl.style.display = 'none';
+    }
+
+    box.style.display = 'block';
+    return true;
+  }
+
+  function openImgViewer(src){
+    document.getElementById('imgViewerImg').src = src;
+    document.getElementById('imgViewer').classList.add('show');
+  }
+  document.getElementById('imgViewer').addEventListener('click', ()=>{
+    document.getElementById('imgViewer').classList.remove('show');
+  });
+
   const loadTimeout = setTimeout(()=>{
     const box = document.getElementById('globalErrorBox');
     if(box && document.getElementById('mainContent').style.display === 'none'){
