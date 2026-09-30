@@ -29,6 +29,7 @@ URLの末尾に`?preview=◯◯`を付けてアクセスしてください。
 https://takarazuka-mikokoro.vercel.app/entry-form.html?preview=thankyou   → 締切後の画面
 https://takarazuka-mikokoro.vercel.app/entry-form.html?preview=coming    → 募集開始前の画面
 https://takarazuka-mikokoro.vercel.app/entry-form.html?preview=closed    → 開催回なしの画面
+https://takarazuka-mikokoro.vercel.app/entry-form.html?preview=main      → 申込フォーム本体(募集開始前でも締切前の直近回を表示)
 ```
 
 ※ Safari等でキャッシュが残っていて「Can't find variable」等のエラーが出た場合は、
@@ -46,6 +47,8 @@ https://takarazuka-mikokoro.vercel.app/entry-form.html?preview=closed    → 開
 | `show_time` | 公演時間の表示(◯時公演) |
 | `recruitment_start_date` | 募集開始日時(timestamptz)。募集開始前/開始後の判定・表示に使用 |
 | `application_deadline` | 申込締切日時(timestamptz)。募集中/締切後の判定に使用 |
+| `meal_notice_override` | 「場所・ご予算」案内文の個別上書き(任意) |
+| `meal_venue_name` ほか | お食事会の予定店の表示に使用(詳細は13章) |
 
 `recruitment_start_date`が未設定(NULL)の場合、募集開始前の判定がうまく機能せず、
 「締切前なら常に申込めてしまう」不具合が起きるため、**開催回登録時は必ず入力してください**。
@@ -214,6 +217,10 @@ DB上の外部キー制約や自動連動の仕組みはありません。その
 | `申し込みフォーム.html` | 参加者用 食事・ドリンク申込フォーム |
 | `食事登録完了画面.html` | 食事申込の登録完了画面 |
 | `lunch-summary.html` / `lunch-summary-view.html` | 食事申込の集計(参加人数・メニュー別・ドリンク別・CSV出力) |
+| `lunch-admin.html` | お食事フォーム設定(管理者用・ログイン必要)。店名・店舗写真・メニュー4つまで・集合時間/場所を登録し、`lunch-entry.html`のURLを発行 |
+| `lunch-entry.html` | 参加者用 お食事・お飲み物申込フォーム(`?event_id=`付きで開く) |
+
+※上の`食事管理者入力.html`/`申し込みフォーム.html`は旧名。2026年9月時点で実際に稼働しているのは`lunch-admin.html`/`lunch-entry.html`。
 
 ---
 
@@ -270,3 +277,55 @@ DB上の外部キー制約や自動連動の仕組みはありません。その
   - `solo_if_reduced`がある場合のみ、「1人になった場合:1人でも参加する」等のラベル(`soloIfReducedLabel`)を表示。
   - どちらも同伴者なしの申込みでは元データが無いため表示自体されず、見た目に影響しない。
 - 両ファイルで同じ関数・ラベル定義を追加しているため、今後この項目のテキストを変える場合は両ファイルを揃えて修正すること(既存の`TASK_DEFS`同様、片方だけ直すとズレる)。
+
+---
+
+## 13. お食事会の予定店の表示(2026年9月30日)
+
+申込フォームの「お食事のご参加」欄で、今回のお食事会のお店を事前に案内できるようにした。
+
+### 13-1. 表示内容(entry-form.html)
+
+「食事会のタイミング」案内(`mealTimingNotice`)と「出席/欠席」ボタンの間に、`mealVenueBox`を表示する(`renderMealVenue()`)。
+
+- 見出し「🍽 お食事会はこちらを予定しています」→ 店名 → 写真(最大2枚)→ ひとこと説明 → 「お店の情報を見る ›」リンク → 「※都合により、変更となる場合がございます。」
+- 写真は**縦に並べ、切り取らず元の縦横比のまま**横幅いっぱいに表示。各写真の下に説明文(例:コーヒー・紅茶付き)を出せる。タップで全画面拡大(`imgViewer`)。
+- 店名も写真も無い回は、ボックスごと非表示(従来どおりの見た目)。
+- 予定店を表示した回は、下の案内文(`mealPlaceNotice`)の自動文言を「お食事会の**ご予算・メニュー**につきましては、後日あらためてご連絡いたします。」に切り替える(場所は案内済みのため)。`meal_notice_override`が入っている回はそちらが優先。
+- 色はすべて`applyTroupeTheme()`の変数を使用しているため組カラーに追従する。
+
+### 13-2. 登録方法(admin-event-detail.html)
+
+開催回詳細画面に「🍽 お食事会の予定店(申込フォームに表示)」パネルを追加(印刷時は非表示)。
+
+- 開催回を選ぶ → 店名 / 写真1・写真2(「📷 写真を選ぶ」)/ 各写真の説明 / ひとこと説明 / お店のURL → 「この内容で保存する」。
+- 写真は選んだ時点でブラウザ内で横幅1400pxまで縮小・JPEG圧縮(`compressImageFile()`)し、Storageにアップロード。**DBへの反映は「保存する」を押したとき**。
+- 「削除」はフォームから外すだけで、Storage上のファイルは残る(他の画像と同じ運用)。
+- `admin-new-event.html`(新規登録画面)には未追加。新しい回は、先に新規登録 → 詳細画面でお店を登録、の2段階。
+- 保存は`events`への`update ... select('id')`で、0件更新(RLSで弾かれた場合)も「保存できませんでした」とエラー表示する。
+
+### 13-3. DB・Storage(add-meal-venue-columns.sql)
+
+`events`に以下を追加(すべてtext・任意)。
+
+| カラム名 | 用途 |
+|---|---|
+| `meal_venue_name` | 店名 |
+| `meal_venue_note` | ひとこと説明 |
+| `meal_venue_url` | お店のページURL(https://〜のみリンク表示) |
+| `meal_image_url_1` / `meal_image_caption_1` | 写真1とその下の説明 |
+| `meal_image_url_2` / `meal_image_caption_2` | 写真2とその下の説明 |
+
+- 写真の保存先は公開バケット`meal-venue-images`(パス:`event-<events.id>/<時刻>-<1or2>.jpg`)。このバケットに限定した閲覧(select)・アップロード(insert)ポリシーを同SQLで作成。
+- SQLは`if not exists`/`drop policy if exists`で書いてあり、何度実行しても問題ない。
+
+### 13-4. 運用のコツ:メニュー画像は食事フォームのスクショで
+
+- 写真2には、`lunch-admin.html`の「参加者フォームをプレビュー」で開いた`lunch-entry.html`の「お食事メニュー」部分(4品の写真と価格)をスクショして使うと見やすい。
+- そのため`lunch-entry.html`にも`applyTroupeTheme()`(`entry-form.html`と同じ5組の配色)を追加し、`events.troupe`に応じて組カラーで表示されるようにした。入力漏れ時の赤い警告(`.form-alert`)は目立たせるため赤のまま。
+- 組カラー対応前に撮ったスクショは紫のままなので、撮り直して差し替えること。
+
+### 13-5. lunch-admin.html の「予期しないエラー:Script error.」
+
+- CDN(unpkg)から読み込んでいる外部ライブラリ内のエラーは、ブラウザの仕様で中身が「Script error.」としか分からない。保存等の動作には影響しないため、`window.onerror`でこのメッセージは表示しないようにした。
+- 本当に保存に失敗した場合は、保存処理側の`保存に失敗しました:…`が別途表示される。
