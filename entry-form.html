@@ -183,10 +183,10 @@
   .panel .sub{ font-size:12px; color:var(--muted-text); margin:0 0 20px; text-align:center; }
 
   label.field{ display:block; margin-bottom:18px; }
-  label.field .lbl{
+  label.field .lbl, div.field .lbl{
     font-size:13px; color:var(--cream); margin-bottom:8px; display:flex; gap:6px; align-items:baseline;
   }
-  label.field .lbl .req{
+  label.field .lbl .req, div.field .lbl .req{
     color:#fff; background:var(--rose); font-size:10px; padding:1px 6px; border-radius:3px;
   }
   input[type=text], input[type=email], input[type=tel]{
@@ -219,6 +219,27 @@
   .ticket-count{
     text-align:center; font-family:'Shippori Mincho', serif; font-size:15px;
     color:var(--gold-soft); margin:12px 0 0; letter-spacing:.05em;
+  }
+
+  .school-toggle-wrap{ text-align:right; margin:-8px 0 18px; }
+  .school-toggle-btn{
+    background:none; border:none; padding:4px 2px; font-size:12px; width:auto;
+    color:var(--gold-soft); text-decoration:underline; cursor:pointer; font-family:inherit;
+  }
+  .school-role-area{
+    background:var(--navy-card-2); border:1px dashed var(--gold); border-radius:10px;
+    padding:14px 14px 16px; margin:-6px 0 18px;
+  }
+  .school-role-area .toggle-group{ margin-bottom:12px; }
+  .school-role-area .field{ margin-bottom:10px; }
+  .grade-row{ display:flex; align-items:center; gap:8px; }
+  .grade-row input[type=text]{ width:96px; flex:0 0 96px; text-align:center; }
+  .grade-row .unit{ font-size:14px; color:var(--cream); }
+  .school-sub{ font-size:12.5px; color:var(--cream); margin:0 0 6px; }
+  .school-class-group .toggle-opt{ padding:11px 6px; font-size:14px; }
+  .school-toggle-cancel{
+    display:block; margin:2px auto 0; background:none; border:none; width:auto; padding:4px 8px;
+    font-size:11.5px; color:var(--muted-text); text-decoration:underline; cursor:pointer; font-family:inherit;
   }
 
   .notice-box{
@@ -477,14 +498,53 @@
       <p class="sub">下記の内容をご入力・お選びください。</p>
 
       <label class="field">
-        <span class="lbl">お申込み者の回生(数字のみ) <span class="req">必須</span></span>
-        <input type="text" name="grade" required placeholder="例:32 ／ 在校生は学年とクラス">
+        <span class="lbl" id="gradeLabel">お申込み者の回生(数字のみ) <span class="req">必須</span></span>
+        <div class="grade-row">
+          <input type="text" name="grade" id="gradeInput" required placeholder="例:32" inputmode="numeric" maxlength="3" autocomplete="off">
+          <span class="unit" id="gradeUnit">回生</span>
+        </div>
       </label>
 
       <label class="field">
-        <span class="lbl">お名前(保護者の方はお子様のお名前もあわせて) <span class="req">必須</span></span>
-        <input type="text" name="full_name" required placeholder="小林 聖子">
+        <span class="lbl" id="fullNameLabel">お名前 <span class="req">必須</span></span>
+        <input type="text" name="full_name" id="fullNameInput" required placeholder="小林 聖子">
       </label>
+
+      <div class="school-toggle-wrap">
+        <button type="button" class="school-toggle-btn" id="schoolToggleBtn">在校生・保護者の方はこちら</button>
+      </div>
+
+      <div class="school-role-area" id="schoolRoleArea" style="display:none;">
+        <div class="toggle-group" id="schoolRoleGroup">
+          <label class="toggle-opt"><input type="radio" name="school_role" value="student">在校生本人</label>
+          <label class="toggle-opt"><input type="radio" name="school_role" value="parent">保護者</label>
+        </div>
+
+        <div id="schoolNoteField" style="display:none;">
+          <label class="field">
+            <span class="lbl" id="schoolGradeLabel">学年 <span class="req">必須</span></span>
+            <div class="grade-row">
+              <input type="text" name="school_grade" id="schoolGradeInput" placeholder="例:7" inputmode="numeric" maxlength="2" autocomplete="off">
+              <span class="unit">年</span>
+            </div>
+          </label>
+          <div class="field">
+            <span class="lbl">組 <span class="req">必須</span></span>
+            <div class="toggle-group school-class-group" id="schoolClassGroup">
+              <label class="toggle-opt"><input type="radio" name="school_class" value="あやめ">あやめ</label>
+              <label class="toggle-opt"><input type="radio" name="school_class" value="ゆり">ゆり</label>
+              <label class="toggle-opt"><input type="radio" name="school_class" value="ばら">ばら</label>
+            </div>
+          </div>
+          <label class="field" id="childNameField" style="display:none;">
+            <span class="lbl">お子様のお名前 <span class="req">必須</span></span>
+            <input type="text" name="child_name" id="childNameInput" placeholder="小林 花子">
+          </label>
+          <input type="hidden" name="school_note" id="schoolNoteInput">
+        </div>
+
+        <button type="button" class="school-toggle-cancel" id="schoolRoleCancelBtn">同窓生に戻す</button>
+      </div>
 
       <label class="field">
         <span class="lbl">同伴者 <span class="req">必須</span></span>
@@ -1148,6 +1208,95 @@
   // 初期状態(同伴者なし)のハイライトを反映
   document.querySelector('#countGroup input[value="1"]').closest('.toggle-opt').classList.add('checked');
 
+  // 在校生・保護者用の入力切り替え(デフォルトは同窓生=何もしなくてOK)
+  const gradeInput = document.getElementById('gradeInput');
+  const fullNameLabel = document.getElementById('fullNameLabel');
+  const schoolToggleBtn = document.getElementById('schoolToggleBtn');
+  const schoolRoleArea = document.getElementById('schoolRoleArea');
+  const schoolRoleGroup = document.getElementById('schoolRoleGroup');
+  const schoolNoteField = document.getElementById('schoolNoteField');
+  const schoolNoteInput = document.getElementById('schoolNoteInput');
+  const schoolGradeInput = document.getElementById('schoolGradeInput');
+  const schoolClassGroup = document.getElementById('schoolClassGroup');
+  const childNameField = document.getElementById('childNameField');
+  const childNameInput = document.getElementById('childNameInput');
+  const gradeUnit = document.getElementById('gradeUnit');
+
+  // 数字だけ・桁数制限(全角数字は半角に直す)
+  function digitsOnly(input, maxLen){
+    input.addEventListener('input', ()=>{
+      if(input.readOnly) return;
+      const v = input.value
+        .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+        .replace(/[^0-9]/g, '')
+        .slice(0, maxLen);
+      if(v !== input.value) input.value = v;
+    });
+  }
+  digitsOnly(gradeInput, 3);
+  digitsOnly(schoolGradeInput, 2);
+
+  function resetSchoolDetail(){
+    schoolGradeInput.value = '';
+    childNameInput.value = '';
+    schoolNoteInput.value = '';
+    schoolClassGroup.querySelectorAll('input').forEach(r=>{
+      r.checked = false;
+      r.closest('.toggle-opt')?.classList.remove('checked');
+    });
+  }
+  function setSchoolRequired(on, isParent){
+    schoolGradeInput.required = on;
+    schoolClassGroup.querySelector('input').required = on;
+    childNameInput.required = on && isParent;
+  }
+  const schoolRoleCancelBtn = document.getElementById('schoolRoleCancelBtn');
+
+  const GRADE_DEFAULT_PLACEHOLDER = '例:32';
+  const NAME_DEFAULT_LABEL = 'お名前 <span class="req">必須</span>';
+
+  schoolToggleBtn.addEventListener('click', ()=>{
+    schoolRoleArea.style.display = schoolRoleArea.style.display === 'none' ? 'block' : 'none';
+  });
+
+  schoolRoleGroup.addEventListener('change', (e)=>{
+    if(e.target.name !== 'school_role') return;
+    const role = e.target.value;
+    schoolNoteField.style.display = 'block';
+    resetSchoolDetail();
+    setSchoolRequired(true, role === 'parent');
+    childNameField.style.display = role === 'parent' ? 'block' : 'none';
+    gradeUnit.style.display = 'none';
+
+    if(role === 'student'){
+      gradeInput.value = '在校生';
+      fullNameLabel.innerHTML = 'お名前(ご本人) <span class="req">必須</span>';
+      document.getElementById('schoolGradeLabel').innerHTML = '学年 <span class="req">必須</span>';
+    } else if(role === 'parent'){
+      gradeInput.value = '保護者';
+      fullNameLabel.innerHTML = 'お名前(保護者ご本人) <span class="req">必須</span>';
+      document.getElementById('schoolGradeLabel').innerHTML = 'お子様の学年 <span class="req">必須</span>';
+    }
+    gradeInput.readOnly = true;
+  });
+
+  schoolRoleCancelBtn.addEventListener('click', ()=>{
+    schoolRoleGroup.querySelectorAll('input[name="school_role"]').forEach(r=>{
+      r.checked = false;
+      r.closest('.toggle-opt')?.classList.remove('checked');
+    });
+    gradeInput.readOnly = false;
+    gradeInput.value = '';
+    gradeInput.placeholder = GRADE_DEFAULT_PLACEHOLDER;
+    fullNameLabel.innerHTML = NAME_DEFAULT_LABEL;
+    schoolNoteField.style.display = 'none';
+    resetSchoolDetail();
+    setSchoolRequired(false, false);
+    childNameField.style.display = 'none';
+    gradeUnit.style.display = '';
+    schoolRoleArea.style.display = 'none';
+  });
+
   function showValidationMsg(msg){
     const box = document.getElementById('validationMsg');
     box.textContent = msg; box.style.display = 'block';
@@ -1166,10 +1315,16 @@
     }[s]));
   }
 
+  const schoolRoleLabel = { student:'在校生本人', parent:'保護者' };
+
   function renderConfirmRows(data){
     const rows = [];
+    rows.push(['区分', schoolRoleLabel[data.school_role] || '同窓生']);
     rows.push(['回生', data.grade]);
     rows.push(['お名前', data.full_name]);
+    if(data.school_role && data.school_note){
+      rows.push([data.school_role === 'parent' ? 'お子様の学年・組・お名前' : '学年・組', data.school_note]);
+    }
     rows.push(['申込枚数', `${data.participant_count}枚`]);
     if(Number(data.participant_count) > 1){
       rows.push(['同伴者について', companionTypeLabel[data.companion_type] || data.companion_type || '']);
@@ -1213,6 +1368,23 @@
       } else if(!el.value.trim()){
         el.focus(); showValidationMsg('未入力の必須項目があります'); return;
       }
+    }
+
+    // 回生は数字のみ(在校生・保護者は自動で固定文字が入る)
+    const roleChecked = form.querySelector('input[name="school_role"]:checked');
+    if(!roleChecked && !/^[0-9]{1,3}$/.test(gradeInput.value.trim())){
+      gradeInput.focus(); showValidationMsg('回生は数字でご入力ください(例:32)'); return;
+    }
+    // 在校生・保護者:学年・組・お子様のお名前を1行の備考にまとめる(例:7年 ばら組 小林 花子)
+    if(roleChecked){
+      const cls = form.querySelector('input[name="school_class"]:checked')?.value || '';
+      schoolNoteInput.value = [
+        schoolGradeInput.value.trim() ? `${schoolGradeInput.value.trim()}年` : '',
+        cls ? `${cls}組` : '',
+        roleChecked.value === 'parent' ? childNameInput.value.trim() : ''
+      ].filter(Boolean).join(' ');
+    } else {
+      schoolNoteInput.value = '';
     }
 
     const fd = new FormData(form);
