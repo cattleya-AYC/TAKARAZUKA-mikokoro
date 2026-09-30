@@ -414,7 +414,30 @@
     }
   }
 
+  // ---- 組ごとのテーマカラー(entry-form.html と同じ色) ----
+  const troupeThemes = {
+    '花': { bg:'#f6e9ec', card:'#fffbf9', card2:'#fbeef1', gold:'#c98a9b', goldSoft:'#9c5e6f', text:'#3d2830', muted:'#a9838d', line:'rgba(201,138,155,0.35)' },
+    '月': { bg:'#f6f0d9', card:'#fffdf6', card2:'#f9f0d4', gold:'#c2a355', goldSoft:'#94793a', text:'#3d3620', muted:'#a3925a', line:'rgba(194,163,85,0.35)' },
+    '雪': { bg:'#e6efe8', card:'#fbfdfb', card2:'#e9f2ea', gold:'#7fac8e', goldSoft:'#557a63', text:'#213a2c', muted:'#7f9c8a', line:'rgba(127,172,142,0.35)' },
+    '星': { bg:'#e4ecf4', card:'#fbfdfe', card2:'#e9f0f7', gold:'#7397bd', goldSoft:'#4d6c8e', text:'#1f2f42', muted:'#7d92a8', line:'rgba(115,151,189,0.35)' },
+    '宙': { bg:'#ece3f0', card:'#fdfbfe', card2:'#f1e9f4', gold:'#a480bd', goldSoft:'#7a5896', text:'#2f2338', muted:'#93789e', line:'rgba(164,128,189,0.35)' },
+  };
+  function applyTroupeTheme(troupe){
+    const t = troupeThemes[(troupe || '').replace('組','').trim()];
+    if(!t) return;
+    const root = document.documentElement.style;
+    root.setProperty('--navy-deep', t.bg);
+    root.setProperty('--navy-card', t.card);
+    root.setProperty('--navy-card-2', t.card2);
+    root.setProperty('--gold', t.gold);
+    root.setProperty('--gold-soft', t.goldSoft);
+    root.setProperty('--cream', t.text);
+    root.setProperty('--muted', t.muted);
+    root.setProperty('--line', t.line);
+  }
+
   function renderEvent(){
+    applyTroupeTheme(eventRow.troupe);
     document.getElementById('eyebrowText').textContent =
       `第${eventRow.event_number || ''}回 ${eventRow.troupe || ''}組公演` + (eventRow.work_title ? `『${eventRow.work_title}』` : '');
     document.getElementById('eventMeta').innerHTML =
