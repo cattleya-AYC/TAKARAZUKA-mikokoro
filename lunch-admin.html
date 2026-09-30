@@ -306,6 +306,8 @@ ${OFFICIAL_LINE_URL}
   let sb = null;
 
   window.addEventListener('error', (ev)=>{
+    // 外部ライブラリ(CDN)内の中身の分からないエラーは、動作に影響しないため表示しない
+    if(!ev.message || ev.message === 'Script error.' || ev.message === 'Script error') return;
     const box = document.getElementById('statusMsg');
     box.classList.add('err');
     box.textContent = '予期しないエラー:' + (ev.message || '');
