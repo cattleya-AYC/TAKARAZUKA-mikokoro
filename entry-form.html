@@ -603,8 +603,30 @@
 
 <div class="img-viewer" id="imgViewer"><img id="imgViewerImg" src="" alt="拡大画像"></div>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js" async></script>
-<script src="https://unpkg.com/@emailjs/browser@4/dist/email.min.js" async></script>
+<script>
+  // 外部ライブラリの読み込み。1つ目のCDNが遅い・失敗したときは、別のCDNから読み直す
+  function loadLibWithFallback(urls, isReady){
+    let i = 0;
+    const tryNext = ()=>{
+      if(isReady() || i >= urls.length) return;
+      const sc = document.createElement('script');
+      sc.src = urls[i++];
+      sc.async = true;
+      sc.onerror = tryNext;
+      document.head.appendChild(sc);
+      setTimeout(()=>{ if(!isReady()) tryNext(); }, 5000);
+    };
+    tryNext();
+  }
+  loadLibWithFallback([
+    'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js',
+    'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js'
+  ], ()=> !!window.supabase);
+  loadLibWithFallback([
+    'https://unpkg.com/@emailjs/browser@4/dist/email.min.js',
+    'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js'
+  ], ()=> !!window.emailjs);
+</script>
 <script>
   // ---- 診断用:このスクリプトが実行されているか無条件で確認 ----
   document.getElementById('globalErrorBox').style.display = 'block';
@@ -640,7 +662,7 @@
     return new Promise((resolve, reject)=>{
       const start = Date.now();
       const check = ()=>{
-        if(window.supabase && window.emailjs){
+        if(window.supabase){
           resolve();
         } else if(Date.now() - start > timeoutMs){
           reject(new Error('ライブラリの読み込みがタイムアウトしました(通信環境をご確認ください)'));
@@ -652,8 +674,16 @@
     });
   }
 
-  waitForLibs(10000).then(()=>{
-    try { window.emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
+  // メール送信ライブラリは送信時まで間に合えばよいので、読み込めた時点で初期化する
+  (function initEmailWhenReady(tries){
+    if(window.emailjs){
+      try { window.emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e){ console.warn('EmailJS未設定', e); }
+    } else if(tries > 0){
+      setTimeout(()=> initEmailWhenReady(tries - 1), 300);
+    }
+  })(100);
+
+  waitForLibs(20000).then(()=>{
     try {
       sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } catch(e){ console.warn('Supabase未設定です', e); }
@@ -1020,12 +1050,14 @@
 
   const loadTimeout = setTimeout(()=>{
     const box = document.getElementById('globalErrorBox');
-    if(box && document.getElementById('mainContent').style.display === 'none'){
+    const anyShown = ['mainContent','comingSoonCard','thankYouCard','closedCard']
+      .some(id => document.getElementById(id).style.display === 'block');
+    if(box && !anyShown && !box.textContent.startsWith('ライブラリ')){
       box.style.display = 'block';
       box.textContent = '読み込みに時間がかかっています。通信環境をご確認のうえ、画面を再読み込みしてください。';
     }
   }, 8000);
-  loadCurrentEvent().finally(()=> clearTimeout(loadTimeout));
+  // ※読み込みは上の waitForLibs(...).then(...) から1回だけ行う
 
   const form = document.getElementById('entryForm');
 
