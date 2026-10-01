@@ -1564,19 +1564,127 @@ ${extraHtml}
 
 
   // 本番とテストで同じ文面を使うための共通関数
-  function buildGiftLetterMessage({ name, title, deadline, extraBody, isTest }){
-    return `${isTest ? '※これはテスト送信です。参加者の皆さまには送信されていません。\n\n' : ''}${name}様
+  // 差し入れ先のジェンヌさん(写真・名前)と協力金を取得
+  async function loadGiftInfo(ev){
+    let jennes = [];
+    let baseFee = 200;
+    try{
+      const { data } = await sb
+        .from('event_gifts')
+        .select('jennes(name, period, photo_url)')
+        .eq('event_id', ev.id);
+      jennes = (data || []).map(g => g.jennes).filter(Boolean);
+    }catch(err){ console.warn('差し入れ先の取得に失敗:', err); }
+    try{
+      const { data } = await sb.from('events').select('gift_base_fee').eq('id', ev.id).maybeSingle();
+      const n = Number(data?.gift_base_fee);
+      if(data && data.gift_base_fee !== null && Number.isFinite(n)) baseFee = n;
+    }catch(err){ console.warn('協力金の取得に失敗:', err); }
+    return { jennes, baseFee };
+  }
 
-いつも観劇会の活動にご理解とご協力を賜り、誠にありがとうございます。
+  // 締切欄が空なら、自動送信と同じ「公演日の7日前」を使う
+  function giftLetterDeadlineText(ev, inputText){
+    if(inputText) return inputText;
+    const d = new Date(ev.event_date + 'T00:00:00');
+    d.setDate(d.getDate() - 7);
+    return `${d.getMonth()+1}月${d.getDate()}日(${weekdayJp[d.getDay()]})`;
+  }
 
-${title}にあたり、ジェンヌさんへの差し入れ・お手紙にご協力いただける方を募集しております。
-ご協力いただける方は、下記フォームよりお申し込みください。
+  // 差し入れ・お手紙ご案内メール(色は開催回の組カラーに自動追従)
+  function buildGiftLetterEmailHtml({ recipientName, ev, deadline, extraBody, isTest, jennes, baseFee }){
+    const t = getTroupeEmailTheme(ev.troupe);
+    const name = escapeHtml(recipientName);
+    const title = escapeHtml(`第${ev.event_number ?? ''}回 ${ev.troupe||''}組観劇会`);
+    const sub = escapeHtml(`${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`);
+    const extraHtml = extraBody
+      ? `<p style="margin:0 0 18px;">${escapeHtml(extraBody).replace(/\n/g, '<br>')}</p>`
+      : '';
+    const jenneCells = (jennes || []).map(j => `
+<td align="center" valign="top" style="padding:6px 6px 2px; width:${Math.floor(100 / Math.min(jennes.length, 3))}%;">
+${j.photo_url
+  ? `<img src="${escapeHtml(j.photo_url)}" alt="" width="76" height="76" style="display:block; margin:0 auto 8px; width:76px; height:76px; border-radius:12px; object-fit:cover; border:2px solid ${t.headerBorder};">`
+  : ''}
+<div style="font-size:11px; color:#8f747d; line-height:1.6;">${j.period ? escapeHtml(j.period) : '&nbsp;'}</div>
+<div style="font-size:13px; font-weight:bold; color:${t.title}; line-height:1.5; white-space:nowrap;">${escapeHtml(j.name)}さん</div>
+</td>`);
+    // 1行に3名まで並べる
+    const rows = [];
+    for(let i = 0; i < jenneCells.length; i += 3) rows.push(`<tr>${jenneCells.slice(i, i + 3).join('')}</tr>`);
+    const jenneBlock = jenneCells.length
+      ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows.join('')}</table>`
+      : `<div style="font-size:14px; color:#8f747d; text-align:center;">(差し入れ先は現在調整中です)</div>`;
 
-${GIFT_LETTER_FORM_URL}
-${deadline ? `\n【お申し込み締切】\n${deadline}\n` : ''}${extraBody ? `\n${extraBody}\n` : ''}
-お手紙のみご協力いただく方はお申し込み不要です。観劇当日、集合時間にお持ちください。
-
-小林タカラヅカ倶楽部`;
+    return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>差し入れ・お手紙 ご協力のお願い</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f8f5f6; font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Yu Gothic',YuGothic,Meiryo,sans-serif; color:#4b4145;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f8f5f6;">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #eadfe3;">
+<tr><td align="center" style="padding:32px 20px 26px; background-color:${t.headerBg}; border-bottom:1px solid ${t.headerBorder};">
+<div style="font-size:12px; letter-spacing:3px; color:#a67c52; margin-bottom:10px;">OBAYASHI TAKARAZUKA CLUB</div>
+<div style="font-family:Georgia,'Times New Roman',serif; font-size:25px; line-height:1.5; color:${t.title}; font-weight:bold;">${title}</div>
+<div style="margin-top:8px; font-size:14px; color:#8f747d; letter-spacing:1px;">差し入れ・お手紙 ご協力のお願い</div>
+<div style="width:48px; height:1px; background:#c7a16b; margin:18px auto 0;"></div>
+</td></tr>
+<tr><td style="padding:32px 28px 16px; font-size:15px; line-height:1.9;">
+${isTest ? '<p style="margin:0 0 18px; padding:10px 12px; background:#fff4e5; border-radius:8px; font-size:13px; color:#9a6a2f;">※これはテスト送信です。参加者の皆さまには送信されていません。</p>' : ''}
+<p style="margin:0 0 24px; font-weight:bold; color:#4a3d42;">${name}様</p>
+<p style="margin:0 0 18px;">この度は、<strong style="color:${t.title};">${sub}</strong>の観劇会にご参加いただき、誠にありがとうございます。</p>
+<p style="margin:0 0 18px;">現在、宝塚歌劇団では、小林や聖心にゆかりのあるタカラジェンヌの皆さまが、それぞれの舞台でご活躍されています。同じ聖心にご縁を持つ者として、そのご活躍を皆さまと一緒に温かく応援していければと考えております。</p>
+<p style="margin:0 0 24px;">その気持ちを込めまして、ささやかではございますが、今回も差し入れとお手紙をお届けしたいと思っております。</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px; background:${t.boxBg}; border:1px solid ${t.headerBorder}; border-radius:12px;">
+<tr><td style="padding:18px 12px 16px;">
+<div style="font-size:12px; color:#8c747c; letter-spacing:1px; margin-bottom:10px; text-align:center;">今回の差し入れ先</div>
+${jenneBlock}
+</td></tr>
+</table>
+<p style="margin:0 0 18px;">ご賛同・ご協力いただける方は、下記フォームよりお申し込みください。協力金は<strong>お一人様 ${Number(baseFee).toLocaleString('ja-JP')}円</strong>で、観劇会当日、チケットお渡しの際にお預かりいたします。</p>
+${extraHtml}
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 20px; background:#fff9fa; border:1px solid #ead6dc; border-radius:12px;">
+<tr><td align="center" style="padding:26px 18px;">
+<div style="font-size:13px; color:#9b7b85; letter-spacing:1px; margin-bottom:14px;">差し入れのお申し込み</div>
+<a href="${GIFT_LETTER_FORM_URL}?event=${encodeURIComponent(ev.id)}" style="display:inline-block; background:${t.button}; color:#ffffff; text-decoration:none; font-size:16px; font-weight:bold; padding:14px 34px; border-radius:8px;">お申し込みフォームを開く</a>
+</td></tr>
+</table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px;">
+<tr><td align="center" style="padding:17px 12px; background:${t.boxBg}; border-left:4px solid ${t.boxBorder}; border-radius:6px;">
+<div style="font-size:12px; color:#8c747c; letter-spacing:1px; margin-bottom:4px;">お申し込み締切</div>
+<div style="font-size:21px; font-weight:bold; color:${t.boxValue};">${escapeHtml(deadline)}</div>
+</td></tr>
+</table>
+<p style="margin:0 0 18px;">お手紙のみご協力いただく方は、お申し込み不要です。観劇当日、チケットお渡しの際にお持ちください。封筒の表にはジェンヌさんのお名前、裏にはご自身のフルネームをお書きください。</p>
+<p style="margin:0 0 28px;">皆さまのお気持ちを添えてお届けできれば幸いです。</p>
+<p style="margin:0 0 6px;">どうぞよろしくお願いいたします。</p>
+<p style="margin:0; font-weight:bold; color:#755563;">小林タカラヅカ倶楽部</p>
+</td></tr>
+<tr><td style="padding:10px 28px 30px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#faf8f8; border-radius:10px;">
+<tr><td align="center" style="padding:22px 18px;">
+<div style="font-size:14px; font-weight:bold; color:#62565a; margin-bottom:12px;">お問い合わせは公式LINEへ</div>
+<a href="${OFFICIAL_LINE_URL}" style="display:inline-block; background:#06c755; color:#ffffff; text-decoration:none; font-size:14px; font-weight:bold; padding:12px 28px; border-radius:7px;">公式LINEを開く</a>
+</td></tr>
+</table>
+</td></tr>
+<tr><td style="padding:24px 28px 30px; background:#f4f0f1; border-top:1px solid #e5dcdf;">
+<div style="font-size:12px; line-height:1.8; color:#887a7f;">
+※このメールは送信専用のアドレスからお送りしております。<br><br>
+大変恐れ入りますが、本メールに直接ご返信いただいても内容を確認することができず、どなたにも届かない仕組みとなっております。<br><br>
+お問い合わせ・ご報告・ご確認などがございましたら、お手数をおかけいたしますが、上記の<strong>公式LINE</strong>よりご連絡くださいますようお願い申し上げます。
+</div>
+<div style="width:42px; height:1px; background:#c8a87a; margin:22px auto;"></div>
+<div style="text-align:center; font-size:11px; letter-spacing:1px; color:#a39499;">小林タカラヅカ倶楽部</div>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
   }
 
   function buildEmergencyMessage({ name, title, body, isTest }){
@@ -1621,12 +1729,12 @@ ${body}
       statusEl.textContent = '先に公演を選んでください。';
       return;
     }
-    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
-    const message = buildGiftLetterMessage({
-      name: 'テスト太郎', title,
-      deadline: document.getElementById('giftLetterDeadline').value.trim(),
+    const { jennes, baseFee } = await loadGiftInfo(ev);
+    const message = buildGiftLetterEmailHtml({
+      recipientName: 'テスト太郎', ev,
+      deadline: giftLetterDeadlineText(ev, document.getElementById('giftLetterDeadline').value.trim()),
       extraBody: document.getElementById('giftLetterBody').value.trim(),
-      isTest: true
+      isTest: true, jennes, baseFee
     });
     await sendSimpleTestEmail({
       statusId: 'giftLetterStatus', btnId: 'giftLetterTestSendBtn',
@@ -1688,10 +1796,20 @@ ${body}
       return;
     }
 
-    if(!confirm(`参加決定者 ${recipients.length}名に差し入れ・お手紙ご案内メールを送信します。よろしいですか？`)) return;
+    // 自動送信(公演14日前)と二重にならないよう、送信済みかを確認
+    let alreadySentAt = null;
+    try{
+      const { data } = await sb.from('events').select('gift_invite_sent_at').eq('id', ev.id).maybeSingle();
+      alreadySentAt = data?.gift_invite_sent_at || null;
+    }catch(err){ console.warn('送信済み確認に失敗:', err); }
+    const alreadyMsg = alreadySentAt
+      ? `⚠️ この回の差し入れご案内は ${formatDateTimeJp(alreadySentAt)} にすでに送信済みです。\n\n`
+      : '';
+    if(!confirm(`${alreadyMsg}参加決定者 ${recipients.length}名に差し入れ・お手紙ご案内メールを送信します。よろしいですか？`)) return;
 
-    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
     const subject = `【小林タカラヅカ倶楽部】差し入れ・お手紙 ご協力のお願い`;
+    const { jennes, baseFee } = await loadGiftInfo(ev);
+    const deadlineText = giftLetterDeadlineText(ev, deadline);
 
     const btn = document.getElementById('giftLetterSendBtn');
     btn.disabled = true;
@@ -1702,7 +1820,9 @@ ${body}
       const r = recipients[i];
       statusEl.className = 'status-msg';
       statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
-      const message = buildGiftLetterMessage({ name: r.name, title, deadline, extraBody });
+      const message = buildGiftLetterEmailHtml({
+        recipientName: r.name, ev, deadline: deadlineText, extraBody, isTest: false, jennes, baseFee
+      });
       try{
         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
           email: r.email, subject, message
@@ -1712,6 +1832,13 @@ ${body}
         console.warn('送信失敗:', r.email, err);
         failedNames.push(r.name);
       }
+    }
+
+    // 手動で送ったら、公演14日前の自動送信が重ねて送らないよう送信済みにする
+    if(successCount > 0){
+      try{
+        await sb.from('events').update({ gift_invite_sent_at: new Date().toISOString() }).eq('id', ev.id);
+      }catch(err){ console.warn('gift_invite_sent_atの保存に失敗:', err); }
     }
 
     statusEl.className = 'status-msg';

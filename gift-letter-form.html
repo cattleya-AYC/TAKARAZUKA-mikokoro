@@ -319,17 +319,27 @@ function applyTroupeTheme(troupe){
 }
 
 async function loadTargetEvent(){
+  // メールのリンクに ?event=<id> が付いていればその回を、無ければ
   // 直近の(今日以降でもっとも近い、無ければ最新の)観劇会を対象にする
   const today = new Date().toISOString().slice(0,10);
+  const eventParam = new URLSearchParams(location.search).get("event");
   try{
     const cols = "id, event_number, troupe, event_date, gift_base_fee, gift_extra_options, gift_extra_note";
-    let { data, error } = await supabase
-      .from("events")
-      .select(cols)
-      .gte("event_date", today)
-      .order("event_date", { ascending:true })
-      .limit(1);
-    if(error) throw error;
+    let data = null;
+    if(eventParam){
+      const res = await supabase.from("events").select(cols).eq("id", eventParam).limit(1);
+      if(!res.error && res.data && res.data.length) data = res.data;
+    }
+    if(!data){
+      const res = await supabase
+        .from("events")
+        .select(cols)
+        .gte("event_date", today)
+        .order("event_date", { ascending:true })
+        .limit(1);
+      if(res.error) throw res.error;
+      data = res.data;
+    }
     if(!data || data.length===0){
       const fallback = await supabase
         .from("events")
