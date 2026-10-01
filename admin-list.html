@@ -652,7 +652,10 @@
     <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:var(--rose);">🚨 緊急連絡メール(公演中止・台風等)</p>
     <p style="margin:0 0 10px;font-size:12px;color:var(--muted);word-break:break-word;overflow-wrap:break-word;" id="emergencyHeaderPreview">先に公演を選んでください</p>
     <textarea id="emergencyBody" placeholder="例:本日の観劇会は、台風接近のため中止とさせていただきます。詳細は追ってご連絡いたします。" style="width:100%;min-height:120px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
-    <button type="button" id="emergencySendBtn" style="margin-top:10px;background:var(--rose);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">緊急連絡メールを送信(参加決定者のみ)</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+      <button type="button" id="emergencyTestSendBtn" style="background:transparent;color:var(--rose);border:1px solid var(--rose);border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">テスト送信(mari247k@gmail.com宛)</button>
+      <button type="button" id="emergencySendBtn" style="background:var(--rose);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">緊急連絡メールを送信(参加決定者のみ)</button>
+    </div>
     <p class="status-msg" id="emergencyStatus" style="padding:8px 0 0;text-align:left;"></p>
   </div>
 </div>
@@ -665,7 +668,10 @@
     <input type="text" id="giftLetterDeadline" placeholder="例:11月8日(日)" style="width:100%;margin-bottom:10px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;">
     <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">補足メッセージ(任意)</label>
     <textarea id="giftLetterBody" placeholder="例:ご協力いただける方は下記フォームよりお申し込みください。" style="width:100%;min-height:90px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
-    <button type="button" id="giftLetterSendBtn" style="margin-top:10px;background:var(--gold-soft);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">差し入れ・お手紙ご案内メールを送信(参加決定者のみ)</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+      <button type="button" id="giftLetterTestSendBtn" style="background:transparent;color:var(--gold-soft);border:1px solid var(--gold-soft);border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">テスト送信(mari247k@gmail.com宛)</button>
+      <button type="button" id="giftLetterSendBtn" style="background:var(--gold-soft);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">差し入れ・お手紙ご案内メールを送信(参加決定者のみ)</button>
+    </div>
     <p class="status-msg" id="giftLetterStatus" style="padding:8px 0 0;text-align:left;"></p>
   </div>
 </div>
@@ -1557,6 +1563,100 @@ ${extraHtml}
   }
 
 
+  // 本番とテストで同じ文面を使うための共通関数
+  function buildGiftLetterMessage({ name, title, deadline, extraBody, isTest }){
+    return `${isTest ? '※これはテスト送信です。参加者の皆さまには送信されていません。\n\n' : ''}${name}様
+
+いつも観劇会の活動にご理解とご協力を賜り、誠にありがとうございます。
+
+${title}にあたり、ジェンヌさんへの差し入れ・お手紙にご協力いただける方を募集しております。
+ご協力いただける方は、下記フォームよりお申し込みください。
+
+${GIFT_LETTER_FORM_URL}
+${deadline ? `\n【お申し込み締切】\n${deadline}\n` : ''}${extraBody ? `\n${extraBody}\n` : ''}
+お手紙のみご協力いただく方はお申し込み不要です。観劇当日、集合時間にお持ちください。
+
+小林タカラヅカ倶楽部`;
+  }
+
+  function buildEmergencyMessage({ name, title, body, isTest }){
+    return `${isTest ? '※これはテスト送信です。参加者の皆さまには送信されていません。\n\n' : ''}${name}様
+
+この度は、${title}にご参加ありがとうございます。
+
+【緊急連絡事項】
+${body}
+
+小林タカラヅカ倶楽部`;
+  }
+
+  const TEST_EMAIL = 'mari247k@gmail.com';
+
+  async function sendSimpleTestEmail({ statusId, btnId, subject, message }){
+    const statusEl = document.getElementById(statusId);
+    const btn = document.getElementById(btnId);
+    btn.disabled = true;
+    statusEl.className = 'status-msg';
+    statusEl.textContent = `テスト送信中… (${TEST_EMAIL})`;
+    try{
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+        email: TEST_EMAIL, subject: `【テスト送信】${subject}`, message
+      });
+      statusEl.className = 'status-msg ok';
+      statusEl.textContent = `テスト送信完了:${TEST_EMAIL} に送信しました。(一斉送信は行われていません)`;
+    }catch(err){
+      console.warn('テスト送信失敗:', err);
+      statusEl.className = 'status-msg err';
+      statusEl.textContent = 'テスト送信に失敗しました。';
+    }
+    btn.disabled = false;
+  }
+
+  async function sendGiftLetterTestEmail(){
+    const statusEl = document.getElementById('giftLetterStatus');
+    statusEl.className = 'status-msg'; statusEl.textContent = '';
+    const ev = events.find(e => e.id === currentEventId);
+    if(!ev){
+      statusEl.classList.add('err');
+      statusEl.textContent = '先に公演を選んでください。';
+      return;
+    }
+    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+    const message = buildGiftLetterMessage({
+      name: 'テスト太郎', title,
+      deadline: document.getElementById('giftLetterDeadline').value.trim(),
+      extraBody: document.getElementById('giftLetterBody').value.trim(),
+      isTest: true
+    });
+    await sendSimpleTestEmail({
+      statusId: 'giftLetterStatus', btnId: 'giftLetterTestSendBtn',
+      subject: '【小林タカラヅカ倶楽部】差し入れ・お手紙 ご協力のお願い', message
+    });
+  }
+
+  async function sendEmergencyTestEmail(){
+    const statusEl = document.getElementById('emergencyStatus');
+    statusEl.className = 'status-msg'; statusEl.textContent = '';
+    const ev = events.find(e => e.id === currentEventId);
+    if(!ev){
+      statusEl.classList.add('err');
+      statusEl.textContent = '先に公演を選んでください。';
+      return;
+    }
+    const body = document.getElementById('emergencyBody').value.trim();
+    if(!body){
+      statusEl.classList.add('err');
+      statusEl.textContent = '緊急連絡事項を入力してください。';
+      return;
+    }
+    const title = `${formatDateJp(ev.event_date)} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+    const message = buildEmergencyMessage({ name: 'テスト太郎', title, body, isTest: true });
+    await sendSimpleTestEmail({
+      statusId: 'emergencyStatus', btnId: 'emergencyTestSendBtn',
+      subject: '【小林タカラヅカ倶楽部】からのお知らせ', message
+    });
+  }
+
   async function sendGiftLetterEmail(){
     const statusEl = document.getElementById('giftLetterStatus');
     statusEl.className = 'status-msg'; statusEl.textContent = '';
@@ -1602,19 +1702,7 @@ ${extraHtml}
       const r = recipients[i];
       statusEl.className = 'status-msg';
       statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
-      const message =
-`${r.name}様
-
-いつも観劇会の活動にご理解とご協力を賜り、誠にありがとうございます。
-
-${title}にあたり、ジェンヌさんへの差し入れ・お手紙にご協力いただける方を募集しております。
-ご協力いただける方は、下記フォームよりお申し込みください。
-
-${GIFT_LETTER_FORM_URL}
-${deadline ? `\n【お申し込み締切】\n${deadline}\n` : ''}${extraBody ? `\n${extraBody}\n` : ''}
-お手紙のみご協力いただく方はお申し込み不要です。観劇当日、集合時間にお持ちください。
-
-小林タカラヅカ倶楽部`;
+      const message = buildGiftLetterMessage({ name: r.name, title, deadline, extraBody });
       try{
         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
           email: r.email, subject, message
@@ -1830,15 +1918,7 @@ ${deadline ? `\n【お申し込み締切】\n${deadline}\n` : ''}${extraBody ? `
       const r = recipients[i];
       statusEl.className = 'status-msg';
       statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
-      const message =
-`${r.name}様
-
-この度は、${title}にご参加ありがとうございます。
-
-【緊急連絡事項】
-${body}
-
-小林タカラヅカ倶楽部`;
+      const message = buildEmergencyMessage({ name: r.name, title, body });
       try{
         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
           email: r.email, subject, message
@@ -1916,6 +1996,8 @@ ${body}
       document.getElementById('giftLetterSendBtn').addEventListener('click', sendGiftLetterEmail);
       document.getElementById('mealMenuSendBtn').addEventListener('click', sendMealMenuEmail);
       document.getElementById('mealMenuTestSendBtn').addEventListener('click', sendMealMenuTestEmail);
+      document.getElementById('emergencyTestSendBtn').addEventListener('click', sendEmergencyTestEmail);
+      document.getElementById('giftLetterTestSendBtn').addEventListener('click', sendGiftLetterTestEmail);
       document.querySelectorAll('th.sortable').forEach(th=>{
         th.addEventListener('click', ()=>{
           const key = th.getAttribute('data-sort');
