@@ -101,7 +101,8 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
       <div class="info-row">
         <div class="info-card"><div class="label">申込件数</div><div class="value" id="countValue">-</div></div>
         <div class="info-card"><div class="label">協力人数（同伴者含む）</div><div class="value" id="peopleValue">-</div></div>
-        <div class="info-card"><div class="label">合計金額（200円×人数）</div><div class="value" id="totalAmountValue">-</div></div>
+        <div class="info-card"><div class="label">合計金額（上乗せ含む）</div><div class="value" id="totalAmountValue">-</div></div>
+        <div class="info-card"><div class="label">うち上乗せ分</div><div class="value" id="extraAmountValue">-</div></div>
         <div class="info-card"><div class="label">お菓子担当・楽屋口届け</div><div class="value" id="dutyStaffValue">-</div></div>
         <div class="info-card"><div class="label">金銭回収担当</div><div class="value" id="dutyPartnerValue">-</div></div>
       </div>
@@ -113,6 +114,15 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
         <p style="margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.7">
           担当者の方は、差し入れをお渡しした後、下の3枚の写真をアップロードしてください。アップロードすると、お礼メールの文面が自動で作られます。
         </p>
+
+        <div id="savedReportBox" style="display:none;margin-bottom:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--green-soft)">
+          <div id="savedReportInfo" style="font-size:13.5px;color:var(--green-dark);font-weight:700;margin-bottom:10px"></div>
+          <div id="savedReportThumbs" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.7">
+            このまま「文面を作成」を押せば、登録済みの写真で文面が作られます。<br>
+            差し替えたい写真だけ、下で選び直してください。
+          </div>
+        </div>
 
         <div style="display:grid;gap:12px;margin-bottom:12px">
           <div>
@@ -130,7 +140,7 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
         </div>
 
         <div style="display:flex;justify-content:flex-end">
-          <button id="photoUploadBtn">写真をアップロードして文面を作成</button>
+          <button id="photoUploadBtn">御礼メールの文面を作成</button>
         </div>
         <div class="status" id="photoUploadStatus"></div>
 
@@ -234,13 +244,51 @@ async function loadEvents(){
   syncEventDisplay();
   await loadSubmissions(defaultEvent.id);
   await loadDutyStaff(defaultEvent.id);
+  await loadSavedReport(defaultEvent.id);
 }
 
 document.getElementById("eventSelect").addEventListener("change", e=>{
   syncEventDisplay();
   loadSubmissions(e.target.value || null);
   loadDutyStaff(e.target.value || null);
+  loadSavedReport(e.target.value || null);
 });
+
+// 担当者がスタッフページから登録済みの写真を読み込む
+let savedReport = null;
+async function loadSavedReport(eventId){
+  savedReport = null;
+  const box = document.getElementById("savedReportBox");
+  box.style.display = "none";
+  document.getElementById("thanksPreviewWrap").style.display = "none";
+  generatedEmailHtml = "";
+  ["photoReceipt","photoGift","photoCandy"].forEach(id=>{ document.getElementById(id).value = ""; });
+  if(!eventId) return;
+  try{
+    const { data, error } = await supabase
+      .from("event_gift_report")
+      .select("staff_name, receipt_photo_url, gift_photo_url, candy_photo_url, updated_at")
+      .eq("event_id", eventId)
+      .maybeSingle();
+    if(error) throw error;
+    if(!data || !(data.receipt_photo_url || data.gift_photo_url || data.candy_photo_url)) return;
+    savedReport = data;
+    const when = data.updated_at ? new Date(data.updated_at).toLocaleString("ja-JP", { month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit" }) : "";
+    const count = [data.receipt_photo_url, data.gift_photo_url, data.candy_photo_url].filter(Boolean).length;
+    document.getElementById("savedReportInfo").textContent =
+      `✅ ${data.staff_name ? data.staff_name + "さんから" : ""}報告あり（${when}・写真${count}/3枚）`;
+    const thumb = (url, label)=> url
+      ? `<a href="${url}" target="_blank" style="display:block;text-decoration:none;color:var(--muted);font-size:11px;text-align:center">
+           <img src="${url}" alt="${label}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#fff">
+           ${label}</a>`
+      : `<div style="aspect-ratio:1/1;border:1px dashed var(--line);border-radius:8px;display:grid;place-items:center;font-size:11px;color:var(--muted);background:#fff">${label}<br>未登録</div>`;
+    document.getElementById("savedReportThumbs").innerHTML =
+      thumb(data.receipt_photo_url, "領収書") + thumb(data.gift_photo_url, "のし付き") + thumb(data.candy_photo_url, "お菓子の中身");
+    box.style.display = "block";
+  }catch(err){
+    console.error(err);
+  }
+}
 
 async function loadDutyStaff(eventId){
   const el = document.getElementById("dutyStaffValue");
@@ -284,13 +332,23 @@ async function loadSubmissions(eventId){
 function peopleCount(r){
   return 1 + (r.has_companion ? 1 : 0);
 }
+function baseFee(r){
+  const n = Number(r.base_fee);
+  return Number.isFinite(n) && r.base_fee !== null ? n : 200;
+}
+function extraAmount(r){ return Number(r.extra_amount) || 0; }
+function rowAmount(r){ return baseFee(r) * peopleCount(r) + extraAmount(r); }
+function yen(n){ return Number(n).toLocaleString("ja-JP") + "円"; }
 
 function render(){
   const container = document.getElementById("jenneGroups");
   const totalPeople = currentRows.reduce((sum,r)=>sum + peopleCount(r), 0);
   document.getElementById("countValue").textContent = currentRows.length + "件";
   document.getElementById("peopleValue").textContent = totalPeople + "名";
-  document.getElementById("totalAmountValue").textContent = (totalPeople * 200).toLocaleString("ja-JP") + "円";
+  const totalAmount = currentRows.reduce((sum,r)=>sum + rowAmount(r), 0);
+  const totalExtra = currentRows.reduce((sum,r)=>sum + extraAmount(r), 0);
+  document.getElementById("totalAmountValue").textContent = yen(totalAmount);
+  document.getElementById("extraAmountValue").textContent = yen(totalExtra);
 
   if(currentRows.length===0){
     container.innerHTML = `<div class="empty">まだ申し込みがありません</div>`;
@@ -309,6 +367,7 @@ function render(){
   container.innerHTML = order.map(name=>{
     const rows = groups[name];
     const people = rows.reduce((sum,r)=>sum + peopleCount(r), 0);
+    const groupAmount = rows.reduce((sum,r)=>sum + rowAmount(r), 0);
     const rowsHtml = rows.map(r=>{
       const mainRow = `
       <tr>
@@ -316,6 +375,7 @@ function render(){
         <td>${r.period || ""}</td>
         <td>${r.name}</td>
         <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
+        <td style="white-space:nowrap">${yen(rowAmount(r))}${extraAmount(r) > 0 ? `<br><span class="badge">上乗せ＋${yen(extraAmount(r))}</span>` : ""}</td>
       </tr>`;
       const companionRow = r.has_companion ? `
       <tr class="companion-row">
@@ -323,6 +383,7 @@ function render(){
         <td>${r.period || ""}</td>
         <td><span class="companion-tag">同</span>${r.companion_name || ""}</td>
         <td>${r.companion_name_display ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display}</span>` : ""}</td>
+        <td></td>
       </tr>` : "";
       return mainRow + companionRow;
     }).join("");
@@ -331,12 +392,12 @@ function render(){
     <div class="jenne-group">
       <div class="jenne-group-head">
         <span class="name">差し入れ先：${name}さん</span>
-        <span class="stats">人数：<b>${people}名</b>　合計金額：<b>${(people*200).toLocaleString("ja-JP")}円</b></span>
+        <span class="stats">人数：<b>${people}名</b>　合計金額：<b>${yen(groupAmount)}</b></span>
       </div>
       <div style="overflow-x:auto">
         <table>
           <thead>
-            <tr><th class="print-check-col"></th><th>回生</th><th>お名前</th><th>外装記名</th></tr>
+            <tr><th class="print-check-col"></th><th>回生</th><th>お名前</th><th>外装記名</th><th>協力金</th></tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
@@ -585,28 +646,36 @@ document.getElementById("photoUploadBtn").addEventListener("click", async ()=>{
     showStatus(statusEl, "対象の観劇会を選んでください。", true);
     return;
   }
-  if(!receiptFile || !giftFile || !candyFile){
+  // 選び直した写真はアップロード、選んでいない写真は登録済みのものを使う
+  const hasAll =
+    (receiptFile || savedReport?.receipt_photo_url) &&
+    (giftFile || savedReport?.gift_photo_url) &&
+    (candyFile || savedReport?.candy_photo_url);
+  if(!hasAll){
     showStatus(statusEl, "3枚とも写真を選んでください。", true);
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = "アップロード中…";
+  btn.textContent = (receiptFile || giftFile || candyFile) ? "アップロード中…" : "文面を作成中…";
   try{
     const [receiptUrl, giftUrl, candyUrl] = await Promise.all([
-      uploadReportPhoto(receiptFile),
-      uploadReportPhoto(giftFile),
-      uploadReportPhoto(candyFile)
+      receiptFile ? uploadReportPhoto(receiptFile) : savedReport.receipt_photo_url,
+      giftFile ? uploadReportPhoto(giftFile) : savedReport.gift_photo_url,
+      candyFile ? uploadReportPhoto(candyFile) : savedReport.candy_photo_url
     ]);
 
-    const { error: upsertErr } = await supabase.from("event_gift_report").upsert({
-      event_id: eventId,
-      receipt_photo_url: receiptUrl,
-      gift_photo_url: giftUrl,
-      candy_photo_url: candyUrl,
-      updated_at: new Date().toISOString()
-    });
-    if(upsertErr) throw upsertErr;
+    if(receiptFile || giftFile || candyFile){
+      const { error: upsertErr } = await supabase.from("event_gift_report").upsert({
+        event_id: eventId,
+        receipt_photo_url: receiptUrl,
+        gift_photo_url: giftUrl,
+        candy_photo_url: candyUrl,
+        updated_at: new Date().toISOString()
+      });
+      if(upsertErr) throw upsertErr;
+      await loadSavedReport(eventId);
+    }
 
     const ev = eventsData.find(e=>e.id === eventId);
     const dateStr = formatEventDate(ev?.event_date);
@@ -623,7 +692,7 @@ document.getElementById("photoUploadBtn").addEventListener("click", async ()=>{
     showStatus(statusEl, "アップロードに失敗しました：" + (err.message || err), true);
   }finally{
     btn.disabled = false;
-    btn.textContent = "写真をアップロードして文面を作成";
+    btn.textContent = "御礼メールの文面を作成";
   }
 });
 
@@ -698,12 +767,13 @@ document.getElementById("printBtn").addEventListener("click", ()=>{
 });
 
 document.getElementById("csvBtn").addEventListener("click", ()=>{
-  const rows = [["差し入れ先","お名前","回生","外装記名","同伴者","同伴者記名","送信日時"]];
+  const rows = [["差し入れ先","お名前","回生","外装記名","同伴者","同伴者記名","基本額","上乗せ","協力金合計","送信日時"]];
   currentRows.forEach(r=>rows.push([
     r.jennes ? r.jennes.name : "",
     r.name, r.period||"", r.name_display,
     r.has_companion ? (r.companion_name||"") : "",
     r.has_companion ? (r.companion_name_display||"") : "",
+    baseFee(r) * peopleCount(r), extraAmount(r), rowAmount(r),
     new Date(r.created_at).toLocaleString("ja-JP")
   ]));
   const csv = rows.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");

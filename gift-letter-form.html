@@ -120,6 +120,15 @@ input[type=text],textarea{
 }
 .done-card h2{margin:0 0 8px;font-size:22px}
 .done-card p{color:var(--muted);font-size:14px;line-height:1.8}
+.extra-note{
+  font-size:13px;line-height:1.8;color:var(--ink);background:var(--paper);
+  border:1px dashed var(--line);border-radius:10px;padding:10px 12px;margin:0 0 8px;
+}
+.extra-select{
+  width:100%;padding:12px;border:1px solid #d7e2d1;border-radius:11px;
+  background:#fff;color:var(--ink);font:inherit;font-size:16px;
+}
+.amount-breakdown{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .envelope-rule{font-size:13.5px;line-height:1.9;background:var(--paper);border:1px dashed var(--line);border-radius:12px;padding:12px 14px}
 </style>
 </head>
@@ -138,7 +147,7 @@ input[type=text],textarea{
         <h2>差し入れ先のジェンヌさん</h2>
         <p id="jenneIntro" style="margin-bottom:10px">読み込み中...</p>
         <div id="jenneList"></div>
-        <div class="fee-badge">協力金 お一人様につき 200円</div>
+        <div class="fee-badge" id="feeBadge">協力金 お一人様につき 200円</div>
       </section>
 
       <section class="section">
@@ -218,7 +227,15 @@ input[type=text],textarea{
             </div>
           </div>
 
-          <div class="amount-preview">当日お預かりする協力金：<b id="amountText">200円</b></div>
+          <div class="field extra-field" id="extraField" style="display:none">
+            <label>差し入れの上乗せ（任意）</label>
+            <p class="extra-note" id="extraNote"></p>
+            <select id="extraAmount" class="extra-select">
+              <option value="0">なし</option>
+            </select>
+          </div>
+
+          <div class="amount-preview">当日お預かりする協力金：<b id="amountText">200円</b><span id="amountBreakdown" class="amount-breakdown"></span></div>
 
           <button class="submit" type="submit" id="submitBtn">この内容で申し込む</button>
           <div class="status" id="formStatus"></div>
@@ -243,6 +260,47 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let targetEventId = null;
 let selectedJenneId = null;
 
+// 差し入れ協力金の設定(イベントごと。未設定なら既定値)
+const DEFAULT_EXTRA_NOTE = "多めに出したいというお声がありましたので、任意の上乗せ欄を設けました。「なし」のままでまったく問題ありません。";
+let giftBaseFee = 200;
+let giftExtraOptions = [];
+
+function yen(n){ return Number(n).toLocaleString("ja-JP") + "円"; }
+
+function applyGiftSettings(ev){
+  const base = Number(ev?.gift_base_fee);
+  giftBaseFee = Number.isFinite(base) && base >= 0 ? base : 200;
+  giftExtraOptions = Array.isArray(ev?.gift_extra_options)
+    ? ev.gift_extra_options.map(Number).filter(n=>Number.isFinite(n) && n > 0)
+    : [];
+  document.getElementById("feeBadge").textContent = `協力金 お一人様につき ${yen(giftBaseFee)}`;
+
+  const field = document.getElementById("extraField");
+  const sel = document.getElementById("extraAmount");
+  if(giftExtraOptions.length === 0){
+    field.style.display = "none";
+    sel.innerHTML = `<option value="0">なし</option>`;
+  } else {
+    sel.innerHTML = `<option value="0">なし</option>` +
+      giftExtraOptions.map(n=>`<option value="${n}">＋${yen(n)}</option>`).join("");
+    document.getElementById("extraNote").textContent = (ev?.gift_extra_note || "").trim() || DEFAULT_EXTRA_NOTE;
+    field.style.display = "block";
+  }
+  updateAmountPreview();
+}
+
+function currentExtra(){
+  const v = Number(document.getElementById("extraAmount").value);
+  return giftExtraOptions.includes(v) ? v : 0;
+}
+
+function calcAmount(){
+  const people = document.getElementById("hasCompanion").checked ? 2 : 1;
+  const base = giftBaseFee * people;
+  const extra = currentExtra();
+  return { people, base, extra, total: base + extra };
+}
+
 // 組ごとのテーマカラー
 const TROUPE_THEMES = {
   "花": { bg:"#faf1f3", accent:"#c97b8a", accentDark:"#a8586a", accentSoft:"#f6e3e7" },
@@ -264,9 +322,10 @@ async function loadTargetEvent(){
   // 直近の(今日以降でもっとも近い、無ければ最新の)観劇会を対象にする
   const today = new Date().toISOString().slice(0,10);
   try{
+    const cols = "id, event_number, troupe, event_date, gift_base_fee, gift_extra_options, gift_extra_note";
     let { data, error } = await supabase
       .from("events")
-      .select("id, event_number, troupe, event_date")
+      .select(cols)
       .gte("event_date", today)
       .order("event_date", { ascending:true })
       .limit(1);
@@ -274,7 +333,7 @@ async function loadTargetEvent(){
     if(!data || data.length===0){
       const fallback = await supabase
         .from("events")
-        .select("id, event_number, troupe, event_date")
+        .select(cols)
         .order("event_date", { ascending:false })
         .limit(1);
       data = fallback.data;
@@ -282,6 +341,7 @@ async function loadTargetEvent(){
     if(data && data[0]){
       targetEventId = data[0].id;
       applyTroupeTheme(data[0].troupe);
+      applyGiftSettings(data[0]);
     }
     await loadJennes();
   }catch(err){
@@ -356,10 +416,14 @@ document.getElementById("hasCompanion").addEventListener("change", (e)=>{
   updateAmountPreview();
 });
 
+document.getElementById("extraAmount").addEventListener("change", updateAmountPreview);
+
 function updateAmountPreview(){
-  const hasCompanion = document.getElementById("hasCompanion").checked;
-  const amount = hasCompanion ? 400 : 200;
-  document.getElementById("amountText").textContent = amount.toLocaleString("ja-JP") + "円";
+  const a = calcAmount();
+  document.getElementById("amountText").textContent = yen(a.total);
+  document.getElementById("amountBreakdown").textContent = a.extra > 0
+    ? `（${yen(giftBaseFee)}×${a.people}名 ＋ 上乗せ${yen(a.extra)}）`
+    : "";
 }
 
 document.getElementById("giftForm").addEventListener("submit", async (e)=>{
@@ -406,7 +470,9 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
       email: email || null,
       has_companion: hasCompanion,
       companion_name: hasCompanion ? companionName : null,
-      companion_name_display: hasCompanion ? companionNameDisplayEl.value : null
+      companion_name_display: hasCompanion ? companionNameDisplayEl.value : null,
+      base_fee: giftBaseFee,
+      extra_amount: currentExtra()
     };
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/gift_letter_submissions`, {
@@ -425,12 +491,12 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
       throw new Error(`(${res.status}) ${bodyText}`);
     }
 
-    const amount = hasCompanion ? 400 : 200;
+    const amount = calcAmount().total;
     document.getElementById("mainPanel").innerHTML = `
       <div class="done-card">
         <div class="check">✓</div>
         <h2>ご協力ありがとうございました</h2>
-        <p>お申し込みを受け付けました。<br>観劇会当日、チケットお渡しの際に<br>協力金（${amount.toLocaleString("ja-JP")}円）をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
+        <p>お申し込みを受け付けました。<br>観劇会当日、チケットお渡しの際に<br>協力金（${yen(amount)}）をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
       </div>`;
   }catch(err){
     console.error(err);

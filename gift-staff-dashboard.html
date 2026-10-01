@@ -124,6 +124,15 @@ th{background:#faf8f5;color:var(--muted);font-size:12px}
           </div>
         </div>
 
+        <div id="savedReportBox" style="display:none;margin-bottom:18px;padding:14px 16px;border:2px solid var(--green-dark);border-radius:14px;background:var(--green-soft)">
+          <div id="savedReportInfo" style="font-size:16px;color:var(--green-dark);font-weight:700;margin-bottom:10px;line-height:1.6"></div>
+          <div id="savedReportThumbs" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+          <div style="font-size:13px;color:var(--ink);margin-top:10px;line-height:1.7">
+            報告は完了しています。もう一度送る必要はありません。<br>
+            写真を差し替えたいときだけ、その写真を下で選び直して「この内容で報告する」を押してください。
+          </div>
+        </div>
+
         <label class="big-label">担当者のお名前</label>
         <input type="text" id="staffName" class="big-input" placeholder="例：原田">
 
@@ -240,19 +249,61 @@ async function loadEvents(){
   currentEventId = defaultEvent.id;
   sel.value = currentEventId;
   syncEventDisplay();
-  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard()]);
+  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard(), loadSavedReport()]);
+}
+
+// 登録済みの報告(写真)を表示
+let savedReport = null;
+async function loadSavedReport(){
+  savedReport = null;
+  const box = document.getElementById("savedReportBox");
+  box.style.display = "none";
+  ["photoGift","photoCandy","photoReceipt"].forEach(id=>{ document.getElementById(id).value = ""; });
+  if(!currentEventId) return;
+  try{
+    const { data, error } = await supabase
+      .from("event_gift_report")
+      .select("staff_name, receipt_photo_url, gift_photo_url, candy_photo_url, updated_at")
+      .eq("event_id", currentEventId)
+      .maybeSingle();
+    if(error) throw error;
+    if(!data || !(data.receipt_photo_url || data.gift_photo_url || data.candy_photo_url)) return;
+    savedReport = data;
+    const when = data.updated_at ? new Date(data.updated_at).toLocaleString("ja-JP", { month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit" }) : "";
+    const count = [data.gift_photo_url, data.candy_photo_url, data.receipt_photo_url].filter(Boolean).length;
+    document.getElementById("savedReportInfo").textContent =
+      `✅ 報告済みです（${data.staff_name ? data.staff_name + "さん・" : ""}${when}・写真${count}/3枚）`;
+    const thumb = (url, label)=> url
+      ? `<a href="${url}" target="_blank" style="display:block;text-decoration:none;color:var(--muted);font-size:12px;text-align:center">
+           <img src="${url}" alt="${label}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#fff">
+           ${label}</a>`
+      : `<div style="aspect-ratio:1/1;border:1px dashed var(--line);border-radius:10px;display:grid;place-items:center;font-size:12px;color:var(--muted);background:#fff;text-align:center">${label}<br>未登録</div>`;
+    document.getElementById("savedReportThumbs").innerHTML =
+      thumb(data.gift_photo_url, "のし付き") + thumb(data.candy_photo_url, "お菓子の中身") + thumb(data.receipt_photo_url, "領収書");
+    box.style.display = "block";
+  }catch(err){
+    console.error(err);
+  }
 }
 
 document.getElementById("eventSelect").addEventListener("change", async e=>{
   currentEventId = e.target.value || null;
   syncEventDisplay();
   document.getElementById("resultBox").style.display = "none";
-  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard()]);
+  document.getElementById("reportStatus").className = "status";
+  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard(), loadSavedReport()]);
 });
 
 function peopleCount(r){
   return 1 + (r.has_companion ? 1 : 0);
 }
+function baseFee(r){
+  const n = Number(r.base_fee);
+  return Number.isFinite(n) && r.base_fee !== null ? n : 200;
+}
+function extraAmount(r){ return Number(r.extra_amount) || 0; }
+function rowAmount(r){ return baseFee(r) * peopleCount(r) + extraAmount(r); }
+function yen(n){ return Number(n).toLocaleString("ja-JP") + "円"; }
 
 async function loadSubmissions(){
   const body = document.getElementById("jenneGroups");
@@ -278,7 +329,7 @@ function renderSubmissions(){
   const totalPeople = currentRows.reduce((sum,r)=>sum + peopleCount(r), 0);
   document.getElementById("countValue").textContent = currentRows.length + "件";
   document.getElementById("peopleValue").textContent = totalPeople + "名";
-  document.getElementById("totalAmountValue").textContent = (totalPeople * 200).toLocaleString("ja-JP") + "円";
+  document.getElementById("totalAmountValue").textContent = yen(currentRows.reduce((sum,r)=>sum + rowAmount(r), 0));
 
   if(currentRows.length===0){
     container.innerHTML = `<div class="empty">まだ申し込みがありません</div>`;
@@ -301,12 +352,14 @@ function renderSubmissions(){
         <td>${r.period || ""}</td>
         <td>${r.name}</td>
         <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
+        <td style="white-space:nowrap">${yen(rowAmount(r))}</td>
       </tr>`;
       const companionRow = r.has_companion ? `
       <tr>
         <td>${r.period || ""}</td>
         <td><span class="companion-tag">同</span>${r.companion_name || ""}</td>
         <td>${r.companion_name_display ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display}</span>` : ""}</td>
+        <td></td>
       </tr>` : "";
       return mainRow + companionRow;
     }).join("");
@@ -316,7 +369,7 @@ function renderSubmissions(){
       <div class="jenne-group-head">差し入れ先：${name}さん</div>
       <div style="overflow-x:auto">
         <table>
-          <thead><tr><th>回生</th><th>お名前</th><th>外装記名</th></tr></thead>
+          <thead><tr><th>回生</th><th>お名前</th><th>外装記名</th><th>協力金</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
       </div>
@@ -423,7 +476,16 @@ document.getElementById("reportUploadBtn").addEventListener("click", async ()=>{
     showStatus(statusEl, "担当者のお名前をご入力ください。", true);
     return;
   }
-  if(!giftFile || !candyFile || !receiptFile){
+  if(!giftFile && !candyFile && !receiptFile && savedReport){
+    showStatus(statusEl, "この回はすでに報告済みです。差し替えたい写真を選んでから押してください。", true);
+    return;
+  }
+  // 選び直した写真だけアップロードし、選んでいない写真は登録済みのものを残す
+  const hasAll =
+    (giftFile || savedReport?.gift_photo_url) &&
+    (candyFile || savedReport?.candy_photo_url) &&
+    (receiptFile || savedReport?.receipt_photo_url);
+  if(!hasAll){
     showStatus(statusEl, "写真を3枚とも選んでください。", true);
     return;
   }
@@ -432,9 +494,9 @@ document.getElementById("reportUploadBtn").addEventListener("click", async ()=>{
   btn.textContent = "アップロード中…";
   try{
     const [giftUrl, candyUrl, receiptUrl] = await Promise.all([
-      uploadReportPhoto(giftFile),
-      uploadReportPhoto(candyFile),
-      uploadReportPhoto(receiptFile)
+      giftFile ? uploadReportPhoto(giftFile) : savedReport.gift_photo_url,
+      candyFile ? uploadReportPhoto(candyFile) : savedReport.candy_photo_url,
+      receiptFile ? uploadReportPhoto(receiptFile) : savedReport.receipt_photo_url
     ]);
     const { error } = await supabase.from("event_gift_report").upsert({
       event_id: currentEventId,
@@ -445,6 +507,7 @@ document.getElementById("reportUploadBtn").addEventListener("click", async ()=>{
       updated_at: new Date().toISOString()
     });
     if(error) throw error;
+    await loadSavedReport();
     showStatus(statusEl, "ご報告ありがとうございました！写真を登録しました。", false);
   }catch(err){
     console.error(err);
