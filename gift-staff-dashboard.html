@@ -296,10 +296,10 @@ function applicantNote(r){
     ? `<br><span class="companion-tag">同</span><span style="font-size:12px;color:var(--muted)">申込者：${r.applicant_name}</span>`
     : "";
 }
-// 複数の差し入れ先を選んだ方の協力金は共通(一律)なので、その旨を表示
+// 複数の差し入れ先を選んだ方は、協力金が何名分かを表示
 function sharedNote(r){
   const n = rowJenneIds(r).length;
-  return n > 1 ? `<br><span class="badge none">${n}名共通</span>` : "";
+  return n > 1 ? `<br><span class="badge none">${n}名分</span>` : "";
 }
 // 差し入れ先ごとにグループ化(上級生順)。複数選択の方は各グループに表示
 function groupByJenne(rows){
@@ -417,7 +417,9 @@ function baseFee(r){
   return Number.isFinite(n) && r.base_fee !== null ? n : 200;
 }
 function extraAmount(r){ return Number(r.extra_amount) || 0; }
-function rowAmount(r){ return baseFee(r) * peopleCount(r) + extraAmount(r); }
+// 協力金＝基本額×人数×差し入れ先の人数＋上乗せ
+function jenneCount(r){ return Math.max(1, rowJenneIds(r).length); }
+function rowAmount(r){ return baseFee(r) * peopleCount(r) * jenneCount(r) + extraAmount(r); }
 function yen(n){ return Number(n).toLocaleString("ja-JP") + "円"; }
 
 async function loadSubmissions(){

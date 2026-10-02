@@ -155,7 +155,7 @@ input[type=text],textarea{
         <p id="jenneIntro" style="margin-bottom:10px">読み込み中...</p>
         <div id="jenneList"></div>
         <p class="selected-summary" id="selectedSummary"></p>
-        <div class="fee-badge" id="feeBadge">協力金 お一人様につき 200円</div>
+        <div class="fee-badge" id="feeBadge">協力金 ジェンヌさんお一人につき 200円</div>
       </section>
 
       <section class="section">
@@ -281,7 +281,7 @@ function applyGiftSettings(ev){
   giftExtraOptions = Array.isArray(ev?.gift_extra_options)
     ? ev.gift_extra_options.map(Number).filter(n=>Number.isFinite(n) && n > 0)
     : [];
-  document.getElementById("feeBadge").textContent = `協力金 お一人様につき ${yen(giftBaseFee)}`;
+  document.getElementById("feeBadge").textContent = `協力金 ジェンヌさんお一人につき ${yen(giftBaseFee)}`;
 
   const field = document.getElementById("extraField");
   const sel = document.getElementById("extraAmount");
@@ -303,11 +303,11 @@ function currentExtra(){
 }
 
 function calcAmount(){
-  // 同伴者は別に申し込むため、1件＝1名。差し入れ先の人数に関係なく一律
-  const people = 1;
-  const base = giftBaseFee * people;
+  // 協力金＝基本額×選んだジェンヌさんの人数＋上乗せ(上乗せは1回分)
+  const count = Math.max(1, selectedJenneIds.size);
+  const base = giftBaseFee * count;
   const extra = currentExtra();
-  return { people, base, extra, total: base + extra };
+  return { count, base, extra, total: base + extra };
 }
 
 // 組ごとのテーマカラー
@@ -421,6 +421,7 @@ async function loadJennes(){
         if(input.checked) selectedJenneIds.add(input.value);
         else selectedJenneIds.delete(input.value);
         updateSelectedSummary();
+        updateAmountPreview();
       });
     });
 
@@ -431,6 +432,7 @@ async function loadJennes(){
       selectedJenneIds.add(rows[0].jenne_id);
     }
     updateSelectedSummary();
+    updateAmountPreview();
   }catch(err){
     console.error(err);
     intro.textContent = "情報の取得に失敗しました";
@@ -464,9 +466,11 @@ document.getElementById("extraAmount").addEventListener("change", updateAmountPr
 function updateAmountPreview(){
   const a = calcAmount();
   document.getElementById("amountText").textContent = yen(a.total);
-  document.getElementById("amountBreakdown").textContent = a.extra > 0
-    ? `（${yen(giftBaseFee)} ＋ 上乗せ${yen(a.extra)}）`
-    : "";
+  const parts = [];
+  if(a.count > 1) parts.push(`${yen(giftBaseFee)}×${a.count}名`);
+  else if(a.extra > 0) parts.push(yen(giftBaseFee));
+  if(a.extra > 0) parts.push(`上乗せ${yen(a.extra)}`);
+  document.getElementById("amountBreakdown").textContent = parts.length ? `（${parts.join(" ＋ ")}）` : "";
 }
 
 document.getElementById("giftForm").addEventListener("submit", async (e)=>{
