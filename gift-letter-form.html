@@ -188,7 +188,7 @@ input[type=text],textarea{
 
           <div class="field">
             <label>お名前 <span class="required">必須</span></label>
-            <input type="text" id="name" placeholder="例：西中 真里" required>
+            <input type="text" id="name" placeholder="例：西中真里" required>
           </div>
 
           <div class="field">
@@ -213,7 +213,7 @@ input[type=text],textarea{
           <div class="companion-block" id="companionBlock">
             <div class="field">
               <label>申込者（ご一緒に参加される会員）のお名前 <span class="required">必須</span></label>
-              <input type="text" id="applicantName" placeholder="例：西中 真里">
+              <input type="text" id="applicantName" placeholder="例：西中真里">
               <div class="help" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6">
                 ご同伴者の方も、差し入れ先はご自身でお選びいただけます。
               </div>
@@ -478,7 +478,8 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   const statusEl = document.getElementById("formStatus");
   const submitBtn = document.getElementById("submitBtn");
   const nameDisplayEl = document.querySelector('input[name="nameDisplay"]:checked');
-  const name = document.getElementById("name").value.trim();
+  // 姓と名の間の空白は入れずに保存(印刷時の表記をそろえるため)
+  const name = document.getElementById("name").value.replace(/[\s　]+/g, "");
   // 回生は数字2桁まで(全角数字も受け付け)。保存は「52回生」の形
   const periodRaw = document.getElementById("period").value.trim()
     .replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
@@ -491,7 +492,7 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   const period = periodRaw ? `${Number(periodRaw)}回生` : "";
   const email = document.getElementById("email").value.trim();
   const isCompanion = document.getElementById("isCompanion").checked;
-  const applicantName = document.getElementById("applicantName").value.trim();
+  const applicantName = document.getElementById("applicantName").value.replace(/[\s　]+/g, "");
   const picked = selectedJennesInOrder();
 
   if(picked.length === 0){
@@ -516,6 +517,28 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   }
 
   submitBtn.disabled = true;
+
+  // 同じ回に同じお名前の申込がすでにあれば、確認して上書きする(二重申込の防止)
+  let overwrite = false;
+  try{
+    const norm = v => String(v || "").replace(/[\s　]+/g, "");
+    const { data: existing, error: exErr } = await supabase
+      .from("gift_letter_submissions")
+      .select("name")
+      .eq("event_id", targetEventId);
+    if(!exErr && (existing || []).some(r => norm(r.name) === norm(name))){
+      const ok = confirm(`「${name}」さんのお申し込みは、すでに受け付けています。\n\n今回の内容で上書き（変更）しますか？`);
+      if(!ok){
+        submitBtn.disabled = false;
+        statusEl.className = "status";
+        statusEl.textContent = "送信を取りやめました。前回のお申し込み内容のままです。";
+        return;
+      }
+      overwrite = true;
+    }
+  }catch(err){
+    console.warn("重複チェックに失敗:", err);
+  }
   try{
     const payload = {
       event_id: targetEventId,
@@ -533,6 +556,10 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
       extra_amount: currentExtra()
     };
 
+    if(overwrite){
+      const { error: owErr } = await supabase.rpc("overwrite_gift_submission", { p: payload });
+      if(owErr) throw owErr;
+    } else {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/gift_letter_submissions`, {
       method: "POST",
       headers: {
@@ -548,13 +575,14 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
       const bodyText = await res.text();
       throw new Error(`(${res.status}) ${bodyText}`);
     }
+    }
 
     const amount = calcAmount().total;
     document.getElementById("mainPanel").innerHTML = `
       <div class="done-card">
         <div class="check">✓</div>
         <h2>ご協力ありがとうございました</h2>
-        <p>お申し込みを受け付けました。<br>差し入れ先：${picked.map(r=>r.jennes.name + "さん").join("、")}<br><br>観劇会当日、チケットお渡しの際に<br>協力金（${yen(amount)}）をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
+        <p>${overwrite ? "お申し込み内容を変更しました。" : "お申し込みを受け付けました。"}<br>差し入れ先：${picked.map(r=>r.jennes.name + "さん").join("、")}<br><br>観劇会当日、チケットお渡しの際に<br>協力金（${yen(amount)}）をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
       </div>`;
   }catch(err){
     console.error(err);

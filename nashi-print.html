@@ -210,6 +210,8 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
 <!-- 外部CDNへの依存をやめ、ライブラリ本体を同じサイトに置いて読み込みます -->
 <script src="./supabase-js.min.js"></script>
 <script>
+// 会員さんのお名前は姓と名の間の空白を除いて表示・印刷する
+function nm(v){ return String(v || "").replace(/[\s　]+/g, ""); }
 const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
 
@@ -451,9 +453,9 @@ async function loadNames(keepJenne){
 
     const names = [];
     filterByJenne(data).forEach(r=>{
-      if(r.name_display === "記載") names.push(r.name);
+      if(r.name_display === "記載") names.push(nm(r.name));
       if(r.has_companion && r.companion_name_display === "記載" && r.companion_name){
-        names.push(r.companion_name);
+        names.push(nm(r.companion_name));
       }
     });
 

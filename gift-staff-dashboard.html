@@ -198,6 +198,8 @@ tr.paid-row td{background:var(--green-soft)}
 <!-- 外部CDNへの依存をやめ、ライブラリ本体を同じサイトに置いて読み込みます -->
 <script src="./supabase-js.min.js"></script>
 <script>
+// 会員さんのお名前は姓と名の間の空白を除いて表示・印刷する
+function nm(v){ return String(v || "").replace(/[\s　]+/g, ""); }
 const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
 
@@ -299,7 +301,7 @@ function rowJenneIds(r){
 // ご同伴者として申し込んだ方の表示
 function applicantNote(r){
   return r.applicant_name
-    ? `<br><span class="companion-tag">同</span><span style="font-size:12px;color:var(--muted)">申込者：${r.applicant_name}</span>`
+    ? `<br><span class="companion-tag">同</span><span style="font-size:12px;color:var(--muted)">申込者：${nm(r.applicant_name)}</span>`
     : "";
 }
 // 複数の差し入れ先を選んだ方は、協力金が何名分かを表示
@@ -492,12 +494,12 @@ function moneySectionHtml(){
   const body = rows.map(r=>{
     const jn = rowJenneIds(r).map(id=>jenneMap[id]?.name).filter(Boolean).map(n=>n.replace(/[\s　]+/g,""));
     const companion = r.has_companion && r.companion_name
-      ? `<br><span class="companion-tag">同</span><span style="font-size:12px;color:var(--muted)">${r.companion_name}</span>` : "";
+      ? `<br><span class="companion-tag">同</span><span style="font-size:12px;color:var(--muted)">${nm(r.companion_name)}</span>` : "";
     return `
       <tr class="${r.paid_at ? "paid-row" : ""}">
         ${paidCell(r)}
         <td style="white-space:nowrap">${r.period || ""}</td>
-        <td>${r.name}${applicantNote(r)}${companion}${jn.length > 1 ? `<div class="money-jennes">${jn.join("・")}</div>` : ""}</td>
+        <td>${nm(r.name)}${applicantNote(r)}${companion}${jn.length > 1 ? `<div class="money-jennes">${jn.join("・")}</div>` : ""}</td>
         <td style="white-space:nowrap">${yen(rowAmount(r))}${extraAmount(r) > 0 ? `<br><span class="badge">上乗せ＋${yen(extraAmount(r))}</span>` : ""}${sharedNote(r)}</td>
       </tr>`;
   }).join("");
@@ -523,13 +525,13 @@ function jenneSectionsHtml(withStats){
       const mainRow = `
       <tr>
         <td>${r.period || ""}</td>
-        <td>${r.name}${applicantNote(r)}</td>
+        <td>${nm(r.name)}${applicantNote(r)}</td>
         <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
       </tr>`;
       const companionRow = r.has_companion ? `
       <tr class="companion-row">
         <td>${r.period || ""}</td>
-        <td><span class="companion-tag">同</span>${r.companion_name || ""}</td>
+        <td><span class="companion-tag">同</span>${nm(r.companion_name)}</td>
         <td>${r.companion_name_display ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display}</span>` : ""}</td>
       </tr>` : "";
       return mainRow + companionRow;
@@ -766,9 +768,9 @@ async function selectBackground(bgId, el){
 
     const names = [];
     filterByJenne(data).forEach(r=>{
-      if(r.name_display === "記載") names.push(r.name);
+      if(r.name_display === "記載") names.push(nm(r.name));
       if(r.has_companion && r.companion_name_display === "記載" && r.companion_name){
-        names.push(r.companion_name);
+        names.push(nm(r.companion_name));
       }
     });
     if(names.length===0){
