@@ -180,7 +180,10 @@ input[type=text],textarea{
         <form id="giftForm">
           <div class="field">
             <label>回生 <span class="required" id="periodRequired">必須</span></label>
-            <input type="text" id="period" placeholder="例：102回生" required>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" id="period" inputmode="numeric" maxlength="2" placeholder="例：52" required style="width:90px;text-align:center">
+              <span style="font-size:15px">回生</span>
+            </div>
           </div>
 
           <div class="field">
@@ -472,7 +475,16 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   const submitBtn = document.getElementById("submitBtn");
   const nameDisplayEl = document.querySelector('input[name="nameDisplay"]:checked');
   const name = document.getElementById("name").value.trim();
-  const period = document.getElementById("period").value.trim();
+  // 回生は数字2桁まで(全角数字も受け付け)。保存は「52回生」の形
+  const periodRaw = document.getElementById("period").value.trim()
+    .replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/回生$/, "");
+  if(periodRaw && !/^\d{1,2}$/.test(periodRaw)){
+    statusEl.className = "status err";
+    statusEl.textContent = "回生は数字（2桁まで）でご入力ください。";
+    return;
+  }
+  const period = periodRaw ? `${Number(periodRaw)}回生` : "";
   const email = document.getElementById("email").value.trim();
   const isCompanion = document.getElementById("isCompanion").checked;
   const applicantName = document.getElementById("applicantName").value.trim();
