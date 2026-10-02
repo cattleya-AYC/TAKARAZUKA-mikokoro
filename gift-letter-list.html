@@ -88,6 +88,12 @@ tr.paid-row td{background:var(--green-soft)}
   .print-check-col{display:table-cell !important}
   .no-print{display:none !important}
 }
+
+/* お金の回収リスト／ジェンヌさん別リストの見出し */
+.list-section-title{font-size:15px;font-weight:700;color:var(--ink,#333);margin:18px 0 4px;padding-top:12px;border-top:1px dashed var(--line)}
+.list-section-title:first-child{border-top:0;padding-top:0;margin-top:4px}
+.list-section-note{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.money-jennes{font-size:11.5px;color:var(--muted);line-height:1.5}
 </style>
 </head>
 <body>
@@ -434,6 +440,77 @@ document.addEventListener("click", e=>{
   if(b) togglePaid(b.dataset.paidId, b);
 });
 
+// 回生の数字(「52回生」→52)。空は最後
+function memberPeriodNum(p){
+  const m = String(p || "").match(/\d+/);
+  return m ? Number(m[0]) : 99999;
+}
+// 上：協力金の回収リスト(1人1行・受取チェック付き)
+function moneySectionHtml(){
+  const rows = [...currentRows].sort((a,b)=>
+    memberPeriodNum(a.period) - memberPeriodNum(b.period) || String(a.name).localeCompare(String(b.name), "ja"));
+  const body = rows.map(r=>{
+    const jn = rowJenneIds(r).map(id=>jenneMap[id]?.name).filter(Boolean).map(n=>n.replace(/[\s　]+/g,""));
+    const companion = r.has_companion && r.companion_name
+      ? `<br><span class="companion-tag">同</span><span style="font-size:12px;color:var(--muted)">${r.companion_name}</span>` : "";
+    return `
+      <tr class="${r.paid_at ? "paid-row" : ""}">
+        ${paidCell(r)}
+        <td style="white-space:nowrap">${r.period || ""}</td>
+        <td>${r.name}${applicantNote(r)}${companion}${jn.length > 1 ? `<div class="money-jennes">${jn.join("・")}</div>` : ""}</td>
+        <td style="white-space:nowrap">${yen(rowAmount(r))}${extraAmount(r) > 0 ? `<br><span class="badge">上乗せ＋${yen(extraAmount(r))}</span>` : ""}${sharedNote(r)}</td>
+      </tr>`;
+  }).join("");
+  return `
+    <div class="list-section-title">💰 協力金の回収リスト</div>
+    <p class="list-section-note">お金を受け取ったら、左の四角をタップしてください。</p>
+    <div class="jenne-group">
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th class="paid-col print-check-col">受取</th><th>回生</th><th>お名前</th><th>協力金</th></tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+// 下：ジェンヌさんごとの差し入れ者リスト(チェックなし)
+function jenneSectionsHtml(withStats){
+  const grouped = groupByJenne(currentRows);
+  return `<div class="list-section-title">🎁 ジェンヌさんごとの差し入れ者</div>` + grouped.map(g=>{
+    const people = g.rows.reduce((sum,r)=>sum + peopleCount(r), 0);
+    const sortedRows = [...g.rows].sort((x,y)=>memberPeriodNum(x.period) - memberPeriodNum(y.period));
+    const rowsHtml = sortedRows.map(r=>{
+      const mainRow = `
+      <tr>
+        <td>${r.period || ""}</td>
+        <td>${r.name}${applicantNote(r)}</td>
+        <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
+      </tr>`;
+      const companionRow = r.has_companion ? `
+      <tr class="companion-row">
+        <td>${r.period || ""}</td>
+        <td><span class="companion-tag">同</span>${r.companion_name || ""}</td>
+        <td>${r.companion_name_display ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display}</span>` : ""}</td>
+      </tr>` : "";
+      return mainRow + companionRow;
+    }).join("");
+    const title = `差し入れ先：${g.period ? g.period + "　" : ""}${g.name}さん`;
+    const head = withStats
+      ? `<div class="jenne-group-head"><span class="name">${title}</span><span class="stats">人数：<b>${people}名</b></span></div>`
+      : `<div class="jenne-group-head">${title}（${people}名）</div>`;
+    return `
+    <div class="jenne-group">
+      ${head}
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>回生</th><th>お名前</th><th>外装記名</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join("");
+}
+
 function render(){
   const container = document.getElementById("jenneGroups");
   const totalPeople = currentRows.reduce((sum,r)=>sum + peopleCount(r), 0);
@@ -450,49 +527,7 @@ function render(){
     return;
   }
 
-  // 差し入れ先(ジェンヌ)ごとにグループ化
-  const grouped = groupByJenne(currentRows);
-
-  container.innerHTML = grouped.map(g=>{
-    const rows = g.rows;
-    const name = g.name;
-    const people = rows.reduce((sum,r)=>sum + peopleCount(r), 0);
-    const rowsHtml = rows.map(r=>{
-      const mainRow = `
-      <tr class="${r.paid_at ? "paid-row" : ""}">
-        ${paidCell(r)}
-        <td>${r.period || ""}</td>
-        <td>${r.name}${applicantNote(r)}</td>
-        <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
-        <td style="white-space:nowrap">${yen(rowAmount(r))}${extraAmount(r) > 0 ? `<br><span class="badge">上乗せ＋${yen(extraAmount(r))}</span>` : ""}${sharedNote(r)}</td>
-      </tr>`;
-      const companionRow = r.has_companion ? `
-      <tr class="companion-row">
-        <td class="print-check-col"><span class="print-check-box"></span></td>
-        <td>${r.period || ""}</td>
-        <td><span class="companion-tag">同</span>${r.companion_name || ""}</td>
-        <td>${r.companion_name_display ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display}</span>` : ""}</td>
-        <td></td>
-      </tr>` : "";
-      return mainRow + companionRow;
-    }).join("");
-
-    return `
-    <div class="jenne-group">
-      <div class="jenne-group-head">
-        <span class="name">差し入れ先：${g.period ? g.period + "　" : ""}${name}さん</span>
-        <span class="stats">人数：<b>${people}名</b></span>
-      </div>
-      <div style="overflow-x:auto">
-        <table>
-          <thead>
-            <tr><th class="print-check-col">受取</th><th>回生</th><th>お名前</th><th>外装記名</th><th>協力金</th></tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-      </div>
-    </div>`;
-  }).join("");
+  container.innerHTML = moneySectionHtml() + jenneSectionsHtml(true);
 }
 
 let generatedEmailHtml = "";
