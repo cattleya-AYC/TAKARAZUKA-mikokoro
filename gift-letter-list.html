@@ -67,7 +67,17 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
   width:22px;height:22px;border-radius:50%;border:2px solid var(--green-dark);
   color:var(--green-dark);font-weight:700;font-size:12px;margin-right:6px;flex-shrink:0;
 }
-.print-check-col{display:none;width:34px}
+.print-check-col{width:46px;text-align:center}
+/* 協力金の受取チェック */
+.paid-col{width:46px;text-align:center}
+.paid-btn{
+  width:32px;height:32px;border-radius:8px;border:2px solid #b9b2aa;background:#fff;
+  font-size:18px;font-weight:700;color:#fff;cursor:pointer;padding:0;line-height:1;
+}
+.paid-btn.on{background:var(--green-dark);border-color:var(--green-dark)}
+.paid-btn:disabled{opacity:.5}
+tr.paid-row td{background:var(--green-soft)}
+
 .print-check-box{
   display:inline-block;width:18px;height:18px;border:1.5px solid #999;border-radius:4px;vertical-align:middle;
 }
@@ -102,6 +112,7 @@ button{border:0;border-radius:10px;padding:9px 14px;font:inherit;cursor:pointer;
         <div class="info-card"><div class="label">申込件数</div><div class="value" id="countValue">-</div></div>
         <div class="info-card"><div class="label">協力人数（同伴者含む）</div><div class="value" id="peopleValue">-</div></div>
         <div class="info-card"><div class="label">合計金額（上乗せ含む）</div><div class="value" id="totalAmountValue">-</div></div>
+        <div class="info-card"><div class="label">協力金 受取済</div><div class="value" id="paidValue">-</div></div>
         <div class="info-card"><div class="label">うち上乗せ分</div><div class="value" id="extraAmountValue">-</div></div>
         <div class="info-card"><div class="label">お菓子担当・楽屋口届け</div><div class="value" id="dutyStaffValue">-</div></div>
         <div class="info-card"><div class="label">金銭回収担当</div><div class="value" id="dutyPartnerValue">-</div></div>
@@ -388,6 +399,39 @@ function extraAmount(r){ return Number(r.extra_amount) || 0; }
 function rowAmount(r){ return baseFee(r) * peopleCount(r) + extraAmount(r); }
 function yen(n){ return Number(n).toLocaleString("ja-JP") + "円"; }
 
+
+// ===== 協力金の受取チェック =====
+function paidCell(r){
+  return `<td class="paid-col"><button type="button" class="paid-btn ${r.paid_at ? "on" : ""}" data-paid-id="${r.id}" aria-label="受取チェック">${r.paid_at ? "✓" : ""}</button></td>`;
+}
+function updatePaidSummary(){
+  const el = document.getElementById("paidValue");
+  if(!el) return;
+  const paid = currentRows.filter(r=>r.paid_at);
+  const paidAmount = paid.reduce((sum,r)=>sum + rowAmount(r), 0);
+  el.innerHTML = `${paid.length} / ${currentRows.length}件<br><span style="font-size:13px">${yen(paidAmount)}</span>`;
+}
+async function togglePaid(id, btn){
+  const row = currentRows.find(r=>r.id===id);
+  if(!row) return;
+  const next = !row.paid_at;
+  if(!next && !confirm(`${row.name}さんの「受取済」を取り消しますか？`)) return;
+  document.querySelectorAll(`.paid-btn[data-paid-id="${id}"]`).forEach(b=>b.disabled = true);
+  try{
+    const { data, error } = await supabase.rpc("set_gift_paid", { p_id: id, p_paid: next });
+    if(error) throw error;
+    row.paid_at = data;
+  }catch(err){
+    console.error(err);
+    alert("保存できませんでした。通信状態を確認して、もう一度お試しください。\n" + (err.message || err));
+  }
+  render();
+}
+document.addEventListener("click", e=>{
+  const b = e.target.closest(".paid-btn");
+  if(b) togglePaid(b.dataset.paidId, b);
+});
+
 function render(){
   const container = document.getElementById("jenneGroups");
   const totalPeople = currentRows.reduce((sum,r)=>sum + peopleCount(r), 0);
@@ -396,6 +440,7 @@ function render(){
   const totalAmount = currentRows.reduce((sum,r)=>sum + rowAmount(r), 0);
   const totalExtra = currentRows.reduce((sum,r)=>sum + extraAmount(r), 0);
   document.getElementById("totalAmountValue").textContent = yen(totalAmount);
+  updatePaidSummary();
   document.getElementById("extraAmountValue").textContent = yen(totalExtra);
 
   if(currentRows.length===0){
@@ -412,8 +457,8 @@ function render(){
     const people = rows.reduce((sum,r)=>sum + peopleCount(r), 0);
     const rowsHtml = rows.map(r=>{
       const mainRow = `
-      <tr>
-        <td class="print-check-col"><span class="print-check-box"></span></td>
+      <tr class="${r.paid_at ? "paid-row" : ""}">
+        ${paidCell(r)}
         <td>${r.period || ""}</td>
         <td>${r.name}${applicantNote(r)}</td>
         <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
@@ -439,7 +484,7 @@ function render(){
       <div style="overflow-x:auto">
         <table>
           <thead>
-            <tr><th class="print-check-col"></th><th>回生</th><th>お名前</th><th>外装記名</th><th>協力金</th></tr>
+            <tr><th class="print-check-col">受取</th><th>回生</th><th>お名前</th><th>外装記名</th><th>協力金</th></tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>

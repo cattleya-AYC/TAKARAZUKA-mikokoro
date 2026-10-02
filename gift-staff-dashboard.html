@@ -46,6 +46,16 @@ th,td{border-bottom:1px solid #f0ece5;padding:9px 6px;text-align:left}
 th{background:#faf8f5;color:var(--muted);font-size:12px}
 .badge{display:inline-block;padding:3px 9px;border-radius:999px;background:var(--green-soft);color:var(--green-dark);font-size:12px}
 .badge.none{background:#f3e8e2;color:#725b51}
+
+/* 協力金の受取チェック */
+.paid-col{width:46px;text-align:center}
+.paid-btn{
+  width:32px;height:32px;border-radius:8px;border:2px solid #b9b2aa;background:#fff;
+  font-size:18px;font-weight:700;color:#fff;cursor:pointer;padding:0;line-height:1;
+}
+.paid-btn.on{background:var(--green-dark);border-color:var(--green-dark)}
+.paid-btn:disabled{opacity:.5}
+tr.paid-row td{background:var(--green-soft)}
 .companion-tag{
   display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
   border-radius:50%;border:2px solid var(--green-dark);color:var(--green-dark);
@@ -104,6 +114,7 @@ th{background:#faf8f5;color:var(--muted);font-size:12px}
           <div class="info-card"><div class="label">申込件数</div><div class="value" id="countValue">-</div></div>
           <div class="info-card"><div class="label">協力人数（同伴者含む）</div><div class="value" id="peopleValue">-</div></div>
           <div class="info-card"><div class="label">合計金額</div><div class="value" id="totalAmountValue">-</div></div>
+          <div class="info-card"><div class="label">協力金 受取済</div><div class="value" id="paidValue">-</div></div>
           <div class="info-card"><div class="label">お菓子購入担当者</div><div class="value" id="dutyStaffValue" style="font-size:17px">-</div></div>
           <div class="info-card"><div class="label">金銭回収担当</div><div class="value" id="dutyPartnerValue" style="font-size:17px">-</div></div>
           <div class="info-card" style="grid-column:1/-1"><div class="label">楽屋口届け担当者(2名)</div><div class="value" id="dutyBothValue" style="font-size:17px">-</div></div>
@@ -428,12 +439,46 @@ async function loadSubmissions(){
   }
 }
 
+
+// ===== 協力金の受取チェック =====
+function paidCell(r){
+  return `<td class="paid-col"><button type="button" class="paid-btn ${r.paid_at ? "on" : ""}" data-paid-id="${r.id}" aria-label="受取チェック">${r.paid_at ? "✓" : ""}</button></td>`;
+}
+function updatePaidSummary(){
+  const el = document.getElementById("paidValue");
+  if(!el) return;
+  const paid = currentRows.filter(r=>r.paid_at);
+  const paidAmount = paid.reduce((sum,r)=>sum + rowAmount(r), 0);
+  el.innerHTML = `${paid.length} / ${currentRows.length}件<br><span style="font-size:13px">${yen(paidAmount)}</span>`;
+}
+async function togglePaid(id, btn){
+  const row = currentRows.find(r=>r.id===id);
+  if(!row) return;
+  const next = !row.paid_at;
+  if(!next && !confirm(`${row.name}さんの「受取済」を取り消しますか？`)) return;
+  document.querySelectorAll(`.paid-btn[data-paid-id="${id}"]`).forEach(b=>b.disabled = true);
+  try{
+    const { data, error } = await supabase.rpc("set_gift_paid", { p_id: id, p_paid: next });
+    if(error) throw error;
+    row.paid_at = data;
+  }catch(err){
+    console.error(err);
+    alert("保存できませんでした。通信状態を確認して、もう一度お試しください。\n" + (err.message || err));
+  }
+  renderSubmissions();
+}
+document.addEventListener("click", e=>{
+  const b = e.target.closest(".paid-btn");
+  if(b) togglePaid(b.dataset.paidId, b);
+});
+
 function renderSubmissions(){
   const container = document.getElementById("jenneGroups");
   const totalPeople = currentRows.reduce((sum,r)=>sum + peopleCount(r), 0);
   document.getElementById("countValue").textContent = currentRows.length + "件";
   document.getElementById("peopleValue").textContent = totalPeople + "名";
   document.getElementById("totalAmountValue").textContent = yen(currentRows.reduce((sum,r)=>sum + rowAmount(r), 0));
+  updatePaidSummary();
 
   if(currentRows.length===0){
     container.innerHTML = `<div class="empty">まだ申し込みがありません</div>`;
@@ -447,7 +492,8 @@ function renderSubmissions(){
     const name = g.name;
     const rowsHtml = rows.map(r=>{
       const mainRow = `
-      <tr>
+      <tr class="${r.paid_at ? "paid-row" : ""}">
+        ${paidCell(r)}
         <td>${r.period || ""}</td>
         <td>${r.name}${applicantNote(r)}</td>
         <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
@@ -455,6 +501,7 @@ function renderSubmissions(){
       </tr>`;
       const companionRow = r.has_companion ? `
       <tr>
+        <td></td>
         <td>${r.period || ""}</td>
         <td><span class="companion-tag">同</span>${r.companion_name || ""}</td>
         <td>${r.companion_name_display ? `<span class="badge ${r.companion_name_display==='不記載'?'none':''}">${r.companion_name_display}</span>` : ""}</td>
@@ -468,7 +515,7 @@ function renderSubmissions(){
       <div class="jenne-group-head">差し入れ先：${g.period ? g.period + "　" : ""}${name}さん</div>
       <div style="overflow-x:auto">
         <table>
-          <thead><tr><th>回生</th><th>お名前</th><th>外装記名</th><th>協力金</th></tr></thead>
+          <thead><tr><th class="paid-col">受取</th><th>回生</th><th>お名前</th><th>外装記名</th><th>協力金</th></tr></thead>
           <tbody>${rowsHtml}</tbody>
         </table>
       </div>
