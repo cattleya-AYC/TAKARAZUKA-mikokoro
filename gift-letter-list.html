@@ -182,6 +182,54 @@ if(!window.supabase){
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentRows = [];
+// ジェンヌ一覧(id → 名前・期)。複数選択(jenne_ids)の表示に使う
+let jenneMap = {};
+async function loadJenneMap(){
+  const { data, error } = await supabase.from("jennes").select("id, name, period");
+  if(error) throw error;
+  jenneMap = {};
+  (data || []).forEach(j=>{ jenneMap[j.id] = j; });
+}
+// 「98期」→98。期の数字が小さい人(上級生)が先
+function periodNum(p){
+  const m = String(p || "").match(/\d+/);
+  return m ? Number(m[0]) : 99999;
+}
+// 差し入れ先のID一覧(新:jenne_ids / 旧:jenne_id)
+function rowJenneIds(r){
+  if(Array.isArray(r.jenne_ids) && r.jenne_ids.length) return r.jenne_ids;
+  return r.jenne_id ? [r.jenne_id] : [];
+}
+// ご同伴者として申し込んだ方の表示
+function applicantNote(r){
+  return r.applicant_name
+    ? `<br><span class="companion-tag">同</span><span style="font-size:12px;color:var(--muted)">申込者：${r.applicant_name}</span>`
+    : "";
+}
+// 複数の差し入れ先を選んだ方の協力金は共通(一律)なので、その旨を表示
+function sharedNote(r){
+  const n = rowJenneIds(r).length;
+  return n > 1 ? `<br><span class="badge none">${n}名共通</span>` : "";
+}
+// 差し入れ先ごとにグループ化(上級生順)。複数選択の方は各グループに表示
+function groupByJenne(rows){
+  const groups = {};
+  rows.forEach(r=>{
+    const ids = rowJenneIds(r);
+    (ids.length ? ids : ["__none__"]).forEach(id=>{
+      if(!groups[id]) groups[id] = [];
+      groups[id].push(r);
+    });
+  });
+  return Object.keys(groups)
+    .map(id=>({
+      id,
+      name: id === "__none__" ? "未設定" : (jenneMap[id]?.name || "不明"),
+      period: id === "__none__" ? "" : (jenneMap[id]?.period || ""),
+      rows: groups[id]
+    }))
+    .sort((a,b)=>periodNum(a.period) - periodNum(b.period));
+}
 
 function showStatus(el, msg, isError){
   el.textContent = msg;
@@ -319,7 +367,7 @@ async function loadSubmissions(eventId){
       .select("*, jennes(name, period)")
       .order("created_at", { ascending:false });
     if(eventId) query = query.eq("event_id", eventId);
-    const { data, error } = await query;
+    const [{ data, error }] = await Promise.all([query, loadJenneMap()]);
     if(error) throw error;
     currentRows = data || [];
     render();
@@ -356,26 +404,20 @@ function render(){
   }
 
   // 差し入れ先(ジェンヌ)ごとにグループ化
-  const groups = {};
-  const order = [];
-  currentRows.forEach(r=>{
-    const key = r.jennes ? r.jennes.name : "未設定";
-    if(!groups[key]){ groups[key] = []; order.push(key); }
-    groups[key].push(r);
-  });
+  const grouped = groupByJenne(currentRows);
 
-  container.innerHTML = order.map(name=>{
-    const rows = groups[name];
+  container.innerHTML = grouped.map(g=>{
+    const rows = g.rows;
+    const name = g.name;
     const people = rows.reduce((sum,r)=>sum + peopleCount(r), 0);
-    const groupAmount = rows.reduce((sum,r)=>sum + rowAmount(r), 0);
     const rowsHtml = rows.map(r=>{
       const mainRow = `
       <tr>
         <td class="print-check-col"><span class="print-check-box"></span></td>
         <td>${r.period || ""}</td>
-        <td>${r.name}</td>
+        <td>${r.name}${applicantNote(r)}</td>
         <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
-        <td style="white-space:nowrap">${yen(rowAmount(r))}${extraAmount(r) > 0 ? `<br><span class="badge">上乗せ＋${yen(extraAmount(r))}</span>` : ""}</td>
+        <td style="white-space:nowrap">${yen(rowAmount(r))}${extraAmount(r) > 0 ? `<br><span class="badge">上乗せ＋${yen(extraAmount(r))}</span>` : ""}${sharedNote(r)}</td>
       </tr>`;
       const companionRow = r.has_companion ? `
       <tr class="companion-row">
@@ -391,8 +433,8 @@ function render(){
     return `
     <div class="jenne-group">
       <div class="jenne-group-head">
-        <span class="name">差し入れ先：${name}さん</span>
-        <span class="stats">人数：<b>${people}名</b>　合計金額：<b>${yen(groupAmount)}</b></span>
+        <span class="name">差し入れ先：${g.period ? g.period + "　" : ""}${name}さん</span>
+        <span class="stats">人数：<b>${people}名</b></span>
       </div>
       <div style="overflow-x:auto">
         <table>
@@ -767,10 +809,10 @@ document.getElementById("printBtn").addEventListener("click", ()=>{
 });
 
 document.getElementById("csvBtn").addEventListener("click", ()=>{
-  const rows = [["差し入れ先","お名前","回生","外装記名","同伴者","同伴者記名","基本額","上乗せ","協力金合計","送信日時"]];
+  const rows = [["差し入れ先","お名前","回生","外装記名","申込者(同伴者の場合)","同伴者","同伴者記名","基本額","上乗せ","協力金合計","送信日時"]];
   currentRows.forEach(r=>rows.push([
-    r.jennes ? r.jennes.name : "",
-    r.name, r.period||"", r.name_display,
+    rowJenneIds(r).map(id=>jenneMap[id]?.name || "").filter(Boolean).join("・"),
+    r.name, r.period||"", r.name_display, r.applicant_name||"",
     r.has_companion ? (r.companion_name||"") : "",
     r.has_companion ? (r.companion_name_display||"") : "",
     baseFee(r) * peopleCount(r), extraAmount(r), rowAmount(r),

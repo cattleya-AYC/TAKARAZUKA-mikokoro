@@ -134,6 +134,10 @@ button{border:0;border-radius:12px;padding:11px 16px;font:inherit;cursor:pointer
       <div class="section">
         <h2>① 対象の観劇会</h2>
         <select id="eventSelect"><option value="">読み込み中...</option></select>
+        <div id="nashiJenneWrap" style="display:none;margin-top:10px">
+          <label style="display:block;font-size:13.5px;margin-bottom:6px">差し入れ先（ジェンヌさんごとに1枚ずつ作ります）</label>
+          <select id="nashiJenneSelect"></select>
+        </div>
         <div class="status" id="loadStatus"></div>
       </div>
 
@@ -217,6 +221,52 @@ if(!window.supabase){
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentEventId = null;
+// ===== 差し入れ先(ジェンヌ)ごとにのし紙を分ける =====
+let currentJenneId = null;
+let jenneOptionsEventId = null;
+let jenneOptions = [];
+function periodNumN(p){
+  const m = String(p || "").match(/\d+/);
+  return m ? Number(m[0]) : 99999;
+}
+async function loadJenneOptions(){
+  const sel = document.getElementById("nashiJenneSelect");
+  const wrap = document.getElementById("nashiJenneWrap");
+  jenneOptionsEventId = currentEventId;
+  jenneOptions = [];
+  currentJenneId = null;
+  if(!currentEventId){ wrap.style.display = "none"; return; }
+  const { data, error } = await supabase
+    .from("event_gifts")
+    .select("jenne_id, jennes(name, period)")
+    .eq("event_id", currentEventId);
+  if(error) throw error;
+  jenneOptions = (data || []).filter(r=>r.jennes)
+    .sort((a,b)=>periodNumN(a.jennes.period) - periodNumN(b.jennes.period));
+  if(jenneOptions.length <= 1){
+    wrap.style.display = "none";
+    return;
+  }
+  sel.innerHTML = jenneOptions.map(r=>
+    `<option value="${r.jenne_id}">${r.jennes.period ? r.jennes.period + "　" : ""}${r.jennes.name}さん</option>`
+  ).join("");
+  currentJenneId = jenneOptions[0].jenne_id;
+  sel.value = currentJenneId;
+  wrap.style.display = "block";
+}
+// この差し入れ先を選んだ申込だけに絞る(差し入れ先が1名の回は全員)
+function filterByJenne(rows){
+  if(!currentJenneId) return rows || [];
+  return (rows || []).filter(r=>{
+    const ids = (Array.isArray(r.jenne_ids) && r.jenne_ids.length) ? r.jenne_ids : (r.jenne_id ? [r.jenne_id] : []);
+    return ids.length === 0 || ids.includes(currentJenneId);
+  });
+}
+function currentJenneLabel(){
+  const r = jenneOptions.find(x=>x.jenne_id===currentJenneId);
+  return r ? `${r.jennes.name}さん宛て：` : "";
+}
+
 let selectedBgUrl = null;
 let selectedBgId = null;
 let backgrounds = [];
@@ -257,6 +307,10 @@ async function loadEvents(){
 document.getElementById("eventSelect").addEventListener("change", async e=>{
   currentEventId = e.target.value || null;
   await loadNames();
+});
+document.getElementById("nashiJenneSelect").addEventListener("change", async e=>{
+  currentJenneId = e.target.value || null;
+  await loadNames(true);
 });
 
 async function loadBackgrounds(){
@@ -379,7 +433,7 @@ document.getElementById("bgUploadBtn").addEventListener("click", async ()=>{
   }
 });
 
-async function loadNames(){
+async function loadNames(keepJenne){
   const statusEl = document.getElementById("loadStatus");
   const overlay = document.getElementById("nameOverlay");
   if(!currentEventId){
@@ -388,14 +442,15 @@ async function loadNames(){
     return;
   }
   try{
+    if(!keepJenne || jenneOptionsEventId !== currentEventId) await loadJenneOptions();
     const { data, error } = await supabase
       .from("gift_letter_submissions")
-      .select("name, name_display, has_companion, companion_name, companion_name_display")
+      .select("name, name_display, has_companion, companion_name, companion_name_display, jenne_id, jenne_ids")
       .eq("event_id", currentEventId);
     if(error) throw error;
 
     const names = [];
-    (data || []).forEach(r=>{
+    filterByJenne(data).forEach(r=>{
       if(r.name_display === "記載") names.push(r.name);
       if(r.has_companion && r.companion_name_display === "記載" && r.companion_name){
         names.push(r.companion_name);
@@ -406,7 +461,7 @@ async function loadNames(){
     if(names.length===0){
       showStatus(statusEl, "「記載」を選んだ協力者がまだいません。", true);
     } else {
-      showStatus(statusEl, `${names.length}名分のお名前を読み込みました。`, false);
+      showStatus(statusEl, `${currentJenneLabel()}${names.length}名分のお名前を読み込みました。`, false);
     }
     renderPreview();
   }catch(err){

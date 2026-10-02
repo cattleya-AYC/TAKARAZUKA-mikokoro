@@ -157,6 +157,10 @@ th{background:#faf8f5;color:var(--muted);font-size:12px}
       <div class="section">
         <h2>🎀 のし紙を作る</h2>
         <p class="sub">背景を選ぶだけで、名前入りのし紙の画像ができます。できた画像を長押しして「写真に保存」を選んでください。</p>
+        <div id="nashiJenneWrap" style="display:none;margin:4px 0 12px">
+          <label style="display:block;font-size:13.5px;margin-bottom:6px">差し入れ先（ジェンヌさんごとに1枚ずつ作ります）</label>
+          <select id="nashiJenneSelect"></select>
+        </div>
         <div class="bg-gallery" id="bgGallery"><div class="empty">読み込み中...</div></div>
 
         <div class="result-box" id="resultBox">
@@ -210,7 +214,101 @@ function applyTroupeTheme(troupe){
 
 let eventsData = [];
 let currentEventId = null;
+// ===== 差し入れ先(ジェンヌ)ごとにのし紙を分ける =====
+let currentJenneId = null;
+let jenneOptionsEventId = null;
+let jenneOptions = [];
+function periodNumN(p){
+  const m = String(p || "").match(/\d+/);
+  return m ? Number(m[0]) : 99999;
+}
+async function loadJenneOptions(){
+  const sel = document.getElementById("nashiJenneSelect");
+  const wrap = document.getElementById("nashiJenneWrap");
+  jenneOptionsEventId = currentEventId;
+  jenneOptions = [];
+  currentJenneId = null;
+  if(!currentEventId){ wrap.style.display = "none"; return; }
+  const { data, error } = await supabase
+    .from("event_gifts")
+    .select("jenne_id, jennes(name, period)")
+    .eq("event_id", currentEventId);
+  if(error) throw error;
+  jenneOptions = (data || []).filter(r=>r.jennes)
+    .sort((a,b)=>periodNumN(a.jennes.period) - periodNumN(b.jennes.period));
+  if(jenneOptions.length <= 1){
+    wrap.style.display = "none";
+    return;
+  }
+  sel.innerHTML = jenneOptions.map(r=>
+    `<option value="${r.jenne_id}">${r.jennes.period ? r.jennes.period + "　" : ""}${r.jennes.name}さん</option>`
+  ).join("");
+  currentJenneId = jenneOptions[0].jenne_id;
+  sel.value = currentJenneId;
+  wrap.style.display = "block";
+}
+// この差し入れ先を選んだ申込だけに絞る(差し入れ先が1名の回は全員)
+function filterByJenne(rows){
+  if(!currentJenneId) return rows || [];
+  return (rows || []).filter(r=>{
+    const ids = (Array.isArray(r.jenne_ids) && r.jenne_ids.length) ? r.jenne_ids : (r.jenne_id ? [r.jenne_id] : []);
+    return ids.length === 0 || ids.includes(currentJenneId);
+  });
+}
+function currentJenneLabel(){
+  const r = jenneOptions.find(x=>x.jenne_id===currentJenneId);
+  return r ? `${r.jennes.name}さん宛て：` : "";
+}
+
 let currentRows = [];
+// ジェンヌ一覧(id → 名前・期)。複数選択(jenne_ids)の表示に使う
+let jenneMap = {};
+async function loadJenneMap(){
+  const { data, error } = await supabase.from("jennes").select("id, name, period");
+  if(error) throw error;
+  jenneMap = {};
+  (data || []).forEach(j=>{ jenneMap[j.id] = j; });
+}
+// 「98期」→98。期の数字が小さい人(上級生)が先
+function periodNum(p){
+  const m = String(p || "").match(/\d+/);
+  return m ? Number(m[0]) : 99999;
+}
+// 差し入れ先のID一覧(新:jenne_ids / 旧:jenne_id)
+function rowJenneIds(r){
+  if(Array.isArray(r.jenne_ids) && r.jenne_ids.length) return r.jenne_ids;
+  return r.jenne_id ? [r.jenne_id] : [];
+}
+// ご同伴者として申し込んだ方の表示
+function applicantNote(r){
+  return r.applicant_name
+    ? `<br><span class="companion-tag">同</span><span style="font-size:12px;color:var(--muted)">申込者：${r.applicant_name}</span>`
+    : "";
+}
+// 複数の差し入れ先を選んだ方の協力金は共通(一律)なので、その旨を表示
+function sharedNote(r){
+  const n = rowJenneIds(r).length;
+  return n > 1 ? `<br><span class="badge none">${n}名共通</span>` : "";
+}
+// 差し入れ先ごとにグループ化(上級生順)。複数選択の方は各グループに表示
+function groupByJenne(rows){
+  const groups = {};
+  rows.forEach(r=>{
+    const ids = rowJenneIds(r);
+    (ids.length ? ids : ["__none__"]).forEach(id=>{
+      if(!groups[id]) groups[id] = [];
+      groups[id].push(r);
+    });
+  });
+  return Object.keys(groups)
+    .map(id=>({
+      id,
+      name: id === "__none__" ? "未設定" : (jenneMap[id]?.name || "不明"),
+      period: id === "__none__" ? "" : (jenneMap[id]?.period || ""),
+      rows: groups[id]
+    }))
+    .sort((a,b)=>periodNum(a.period) - periodNum(b.period));
+}
 let backgrounds = [];
 
 function syncEventDisplay(){
@@ -249,7 +347,7 @@ async function loadEvents(){
   currentEventId = defaultEvent.id;
   sel.value = currentEventId;
   syncEventDisplay();
-  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard(), loadSavedReport()]);
+  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard(), loadSavedReport(), loadJenneOptions().catch(console.error)]);
 }
 
 // 登録済みの報告(写真)を表示
@@ -286,12 +384,18 @@ async function loadSavedReport(){
   }
 }
 
+document.getElementById("nashiJenneSelect").addEventListener("change", e=>{
+  currentJenneId = e.target.value || null;
+  // 差し入れ先を変えたら、背景を選び直してもらう
+  document.getElementById("resultBox").style.display = "none";
+  document.querySelectorAll(".bg-thumb").forEach(t=>t.classList.remove("selected"));
+});
 document.getElementById("eventSelect").addEventListener("change", async e=>{
   currentEventId = e.target.value || null;
   syncEventDisplay();
   document.getElementById("resultBox").style.display = "none";
   document.getElementById("reportStatus").className = "status";
-  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard(), loadSavedReport()]);
+  await Promise.all([loadSubmissions(), loadDutyStaff(), loadBackgrounds(), loadJenneNameForCard(), loadSavedReport(), loadJenneOptions().catch(console.error)]);
 });
 
 function peopleCount(r){
@@ -314,7 +418,7 @@ async function loadSubmissions(){
       .select("*, jennes(name, period)")
       .order("created_at", { ascending:false });
     if(currentEventId) query = query.eq("event_id", currentEventId);
-    const { data, error } = await query;
+    const [{ data, error }] = await Promise.all([query, loadJenneMap()]);
     if(error) throw error;
     currentRows = data || [];
     renderSubmissions();
@@ -336,23 +440,18 @@ function renderSubmissions(){
     return;
   }
 
-  const groups = {};
-  const order = [];
-  currentRows.forEach(r=>{
-    const key = r.jennes ? r.jennes.name : "未設定";
-    if(!groups[key]){ groups[key] = []; order.push(key); }
-    groups[key].push(r);
-  });
+  const grouped = groupByJenne(currentRows);
 
-  container.innerHTML = order.map(name=>{
-    const rows = groups[name];
+  container.innerHTML = grouped.map(g=>{
+    const rows = g.rows;
+    const name = g.name;
     const rowsHtml = rows.map(r=>{
       const mainRow = `
       <tr>
         <td>${r.period || ""}</td>
-        <td>${r.name}</td>
+        <td>${r.name}${applicantNote(r)}</td>
         <td><span class="badge ${r.name_display==='不記載'?'none':''}">${r.name_display}</span></td>
-        <td style="white-space:nowrap">${yen(rowAmount(r))}</td>
+        <td style="white-space:nowrap">${yen(rowAmount(r))}${sharedNote(r)}</td>
       </tr>`;
       const companionRow = r.has_companion ? `
       <tr>
@@ -366,7 +465,7 @@ function renderSubmissions(){
 
     return `
     <div class="jenne-group">
-      <div class="jenne-group-head">差し入れ先：${name}さん</div>
+      <div class="jenne-group-head">差し入れ先：${g.period ? g.period + "　" : ""}${name}さん</div>
       <div style="overflow-x:auto">
         <table>
           <thead><tr><th>回生</th><th>お名前</th><th>外装記名</th><th>協力金</th></tr></thead>
@@ -383,10 +482,12 @@ async function loadJenneNameForCard(){
   try{
     const { data, error } = await supabase
       .from("event_gifts")
-      .select("jennes(name)")
+      .select("jennes(name, period)")
       .eq("event_id", currentEventId);
     if(error) throw error;
-    const names = [...new Set((data||[]).map(r=>r.jennes?.name).filter(Boolean))];
+    const sorted = (data||[]).filter(r=>r.jennes)
+      .sort((x,y)=>periodNum(x.jennes.period) - periodNum(y.jennes.period));
+    const names = [...new Set(sorted.map(r=>r.jennes.name))];
     el.textContent = names.length ? names.join("・") : "未設定";
   }catch(err){
     console.error(err);
@@ -568,12 +669,12 @@ async function selectBackground(bgId, el){
   try{
     const { data, error } = await supabase
       .from("gift_letter_submissions")
-      .select("name, name_display, has_companion, companion_name, companion_name_display")
+      .select("name, name_display, has_companion, companion_name, companion_name_display, jenne_id, jenne_ids")
       .eq("event_id", currentEventId);
     if(error) throw error;
 
     const names = [];
-    (data || []).forEach(r=>{
+    filterByJenne(data).forEach(r=>{
       if(r.name_display === "記載") names.push(r.name);
       if(r.has_companion && r.companion_name_display === "記載" && r.companion_name){
         names.push(r.companion_name);
@@ -607,7 +708,7 @@ async function selectBackground(bgId, el){
       if(w) w.document.write(`<img src="${dataUrl}" style="max-width:100%">`);
     };
     document.getElementById("resultBox").scrollIntoView({ behavior:"smooth", block:"start" });
-    showStatus(statusEl, "画像ができました。下の画像を長押しして保存してください。", false);
+    showStatus(statusEl, `${currentJenneLabel()}画像ができました。下の画像を長押しして保存してください。`, false);
   }catch(err){
     console.error(err);
     showStatus(statusEl, "画像の作成に失敗しました：" + (err.message || err), true);

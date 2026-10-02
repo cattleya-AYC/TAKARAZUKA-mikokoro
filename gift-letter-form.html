@@ -61,6 +61,13 @@ main{padding:18px}
 .jenne-pick input{position:absolute;opacity:0;pointer-events:none}
 .jenne-pick input:checked ~ .jenne-photo{border-color:var(--green-dark)}
 .jenne-pick.checked{border-color:var(--green-dark);background:var(--green-soft)}
+.jenne-check{
+  position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;
+  border:2px solid var(--line);background:#fff;display:grid;place-items:center;
+  font-size:16px;color:transparent;font-weight:bold;
+}
+.jenne-pick.checked .jenne-check{background:var(--green-dark);border-color:var(--green-dark);color:#fff}
+.selected-summary{font-size:13.5px;color:var(--green-dark);margin:4px 0 0}
 .jenne-photo{width:128px;height:128px;border-radius:16px;object-fit:cover;background:#eee;flex-shrink:0;border:2px solid transparent;margin-bottom:4px}
 .jenne-photo.placeholder{display:grid;place-items:center;color:#a9b6a3;font-size:12px}
 .jenne-text .period{font-size:13px;color:var(--green-dark)}
@@ -147,6 +154,7 @@ input[type=text],textarea{
         <h2>差し入れ先のジェンヌさん</h2>
         <p id="jenneIntro" style="margin-bottom:10px">読み込み中...</p>
         <div id="jenneList"></div>
+        <p class="selected-summary" id="selectedSummary"></p>
         <div class="fee-badge" id="feeBadge">協力金 お一人様につき 200円</div>
       </section>
 
@@ -171,7 +179,7 @@ input[type=text],textarea{
         <h2>お申し込み</h2>
         <form id="giftForm">
           <div class="field">
-            <label>回生 <span class="required">必須</span></label>
+            <label>回生 <span class="required" id="periodRequired">必須</span></label>
             <input type="text" id="period" placeholder="例：102回生" required>
           </div>
 
@@ -195,26 +203,16 @@ input[type=text],textarea{
           </div>
 
           <label class="companion-toggle">
-            <input type="checkbox" id="hasCompanion">
-            <span>ご同伴者の方もご協力いただける場合はチェックしてください</span>
+            <input type="checkbox" id="isCompanion">
+            <span>ご同伴者としてお申し込みの方はチェックしてください</span>
           </label>
 
           <div class="companion-block" id="companionBlock">
             <div class="field">
-              <label>ご同伴者のお名前 <span class="required">必須</span></label>
-              <input type="text" id="companionName" placeholder="例：西中 花子">
-            </div>
-            <div class="field">
-              <label>ご同伴者の外装へのお名前について <span class="required">必須</span></label>
-              <div class="radio-row">
-                <label class="radio-option">
-                  <input type="radio" name="companionNameDisplay" value="記載">
-                  <span>記載</span>
-                </label>
-                <label class="radio-option">
-                  <input type="radio" name="companionNameDisplay" value="不記載">
-                  <span>不記載</span>
-                </label>
+              <label>申込者（ご一緒に参加される会員）のお名前 <span class="required">必須</span></label>
+              <input type="text" id="applicantName" placeholder="例：西中 真里">
+              <div class="help" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6">
+                ご同伴者の方も、差し入れ先はご自身でお選びいただけます。
               </div>
             </div>
           </div>
@@ -258,7 +256,14 @@ if(!window.supabase){
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let targetEventId = null;
-let selectedJenneId = null;
+let jenneRows = [];            // 表示中のジェンヌ(上級生順)
+const selectedJenneIds = new Set();
+
+// 「98期」→98。期が空や数字なしは最後に回す
+function periodNum(p){
+  const m = String(p || "").match(/\d+/);
+  return m ? Number(m[0]) : 99999;
+}
 
 // 差し入れ協力金の設定(イベントごと。未設定なら既定値)
 const DEFAULT_EXTRA_NOTE = "多めに出したいというお声がありましたので、任意の上乗せ欄を設けました。「なし」のままでまったく問題ありません。";
@@ -295,7 +300,8 @@ function currentExtra(){
 }
 
 function calcAmount(){
-  const people = document.getElementById("hasCompanion").checked ? 2 : 1;
+  // 同伴者は別に申し込むため、1件＝1名。差し入れ先の人数に関係なく一律
+  const people = 1;
   const base = giftBaseFee * people;
   const extra = currentExtra();
   return { people, base, extra, total: base + extra };
@@ -374,7 +380,10 @@ async function loadJennes(){
       .select("jenne_id, jennes(name, period, photo_url, profile_url)")
       .eq("event_id", targetEventId);
     if(error) throw error;
-    const rows = (data || []).filter(r => r.jennes);
+    // 上級生順(期の数字が小さい順)
+    const rows = (data || []).filter(r => r.jennes)
+      .sort((a,b)=>periodNum(a.jennes.period) - periodNum(b.jennes.period));
+    jenneRows = rows;
     if(rows.length===0){
       intro.textContent = "まだ決まっていません";
       return;
@@ -382,13 +391,14 @@ async function loadJennes(){
     if(rows.length===1){
       intro.textContent = "";
     } else {
-      intro.textContent = "今回は複数の方にお渡しします。差し入れ先を1名お選びください。";
+      intro.textContent = "今回は複数の方にお渡しします。差し入れにご協力いただける方を選んでください（複数選択できます）。";
     }
     listBox.innerHTML = rows.map(r=>{
       const j = r.jennes;
       return `
       <label class="jenne-pick" data-id="${r.jenne_id}">
-        <input type="radio" name="jenneChoice" value="${r.jenne_id}" required>
+        <input type="checkbox" name="jenneChoice" value="${r.jenne_id}">
+        ${rows.length > 1 ? `<span class="jenne-check">✓</span>` : ""}
         ${j.photo_url
           ? `<img class="jenne-photo" src="${j.photo_url}" alt="">`
           : `<div class="jenne-photo placeholder">写真なし</div>`}
@@ -400,11 +410,14 @@ async function loadJennes(){
       </label>`;
     }).join("");
 
-    listBox.querySelectorAll(".jenne-pick").forEach(label=>{
-      label.addEventListener("click", ()=>{
-        listBox.querySelectorAll(".jenne-pick").forEach(l=>l.classList.remove("checked"));
-        label.classList.add("checked");
-        selectedJenneId = label.dataset.id;
+    listBox.querySelectorAll(".jenne-pick input").forEach(input=>{
+      input.addEventListener("change", ()=>{
+        const label = input.closest(".jenne-pick");
+        if(rows.length===1) input.checked = true; // 1名のときは外せない
+        label.classList.toggle("checked", input.checked);
+        if(input.checked) selectedJenneIds.add(input.value);
+        else selectedJenneIds.delete(input.value);
+        updateSelectedSummary();
       });
     });
 
@@ -412,18 +425,35 @@ async function loadJennes(){
       const only = listBox.querySelector(".jenne-pick");
       only.querySelector("input").checked = true;
       only.classList.add("checked");
-      selectedJenneId = rows[0].jenne_id;
+      selectedJenneIds.add(rows[0].jenne_id);
     }
+    updateSelectedSummary();
   }catch(err){
     console.error(err);
     intro.textContent = "情報の取得に失敗しました";
   }
 }
 
-document.getElementById("hasCompanion").addEventListener("change", (e)=>{
+// 選択中のジェンヌ(上級生順)
+function selectedJennesInOrder(){
+  return jenneRows.filter(r=>selectedJenneIds.has(r.jenne_id));
+}
+
+function updateSelectedSummary(){
+  const el = document.getElementById("selectedSummary");
+  if(jenneRows.length <= 1){ el.textContent = ""; return; }
+  const picked = selectedJennesInOrder();
+  el.textContent = picked.length
+    ? `選択中：${picked.map(r=>r.jennes.name + "さん").join("、")}`
+    : "まだ選ばれていません";
+}
+
+document.getElementById("isCompanion").addEventListener("change", (e)=>{
   document.getElementById("companionBlock").classList.toggle("show", e.target.checked);
-  document.getElementById("companionName").required = e.target.checked;
-  updateAmountPreview();
+  document.getElementById("applicantName").required = e.target.checked;
+  // ご同伴者は回生がない場合もあるので任意にする
+  document.getElementById("period").required = !e.target.checked;
+  document.getElementById("periodRequired").style.display = e.target.checked ? "none" : "";
 });
 
 document.getElementById("extraAmount").addEventListener("change", updateAmountPreview);
@@ -432,7 +462,7 @@ function updateAmountPreview(){
   const a = calcAmount();
   document.getElementById("amountText").textContent = yen(a.total);
   document.getElementById("amountBreakdown").textContent = a.extra > 0
-    ? `（${yen(giftBaseFee)}×${a.people}名 ＋ 上乗せ${yen(a.extra)}）`
+    ? `（${yen(giftBaseFee)} ＋ 上乗せ${yen(a.extra)}）`
     : "";
 }
 
@@ -444,16 +474,16 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   const name = document.getElementById("name").value.trim();
   const period = document.getElementById("period").value.trim();
   const email = document.getElementById("email").value.trim();
-  const hasCompanion = document.getElementById("hasCompanion").checked;
-  const companionName = document.getElementById("companionName").value.trim();
-  const companionNameDisplayEl = document.querySelector('input[name="companionNameDisplay"]:checked');
+  const isCompanion = document.getElementById("isCompanion").checked;
+  const applicantName = document.getElementById("applicantName").value.trim();
+  const picked = selectedJennesInOrder();
 
-  if(!selectedJenneId){
+  if(picked.length === 0){
     statusEl.className = "status err";
-    statusEl.textContent = "差し入れ先のジェンヌさんをお選びください。";
+    statusEl.textContent = "差し入れ先のジェンヌさんを1名以上お選びください。";
     return;
   }
-  if(!nameDisplayEl || !name || !period){
+  if(!nameDisplayEl || !name || (!period && !isCompanion)){
     statusEl.className = "status err";
     statusEl.textContent = "必須項目をすべてご入力ください。";
     return;
@@ -463,9 +493,9 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
     statusEl.textContent = "メールアドレスをご入力ください。";
     return;
   }
-  if(hasCompanion && (!companionName || !companionNameDisplayEl)){
+  if(isCompanion && !applicantName){
     statusEl.className = "status err";
-    statusEl.textContent = "ご同伴者のお名前と外装へのお名前についてをご入力ください。";
+    statusEl.textContent = "申込者（ご一緒に参加される会員）のお名前をご入力ください。";
     return;
   }
 
@@ -473,14 +503,16 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
   try{
     const payload = {
       event_id: targetEventId,
-      jenne_id: selectedJenneId,
+      jenne_id: picked[0].jenne_id,              // 互換用(先頭の1名)
+      jenne_ids: picked.map(r=>r.jenne_id),      // 選んだ全員
       name,
       name_display: nameDisplayEl.value,
-      period,
+      period: period || null,
       email: email || null,
-      has_companion: hasCompanion,
-      companion_name: hasCompanion ? companionName : null,
-      companion_name_display: hasCompanion ? companionNameDisplayEl.value : null,
+      has_companion: false,
+      companion_name: null,
+      companion_name_display: null,
+      applicant_name: isCompanion ? applicantName : null,
       base_fee: giftBaseFee,
       extra_amount: currentExtra()
     };
@@ -506,7 +538,7 @@ document.getElementById("giftForm").addEventListener("submit", async (e)=>{
       <div class="done-card">
         <div class="check">✓</div>
         <h2>ご協力ありがとうございました</h2>
-        <p>お申し込みを受け付けました。<br>観劇会当日、チケットお渡しの際に<br>協力金（${yen(amount)}）をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
+        <p>お申し込みを受け付けました。<br>差し入れ先：${picked.map(r=>r.jennes.name + "さん").join("、")}<br><br>観劇会当日、チケットお渡しの際に<br>協力金（${yen(amount)}）をお預かりいたします。<br>どうぞよろしくお願いいたします。</p>
       </div>`;
   }catch(err){
     console.error(err);
