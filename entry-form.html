@@ -1410,6 +1410,54 @@
     if(pendingData) performSubmit(pendingData);
   });
 
+  // ---- 確認メールに付ける「お食事メニュー選択」ボタン ----
+  // 条件:お食事「出席」 かつ その回の食事フォームが完成している
+  //   (= lunch-admin.html でメニューが1つ以上登録済み[meal_menus.active=true])
+  //   かつ 食事フォームの締切(+猶予2日。lunch-entry.html と同じ)を過ぎていない
+  // 条件を満たさない/確認に失敗した場合は空文字を返し、今までどおりのメールになる。
+  const LUNCH_ENTRY_BASE = 'https://takarazuka-mikokoro.vercel.app/lunch-entry.html';
+  const MEAL_DEADLINE_GRACE_DAYS = 2;
+  const MEAL_BTN_COLORS = { '花':'#a86579', '月':'#b9973f', '雪':'#5a8f6d', '星':'#4d7bab', '宙':'#8f65ab' };
+
+  async function getMealFormInfo(ev, wantsMeal){
+    if(!wantsMeal || !ev || !sb) return null;
+    try {
+      const { data: menus, error: mErr } = await sb
+        .from('meal_menus').select('id').eq('event_id', ev.id).eq('active', true).limit(1);
+      if(mErr || !menus || menus.length === 0) return null;
+
+      const { data: settings } = await sb
+        .from('meal_settings').select('deadline').eq('event_id', ev.id).maybeSingle();
+      const deadline = settings?.deadline || '';
+      if(deadline){
+        const today = new Date(); today.setHours(0,0,0,0);
+        const closeDay = new Date(deadline + 'T00:00:00');
+        closeDay.setDate(closeDay.getDate() + MEAL_DEADLINE_GRACE_DAYS);
+        if(today > closeDay) return null;
+      }
+      return { url: `${LUNCH_ENTRY_BASE}?event_id=${ev.id}`, deadline };
+    } catch(e){
+      console.warn('食事フォームの確認に失敗しました', e);
+      return null;
+    }
+  }
+
+  function buildMealButtonHtml(info, troupe){
+    if(!info) return '';
+    const color = MEAL_BTN_COLORS[troupe] || MEAL_BTN_COLORS['花'];
+    const url = escapeHtml(info.url);
+    const deadlineLine = info.deadline
+      ? `<div style="margin-top:14px; font-size:13px; color:#8c747c;">お食事メニューの登録締切:<strong style="color:${color};">${escapeHtml(formatDateJp(info.deadline))}</strong></div>`
+      : '';
+    return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0 24px; background:#fff9fa; border:1px solid #ead6dc; border-radius:12px;">
+<tr><td align="center" style="padding:24px 18px; font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Yu Gothic',YuGothic,Meiryo,sans-serif;">
+<div style="font-size:14px; color:#4b4145; line-height:1.8; margin-bottom:14px;">お食事会へのご参加ありがとうございます。<br>当日のお食事メニュー・お飲み物を、下記よりお選びください。</div>
+<a href="${url}" style="display:inline-block; background:${color}; color:#ffffff; text-decoration:none; font-size:16px; font-weight:bold; padding:14px 34px; border-radius:8px;">🍽 お食事メニューを選ぶ</a>
+${deadlineLine}
+</td></tr>
+</table>`;
+  }
+
   async function performSubmit(data){
     const confirmStatusMsg = document.getElementById('confirmStatusMsg');
     const sendBtn = document.getElementById('confirmSendBtn');
@@ -1532,6 +1580,7 @@
 
       // 申込み確認メールを自動送信(失敗しても申込み自体は成立させる)
       try {
+        const mealInfo = await getMealFormInfo(currentEvent, data.meal === 'ご参加');
         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
           email: data.email,
           to_name: data.full_name,
@@ -1542,7 +1591,10 @@
           event_date: formatDateJp(currentEvent.event_date),
           show_time: currentEvent.show_time || '',
           ticket_count: data.participant_count,
-          meal: data.meal
+          meal: data.meal,
+          // EmailJSテンプレート側に {{{meal_form_button}}}(波かっこ3つ)を置くと表示される。対象外の人は空欄
+          meal_form_button: buildMealButtonHtml(mealInfo, currentEvent.troupe),
+          meal_form_url: mealInfo ? mealInfo.url : ''
         });
       } catch(mailErr){
         console.warn('確認メールの送信に失敗しました', mailErr);
