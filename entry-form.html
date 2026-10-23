@@ -1050,12 +1050,19 @@
 
     // 場所・ご予算の案内文(まりさんが個別に入力していればそちらを優先。無ければ自動の文言)
     // 予定店が表示されている場合は「場所」は案内済みなので、ご予算のみの文言にする
-    document.getElementById('mealPlaceNotice').textContent =
-      currentEvent.meal_notice_override && currentEvent.meal_notice_override.trim()
-        ? currentEvent.meal_notice_override
-        : (hasVenue
-            ? 'お食事会のご予算・メニューにつきましては、後日あらためてご連絡いたします。'
-            : 'お食事会の場所・ご予算につきましては、後日あらためてご連絡いたします。');
+    // (2026/10/23)予定店を表示している回は、自動文言の枠ごと非表示(スタッフ指摘:不要)。
+    //   予定店が未定の回、または個別文言(meal_notice_override)が入っている回だけ表示する。
+    const placeNoticeEl = document.getElementById('mealPlaceNotice');
+    const overrideText = (currentEvent.meal_notice_override || '').trim();
+    if(overrideText){
+      placeNoticeEl.textContent = overrideText;
+      placeNoticeEl.style.display = '';
+    } else if(hasVenue){
+      placeNoticeEl.style.display = 'none';
+    } else {
+      placeNoticeEl.textContent = 'お食事会の場所・ご予算につきましては、後日あらためてご連絡いたします。';
+      placeNoticeEl.style.display = '';
+    }
 
     document.getElementById('mainContent').style.display = 'block';
   }
