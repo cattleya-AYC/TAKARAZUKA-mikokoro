@@ -328,6 +328,21 @@
   }
   .done-mail-title{ margin:0; font-size:20px; font-weight:800; color:var(--rose); line-height:1.4; }
   .done-mail-sub{ margin:10px 0 0; font-size:13px; color:var(--muted-text); line-height:1.8; }
+  /* 完了画面:お食事メニュー選択ボタン(食事出席+食事フォーム完成済みの回のみ表示) */
+  .done-meal-box{
+    background:var(--navy-card); border:2px solid var(--gold); border-radius:14px;
+    padding:20px 16px; margin:22px 0 14px; text-align:center;
+  }
+  .done-meal-text{ margin:0 0 14px; font-size:13.5px; color:var(--cream); line-height:1.8; }
+  .done-meal-btn{
+    display:inline-block; padding:14px 30px; border-radius:10px; text-decoration:none;
+    background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%);
+    color:#fffaf3; font-size:16px; font-weight:800; letter-spacing:.03em;
+    box-shadow:0 3px 10px rgba(0,0,0,.12);
+  }
+  .done-meal-deadline{ margin:14px 0 0; font-size:12.5px; color:var(--muted-text); }
+  .done-meal-deadline b{ color:var(--gold-soft); }
+  .done-meal-later{ margin:8px 0 0; font-size:11.5px; color:var(--muted-text); line-height:1.7; }
   .done-alert-box{
     background:var(--navy-card-2); border:1px solid var(--gold); border-radius:12px;
     padding:16px 15px; margin-bottom:14px; text-align:left;
@@ -633,6 +648,13 @@
     <div class="mark">👑</div>
     <h2>お申込みを<br>受け付けました</h2>
     <p>お取次結果は締切後1週間以内に<br>公式LINEでご連絡いたします。</p>
+
+    <div class="done-meal-box" id="doneMealBox" style="display:none;">
+      <p class="done-meal-text">お食事会へのご参加<br>ありがとうございます。<br>当日のお食事メニュー・お飲み物を<br>下記よりお選びください。</p>
+      <a class="done-meal-btn" id="doneMealBtn" href="#">🍽 お食事メニューを選ぶ</a>
+      <p class="done-meal-deadline" id="doneMealDeadline" style="display:none;"></p>
+      <p class="done-meal-later">※確認メールのボタンからも<br>あとでお選びいただけます。</p>
+    </div>
 
     <div class="done-mail-box">
       <p class="done-mail-title">メールを送信しました‼️</p>
@@ -1458,6 +1480,21 @@ ${deadlineLine}
 </table>`;
   }
 
+  function renderDoneMealBox(info){
+    const box = document.getElementById('doneMealBox');
+    if(!box) return;
+    if(!info){ box.style.display = 'none'; return; }
+    document.getElementById('doneMealBtn').href = info.url;
+    const dl = document.getElementById('doneMealDeadline');
+    if(info.deadline){
+      dl.innerHTML = `お食事メニューの登録締切<br><b>${escapeHtml(formatDateJp(info.deadline))}</b>`;
+      dl.style.display = 'block';
+    } else {
+      dl.style.display = 'none';
+    }
+    box.style.display = 'block';
+  }
+
   async function performSubmit(data){
     const confirmStatusMsg = document.getElementById('confirmStatusMsg');
     const sendBtn = document.getElementById('confirmSendBtn');
@@ -1579,8 +1616,11 @@ ${deadlineLine}
       }
 
       // 申込み確認メールを自動送信(失敗しても申込み自体は成立させる)
+      // 食事出席+食事フォーム完成済みの回なら、メールと完了画面の両方にボタンを出す
+      const mealInfo = await getMealFormInfo(currentEvent, data.meal === 'ご参加');
+      renderDoneMealBox(mealInfo);
+
       try {
-        const mealInfo = await getMealFormInfo(currentEvent, data.meal === 'ご参加');
         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
           email: data.email,
           to_name: data.full_name,
