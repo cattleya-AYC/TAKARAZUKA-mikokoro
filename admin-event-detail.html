@@ -289,6 +289,15 @@
     return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}(${w})`;
   }
 
+  // 日本時間のままで「YYYY-MM-DD」を作る(toISOStringは世界標準時になり1日ズレるため使わない)
+  function toLocalYmd(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  // 「YYYY-MM-DD」を日本時間の0時として読む
+  function parseLocalDate(str){
+    return new Date(str.length <= 10 ? str + 'T00:00:00' : str);
+  }
+
   function addDays(base, diff){
     const d = new Date(base.getTime());
     d.setDate(d.getDate() + diff);
@@ -309,7 +318,7 @@
     if(error) throw error;
 
     // 今日以降は開催日が近い順(昇順)、それより後ろに過去の回を新しい順で並べる
-    const today = new Date().toISOString().slice(0,10);
+    const today = toLocalYmd(new Date());
     const upcoming = (data || []).filter(e=>e.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
     const past = (data || []).filter(e=>e.event_date < today).sort((a,b)=>b.event_date.localeCompare(a.event_date));
     events = upcoming.concat(past);
@@ -344,8 +353,8 @@
 
   function renderSchedule(ev){
     const eventDate = new Date(ev.event_date + 'T00:00:00');
-    const start = ev.recruitment_start_date ? new Date(ev.recruitment_start_date) : addDays(eventDate, -59);
-    const deadline = ev.application_deadline ? new Date(ev.application_deadline) : addDays(eventDate, -51);
+    const start = ev.recruitment_start_date ? parseLocalDate(ev.recruitment_start_date) : addDays(eventDate, -59);
+    const deadline = ev.application_deadline ? parseLocalDate(ev.application_deadline) : addDays(eventDate, -51);
     const mealStart = addDays(eventDate, -49);
     const mealDeadline = addDays(eventDate, -42);
     const payStart = addDays(eventDate, -40);
@@ -376,7 +385,7 @@
     items.sort((a,b)=> a.date - b.date);
 
     document.getElementById('scheduleRows').innerHTML = items.map(item=>{
-      const dateStr = item.date.toISOString().slice(0,10);
+      const dateStr = toLocalYmd(item.date);
       const badge = item.isAuto ? '<span class="auto-badge">自動</span>' : '';
       return `<div class="schedule-row${item.highlight ? ' highlight' : ''}"><span>${item.label}${badge}</span><b>${formatDateJp(dateStr)}</b></div>`;
     }).join('');
@@ -393,8 +402,8 @@
 
   function renderLineText(ev){
     const eventDate = new Date(ev.event_date + 'T00:00:00');
-    const start = ev.recruitment_start_date ? new Date(ev.recruitment_start_date) : addDays(eventDate, -59);
-    const deadline = ev.application_deadline ? new Date(ev.application_deadline) : addDays(eventDate, -51);
+    const start = ev.recruitment_start_date ? parseLocalDate(ev.recruitment_start_date) : addDays(eventDate, -59);
+    const deadline = ev.application_deadline ? parseLocalDate(ev.application_deadline) : addDays(eventDate, -51);
     const mark = troupeMark[ev.troupe] || '✨';
 
     const text =
