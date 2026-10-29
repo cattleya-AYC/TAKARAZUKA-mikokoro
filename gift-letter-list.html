@@ -94,6 +94,12 @@ tr.paid-row td{background:var(--green-soft)}
 .list-section-title:first-child{border-top:0;padding-top:0;margin-top:4px}
 .list-section-note{font-size:12.5px;color:var(--muted);margin:0 0 10px}
 .money-jennes{font-size:11.5px;color:var(--muted);line-height:1.5}
+/* ジェンヌさん別のお買い物予算表 */
+.budget-table td.num,.budget-table th.num{text-align:right;white-space:nowrap}
+.budget-table td.budget{font-size:17px;font-weight:700;color:var(--green-dark)}
+.budget-table tr.total td{background:var(--green-soft);font-weight:700}
+.budget-ok{color:var(--green-dark)}
+.budget-ng{color:#a34848;font-weight:700}
 </style>
 </head>
 <body>
@@ -447,6 +453,73 @@ function memberPeriodNum(p){
   const m = String(p || "").match(/\d+/);
   return m ? Number(m[0]) : 99999;
 }
+// ===== ジェンヌさん別のお買い物予算 =====
+// 基本額：その申込の「基本額×人数」を、選んだジェンヌさん全員にそのまま加算
+// 上乗せ：選んだジェンヌさんの人数で均等割り。端数はその中で一番上級生の方へ
+function calcJenneBudgets(rows){
+  const map = {};
+  const ensure = id => map[id] || (map[id] = {
+    id, name: jenneMap[id]?.name || "不明", period: jenneMap[id]?.period || "",
+    people: 0, base: 0, extra: 0
+  });
+  rows.forEach(r=>{
+    const ids = rowJenneIds(r);
+    if(!ids.length) return;
+    const perBase = baseFee(r) * peopleCount(r);
+    ids.forEach(id=>{
+      const b = ensure(id);
+      b.people += peopleCount(r);
+      b.base += perBase;
+    });
+    const ex = extraAmount(r);
+    if(ex > 0){
+      const share = Math.floor(ex / ids.length);
+      const remainder = ex - share * ids.length;
+      const senior = [...ids].sort((a,b)=>periodNum(jenneMap[a]?.period) - periodNum(jenneMap[b]?.period))[0];
+      ids.forEach(id=>{ ensure(id).extra += share + (id === senior ? remainder : 0); });
+    }
+  });
+  return Object.values(map).sort((a,b)=>periodNum(a.period) - periodNum(b.period));
+}
+// 差し入れ先が2名以上の回だけ表示
+function budgetSectionHtml(){
+  const list = calcJenneBudgets(currentRows);
+  if(list.length < 2) return "";
+  const sum = k => list.reduce((s,b)=>s + b[k], 0);
+  const totalBudget = sum("base") + sum("extra");
+  const grand = currentRows.reduce((s,r)=>s + rowAmount(r), 0);
+  const matched = totalBudget === grand;
+  const body = list.map(b=>`
+      <tr>
+        <td>${b.period ? `<span style="font-size:12px;color:var(--muted)">${b.period}</span><br>` : ""}${nm(b.name)}さん</td>
+        <td class="num">${b.people}名</td>
+        <td class="num">${yen(b.base)}</td>
+        <td class="num">${b.extra ? "＋" + yen(b.extra) : "-"}</td>
+        <td class="num budget">${yen(b.base + b.extra)}</td>
+      </tr>`).join("");
+  return `
+    <div class="list-section-title">🛍️ ジェンヌさん別 お買い物予算</div>
+    <p class="list-section-note">上乗せ分は、その方が選んだジェンヌさんの人数で均等に分けています（端数は一番上級生の方へ）。</p>
+    <div class="jenne-group">
+      <div style="overflow-x:auto">
+        <table class="budget-table">
+          <thead><tr><th>ジェンヌさん</th><th class="num">協力人数</th><th class="num">基本</th><th class="num">上乗せ分</th><th class="num">予算</th></tr></thead>
+          <tbody>${body}
+            <tr class="total">
+              <td>合計</td><td></td>
+              <td class="num">${yen(sum("base"))}</td>
+              <td class="num">${sum("extra") ? "＋" + yen(sum("extra")) : "-"}</td>
+              <td class="num budget">${yen(totalBudget)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="list-section-note" style="margin-top:6px">${matched
+        ? `<span class="budget-ok">✓ 合計金額（${yen(grand)}）と一致しています</span>`
+        : `<span class="budget-ng">⚠ 合計金額（${yen(grand)}）と${yen(Math.abs(grand - totalBudget))}ずれています（差し入れ先が未設定の申込があります）</span>`}</p>
+    </div>`;
+}
+
 // 上：協力金の回収リスト(1人1行・受取チェック付き)
 function moneySectionHtml(){
   const rows = [...currentRows].sort((a,b)=>
@@ -529,7 +602,7 @@ function render(){
     return;
   }
 
-  container.innerHTML = moneySectionHtml() + jenneSectionsHtml(true);
+  container.innerHTML = budgetSectionHtml() + moneySectionHtml() + jenneSectionsHtml(true);
 }
 
 let generatedEmailHtml = "";
