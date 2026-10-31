@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>差し入れ会計（入金・購入・繰越）</title>
+<style>
+:root{
+  --bg:#f5f4f1;--paper:#fffdf9;--ink:#3f3f3a;--muted:#847e76;
+  --green-dark:#7d7568;--green-soft:#eeece7;--line:#e2ded6;
+  --in:#3f7d5a;--out:#a34848;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+.wrap{max-width:860px;margin:20px auto;padding:0 12px 40px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:22px;box-shadow:0 14px 38px rgba(63,74,58,.10);overflow:hidden}
+header{padding:22px 20px 16px;border-bottom:1px solid var(--line);background:#fff}
+header h1{margin:0 0 4px;font-family:"Yu Mincho","Hiragino Mincho ProN",serif;font-size:23px}
+header p{margin:0;color:var(--muted);font-size:13px}
+main{padding:16px}
+h2{font-size:16px;margin:0 0 10px;color:var(--green-dark)}
+.section{border:1px solid var(--line);border-radius:16px;padding:14px 14px;margin-bottom:14px;background:#fff}
+.note{font-size:12.5px;color:var(--muted);margin:0 0 10px;line-height:1.7}
+
+.balance{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.balance .label{font-size:13px;color:var(--muted)}
+.balance .value{font-size:34px;font-weight:700;color:var(--green-dark);letter-spacing:.02em}
+
+.event-select-wrap{position:relative;margin-bottom:12px}
+.event-select-display{padding:10px 34px 10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px;line-height:1.5}
+.event-select-display::after{content:"▾";position:absolute;right:12px;top:10px;color:var(--muted)}
+.event-select-wrap select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+
+/* 繰越の流れ */
+.flow{display:grid;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.flow-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14.5px}
+.flow-row:last-child{border-bottom:0}
+.flow-row .amt{font-weight:700;white-space:nowrap}
+.flow-row.plus .amt{color:var(--in)}
+.flow-row.minus .amt{color:var(--out)}
+.flow-row.result{background:var(--green-soft);font-size:16px}
+.flow-row.result .amt{color:var(--green-dark);font-size:20px}
+.flow-row small{color:var(--muted);font-size:11.5px;display:block}
+
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:9px 7px;text-align:left;vertical-align:top}
+th{background:var(--green-soft);color:var(--green-dark);font-size:12.5px;font-weight:600}
+td.num,th.num{text-align:right;white-space:nowrap}
+tr.total td{background:var(--green-soft);font-weight:700}
+.diff-plus{color:var(--in);font-weight:700}
+.diff-minus{color:var(--out);font-weight:700}
+
+/* 入力フォーム */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-grid .full{grid-column:1/-1}
+label.f{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:16px;background:#fff;color:var(--ink)}
+textarea{min-height:44px;resize:vertical}
+.kind-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kind-toggle button{padding:11px;border-radius:10px;border:2px solid var(--line);background:#fff;font:inherit;font-weight:700;color:var(--muted);cursor:pointer}
+.kind-toggle button.on.in{border-color:var(--in);background:#e8f3ec;color:var(--in)}
+.kind-toggle button.on.out{border-color:var(--out);background:#fbe9e9;color:var(--out)}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.quick button{padding:5px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:12.5px;color:var(--ink);cursor:pointer}
+button.primary{width:100%;padding:13px;border:0;border-radius:12px;background:var(--green-dark);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer;margin-top:12px}
+button.primary:disabled{opacity:.5}
+button.sub{padding:9px 14px;border:0;border-radius:10px;background:var(--green-soft);color:var(--green-dark);font:inherit;font-weight:600;cursor:pointer}
+.status{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;display:none}
+.status.ok{display:block;background:#e8f3ec;color:var(--in)}
+.status.err{display:block;background:#fbe6e6;color:var(--out)}
+
+/* 帳簿 */
+.ledger td{font-size:13.5px}
+.ledger td:nth-child(2){min-width:100px}
+.ledger th,.ledger td{padding:8px 4px}
+.ledger .date{white-space:nowrap;color:var(--muted);font-size:12.5px}
+.ledger .in{color:var(--in);font-weight:700}
+.ledger .out{color:var(--out);font-weight:700}
+.ledger .bal{font-weight:600}
+.ledger .sub-info{font-size:11.5px;color:var(--muted)}
+.del{border:0;background:none;color:#b9b2aa;font-size:16px;cursor:pointer;padding:0 2px}
+.filter-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px;color:var(--muted)}
+.filter-row label{display:flex;gap:5px;align-items:center}
+.filter-row input{width:auto}
+.empty{color:var(--muted);padding:14px;text-align:center;font-size:13.5px}
+@media (max-width:520px){
+  .form-grid{grid-template-columns:1fr}
+  .balance .value{font-size:30px}
+}
+@media print{
+  body{background:#fff}
+  .no-print{display:none !important}
+  .panel{box-shadow:none;border:0}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <header>
+      <h1>差し入れ会計</h1>
+      <p>集めた協力金・お菓子の購入・次回への繰越を、スタッフみんなで共有する帳簿です。</p>
+    </header>
+    <main>
+
+      <!-- 現在の残高 -->
+      <div class="section">
+        <div class="balance">
+          <div>
+            <div class="label">いま手元にあるはずのお金（全期間の残高）</div>
+            <div class="value" id="totalBalance">-</div>
+          </div>
+          <button class="sub no-print" id="printBtn">印刷する</button>
+        </div>
+      </div>
+
+      <!-- 観劇会ごとのまとめ -->
+      <div class="section">
+        <h2>📅 観劇会ごとのまとめ</h2>
+        <div class="event-select-wrap no-print">
+          <div class="event-select-display" id="eventSelectDisplay">読み込み中...</div>
+          <select id="eventSelect"><option value="">読み込み中...</option></select>
+        </div>
+        <div id="eventSummary"><div class="empty">読み込み中...</div></div>
+      </div>
+
+      <!-- 入力 -->
+      <div class="section no-print" id="formSection">
+        <h2>✏️ 入力する</h2>
+        <div id="autoIncomeBox"></div>
+
+        <div class="kind-toggle" style="margin-bottom:12px">
+          <button type="button" class="in" data-kind="in">＋ 入金</button>
+          <button type="button" class="out on" data-kind="out">− 出金（購入）</button>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label class="f" for="fDate">日付</label>
+            <input type="date" id="fDate">
+          </div>
+          <div>
+            <label class="f" for="fStaff">担当者</label>
+            <select id="fStaff"></select>
+          </div>
+          <div class="full">
+            <label class="f" for="fEvent">観劇会</label>
+            <select id="fEvent"></select>
+          </div>
+          <div class="full">
+            <label class="f" for="fCategory">内容</label>
+            <input type="text" id="fCategory" placeholder="例：お菓子購入、印刷用紙">
+            <div class="quick" id="quickCats"></div>
+          </div>
+          <div class="full" id="jenneField">
+            <label class="f" for="fJenne">どのジェンヌさんの分？</label>
+            <select id="fJenne"></select>
+          </div>
+          <div class="full">
+            <label class="f" for="fAmount">金額（円・税込／袋代込みでOK）</label>
+            <input type="number" id="fAmount" inputmode="numeric" min="0" step="1" placeholder="例：3295">
+          </div>
+          <div class="full">
+            <label class="f" for="fMemo">メモ（自由入力）</label>
+            <textarea id="fMemo" placeholder="例：ゴディバ 焼菓子ギフト＋有料袋"></textarea>
+          </div>
+        </div>
+        <button class="primary" id="saveBtn">保存する</button>
+        <div class="status" id="saveStatus"></div>
+      </div>
+
+      <!-- 帳簿 -->
+      <div class="section">
+        <h2>📒 帳簿（入出金の記録）</h2>
+        <div class="filter-row no-print">
+          <label><input type="checkbox" id="onlyEvent"> 選んでいる観劇会の分だけ表示</label>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="ledger">
+            <thead><tr><th>日付</th><th>内容</th><th class="num">金額</th><th class="num">残高</th><th class="no-print"></th></tr></thead>
+            <tbody id="ledgerBody"><tr><td colspan="5" class="empty">読み込み中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- 外部CDNへの依存をやめ、ライブラリ本体を同じサイトに置いて読み込みます -->
+<script src="./supabase-js.min.js"></script>
+<script>
+const SUPABASE_URL = "https://uyhqnyrnhdjpgrceitgh.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aHFueXJuaGRqcGdyY2VpdGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5MTczNDMsImV4cCI6MjEwMzQ5MzM0M30.Bwezt6gWAyrQ89zN6Bw8TWOyzrulhNbgtO2a78BHjz8";
+
+// スタッフ6名（序列順）
+const STAFF = ["原田","水無瀬","西中","伊庭","岩本","太田"];
+const CATEGORIES_IN  = ["差し入れ協力金","その他の入金"];
+const CATEGORIES_OUT = ["お菓子購入","のし・袋代","印刷用紙","その他"];
+const SHARED = "__shared__"; // 特定のジェンヌさんではない出金
+
+if(!window.supabase){
+  document.getElementById("eventSummary").innerHTML = `<div class="empty">読み込みエラー：ページを再読み込みしてください</div>`;
+  throw new Error("supabase-js failed to load");
+}
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let events = [];      // 観劇会一覧
+let ledger = [];      // 帳簿の全行
+let jenneMap = {};    // id → {name, period}
+let submissions = []; // 選択中の回の差し入れ申込
+let currentKind = "out";
+
+// ---------- 共通 ----------
+function yen(n){ return Number(n || 0).toLocaleString("ja-JP") + "円"; }
+function nm(v){ return String(v || "").replace(/[\s　]+/g, ""); }
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function todayJST(){
+  const d = new Date(Date.now() + 9*3600*1000);
+  return d.toISOString().slice(0,10);
+}
+function periodNum(p){ const m = String(p || "").match(/\d+/); return m ? Number(m[0]) : 99999; }
+function eventLabel(e){
+  if(!e) return "";
+  const troupe = e.troupe ? `${e.troupe}組` : "";
+  const work = e.work_title ? `「${e.work_title}」` : "";
+  return `第${e.event_number ?? "?"}回 ${troupe}${work}`;
+}
+function shortDate(s){
+  if(!s) return "";
+  const [y,m,d] = s.split("-");
+  return `${Number(m)}/${Number(d)}`;
+}
+function showStatus(msg, isErr){
+  const el = document.getElementById("saveStatus");
+  el.textContent = msg;
+  el.className = "status " + (isErr ? "err" : "ok");
+}
+
+// 組ごとのテーマカラー（差し入れ一覧と同じ）
+const TROUPE_THEMES = {
+  "花": { bg:"#faf1f3", greenSoft:"#f6e3e7", greenDark:"#a8586a" },
+  "月": { bg:"#faf6ec", greenSoft:"#f6ecd6", greenDark:"#9b783f" },
+  "雪": { bg:"#f2f7f0", greenSoft:"#e9f2e4", greenDark:"#6f9159" },
+  "星": { bg:"#eef4fa", greenSoft:"#dfeaf3", greenDark:"#4d7196" },
+  "宙": { bg:"#f5f0f7", greenSoft:"#ece3f5", greenDark:"#6d5aa3" }
+};
+function applyTroupeTheme(troupe){
+  const t = TROUPE_THEMES[troupe];
+  if(!t) return;
+  const r = document.documentElement.style;
+  r.setProperty("--bg", t.bg); r.setProperty("--green-soft", t.greenSoft); r.setProperty("--green-dark", t.greenDark);
+}
+
+// ---------- 協力金の計算（gift-letter-list.html と同じルール） ----------
+function rowJenneIds(r){
+  if(Array.isArray(r.jenne_ids) && r.jenne_ids.length) return r.jenne_ids;
+  return r.jenne_id ? [r.jenne_id] : [];
+}
+function peopleCount(r){ return 1 + (r.has_companion ? 1 : 0); }
+function baseFee(r){ const n = Number(r.base_fee); return Number.isFinite(n) && r.base_fee !== null ? n : 200; }
+function extraAmount(r){ return Number(r.extra_amount) || 0; }
+function jenneCount(r){ return Math.max(1, rowJenneIds(r).length); }
+function rowAmount(r){ return baseFee(r) * peopleCount(r) * jenneCount(r) + extraAmount(r); }
+// ジェンヌさん別の予算（上乗せは均等割り、端数は一番上級生へ）
+function calcJenneBudgets(rows){
+  const map = {};
+  const ensure = id => map[id] || (map[id] = { id, name: jenneMap[id]?.name || "不明", period: jenneMap[id]?.period || "", budget: 0 });
+  rows.forEach(r=>{
+    const ids = rowJenneIds(r);
+    if(!ids.length) return;
+    const perBase = baseFee(r) * peopleCount(r);
+    ids.forEach(id=>{ ensure(id).budget += perBase; });
+    const ex = extraAmount(r);
+    if(ex > 0){
+      const share = Math.floor(ex / ids.length);
+      const rem = ex - share * ids.length;
+      const senior = [...ids].sort((a,b)=>periodNum(jenneMap[a]?.period) - periodNum(jenneMap[b]?.period))[0];
+      ids.forEach(id=>{ ensure(id).budget += share + (id === senior ? rem : 0); });
+    }
+  });
+  return Object.values(map).sort((a,b)=>periodNum(a.period) - periodNum(b.period));
+}
+
+// ---------- 読み込み ----------
+async function loadAll(){
+  const [evRes, jRes, lgRes] = await Promise.all([
+    supabase.from("events").select("id, event_number, troupe, event_date, work_title").order("event_date", { ascending:false }).limit(40),
+    supabase.from("jennes").select("id, name, period"),
+    supabase.from("gift_ledger").select("*").order("entry_date", { ascending:true }).order("created_at", { ascending:true })
+  ]);
+  if(evRes.error) throw evRes.error;
+  if(jRes.error) throw jRes.error;
+  if(lgRes.error) throw lgRes.error;
+  events = evRes.data || [];
+  jenneMap = {};
+  (jRes.data || []).forEach(j=>{ jenneMap[j.id] = j; });
+  ledger = lgRes.data || [];
+}
+async function reloadLedger(){
+  const { data, error } = await supabase.from("gift_ledger").select("*")
+    .order("entry_date", { ascending:true }).order("created_at", { ascending:true });
+  if(error) throw error;
+  ledger = data || [];
+}
+async function loadSubmissions(eventId){
+  submissions = [];
+  if(!eventId) return;
+  const { data, error } = await supabase.from("gift_letter_submissions").select("*").eq("event_id", eventId);
+  if(error) throw error;
+  submissions = data || [];
+}
+
+// ---------- 表示 ----------
+function selectedEventId(){ return document.getElementById("eventSelect").value; }
+function selectedEvent(){ return events.find(e=>e.id === selectedEventId()); }
+function eventDateOf(id){ return events.find(e=>e.id === id)?.event_date || ""; }
+function signed(r){ return r.kind === "in" ? r.amount : -r.amount; }
+
+function renderBalance(){
+  const total = ledger.reduce((s,r)=>s + signed(r), 0);
+  const el = document.getElementById("totalBalance");
+  el.textContent = yen(total);
+  el.style.color = total < 0 ? "var(--out)" : "";
+}
+
+// この回より前のお金（＝前回からの繰越）
+// ・観劇会がひもづく行：その観劇会の日付がこの回より前
+// ・観劇会なしの行（印刷用紙など）：入力日がこの回の日付より前
+function carryInFor(ev){
+  return ledger.reduce((s,r)=>{
+    if(r.event_id === ev.id) return s;
+    const d = r.event_id ? eventDateOf(r.event_id) : r.entry_date;
+    return d && d < ev.event_date ? s + signed(r) : s;
+  }, 0);
+}
+
+function renderEventSummary(){
+  const box = document.getElementById("eventSummary");
+  const ev = selectedEvent();
+  if(!ev){ box.innerHTML = `<div class="empty">観劇会を選んでください</div>`; return; }
+
+  const rows = ledger.filter(r=>r.event_id === ev.id);
+  const income = rows.filter(r=>r.kind === "in").reduce((s,r)=>s + r.amount, 0);
+  const spend  = rows.filter(r=>r.kind === "out").reduce((s,r)=>s + r.amount, 0);
+  const carry  = carryInFor(ev);
+  const left   = carry + income - spend;
+
+  const collected = submissions.reduce((s,r)=>s + rowAmount(r), 0);
+
+  // ジェンヌさん別：予算と購入額
+  const budgets = calcJenneBudgets(submissions);
+  const spentBy = {};
+  rows.filter(r=>r.kind === "out").forEach(r=>{
+    const k = r.jenne_id || SHARED;
+    spentBy[k] = (spentBy[k] || 0) + r.amount;
+  });
+  // 予算表にいないが購入があるジェンヌさんも出す
+  Object.keys(spentBy).forEach(k=>{
+    if(k !== SHARED && !budgets.find(b=>b.id === k)){
+      budgets.push({ id:k, name: jenneMap[k]?.name || "不明", period: jenneMap[k]?.period || "", budget: 0 });
+    }
+  });
+  budgets.sort((a,b)=>periodNum(a.period) - periodNum(b.period));
+
+  const diffCell = d => d === 0 ? `<td class="num">±0円</td>`
+    : `<td class="num ${d > 0 ? "diff-plus" : "diff-minus"}">${d > 0 ? "＋" : "−"}${yen(Math.abs(d))}</td>`;
+
+  let jenneTable = "";
+  if(budgets.length || spentBy[SHARED]){
+    const body = budgets.map(b=>{
+      const sp = spentBy[b.id] || 0;
+      return `<tr>
+        <td>${b.period ? `<span style="font-size:11.5px;color:var(--muted)">${esc(b.period)}</span><br>` : ""}${esc(nm(b.name))}さん</td>
+        <td class="num">${yen(b.budget)}</td>
+        <td class="num">${sp ? yen(sp) : "-"}</td>
+        ${diffCell(b.budget - sp)}
+      </tr>`;
+    }).join("");
+    const shared = spentBy[SHARED] ? `<tr>
+        <td>共通（袋代・用紙など）</td><td class="num">-</td><td class="num">${yen(spentBy[SHARED])}</td>${diffCell(-spentBy[SHARED])}
+      </tr>` : "";
+    const tB = budgets.reduce((s,b)=>s + b.budget, 0);
+    const tS = Object.values(spentBy).reduce((s,v)=>s + v, 0);
+    jenneTable = `
+      <h2 style="margin-top:16px">🎁 ジェンヌさん別　予算と購入額</h2>
+      <p class="note">差額が<span class="diff-plus">＋</span>なら予算内（余り）、<span class="diff-minus">−</span>なら予算オーバーです。</p>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>差し入れ先</th><th class="num">予算</th><th class="num">購入額</th><th class="num">差額</th></tr></thead>
+        <tbody>${body}${shared}
+          <tr class="total"><td>合計</td><td class="num">${yen(tB)}</td><td class="num">${yen(tS)}</td>${diffCell(tB - tS)}</tr>
+        </tbody>
+      </table></div>`;
+  }
+
+  box.innerHTML = `
+    <div class="flow">
+      <div class="flow-row"><span>前回からの繰越</span><span class="amt">${yen(carry)}</span></div>
+      <div class="flow-row plus"><span>今回の入金<small>申込の協力金合計：${yen(collected)}</small></span><span class="amt">＋${yen(income)}</span></div>
+      <div class="flow-row minus"><span>今回の出金（購入など）</span><span class="amt">−${yen(spend)}</span></div>
+      <div class="flow-row result"><span>次回へ繰越</span><span class="amt" style="${left < 0 ? "color:var(--out)" : ""}">${yen(left)}</span></div>
+    </div>
+    ${jenneTable}`;
+
+  renderAutoIncome(ev, income, collected);
+}
+
+// 協力金の自動入金ボタン
+function renderAutoIncome(ev, income, collected){
+  const box = document.getElementById("autoIncomeBox");
+  const alreadyIn = ledger.some(r=>r.event_id === ev.id && r.kind === "in" && r.category === "差し入れ協力金");
+  if(!submissions.length){ box.innerHTML = ""; return; }
+  const paid = submissions.filter(r=>r.paid_at).reduce((s,r)=>s + rowAmount(r), 0);
+  const paidCount = submissions.filter(r=>r.paid_at).length;
+  if(alreadyIn){
+    box.innerHTML = `<p class="note" style="background:var(--green-soft);padding:10px 12px;border-radius:10px;color:var(--green-dark)">
+      ✓ この回の協力金は入金済みです（${yen(income)}）</p>`;
+    return;
+  }
+  box.innerHTML = `
+    <div style="background:var(--green-soft);padding:12px;border-radius:12px;margin-bottom:12px">
+      <div style="font-size:13.5px;margin-bottom:8px">
+        この回の協力金：<b>${yen(collected)}</b>（${submissions.length}件）<br>
+        <span style="font-size:12.5px;color:var(--muted)">うち受取済：${yen(paid)}（${paidCount}件）</span>
+      </div>
+      <button class="sub" id="autoIncomeBtn" style="background:#fff">協力金を入金欄に入れる</button>
+    </div>`;
+  document.getElementById("autoIncomeBtn").onclick = ()=>{
+    setKind("in");
+    document.getElementById("fEvent").value = ev.id;
+    document.getElementById("fCategory").value = "差し入れ協力金";
+    document.getElementById("fAmount").value = paid > 0 ? paid : collected;
+    document.getElementById("fMemo").value = paid > 0 && paid !== collected
+      ? `受取済 ${paidCount}/${submissions.length}件分` : `${submissions.length}件分`;
+    document.getElementById("fAmount").focus();
+    showStatus("金額を確認して「保存する」を押してください。", false);
+  };
+}
+
+function renderLedger(){
+  const tbody = document.getElementById("ledgerBody");
+  const only = document.getElementById("onlyEvent").checked;
+  const evId = selectedEventId();
+  // 残高は全期間で積み上げ、表示は新しい順
+  let bal = 0;
+  const withBal = ledger.map(r=>{ bal += signed(r); return { ...r, bal }; });
+  const list = withBal.filter(r=>!only || r.event_id === evId).reverse();
+  if(!list.length){ tbody.innerHTML = `<tr><td colspan="5" class="empty">まだ記録がありません</td></tr>`; return; }
+  tbody.innerHTML = list.map(r=>{
+    const ev = events.find(e=>e.id === r.event_id);
+    const who = r.jenne_id ? `${nm(jenneMap[r.jenne_id]?.name || "")}さん分` : "";
+    const info = [ev ? `第${ev.event_number ?? "?"}回` : "", who, r.staff_name ? `担当：${r.staff_name}` : "", r.memo].filter(Boolean).map(esc).join("・");
+    return `<tr>
+      <td class="date">${shortDate(r.entry_date)}</td>
+      <td>${esc(r.category || (r.kind === "in" ? "入金" : "出金"))}${info ? `<div class="sub-info">${info}</div>` : ""}</td>
+      <td class="num ${r.kind}">${r.kind === "in" ? "＋" : "−"}${yen(r.amount)}</td>
+      <td class="num bal">${yen(r.bal)}</td>
+      <td class="no-print"><button class="del" data-del="${r.id}" aria-label="削除">✕</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderAll(){
+  renderBalance();
+  renderEventSummary();
+  renderLedger();
+}
+
+// ---------- 入力フォーム ----------
+function setKind(kind){
+  currentKind = kind;
+  document.querySelectorAll(".kind-toggle button").forEach(b=>b.classList.toggle("on", b.dataset.kind === kind));
+  document.getElementById("jenneField").style.display = kind === "out" ? "" : "none";
+  const cats = kind === "in" ? CATEGORIES_IN : CATEGORIES_OUT;
+  document.getElementById("quickCats").innerHTML = cats.map(c=>`<button type="button" data-cat="${c}">${c}</button>`).join("");
+}
+document.querySelectorAll(".kind-toggle button").forEach(b=>b.addEventListener("click", ()=>setKind(b.dataset.kind)));
+document.getElementById("quickCats").addEventListener("click", e=>{
+  const b = e.target.closest("[data-cat]");
+  if(b) document.getElementById("fCategory").value = b.dataset.cat;
+});
+
+function fillFormSelects(){
+  document.getElementById("fStaff").innerHTML = `<option value="">選んでください</option>` + STAFF.map(s=>`<option>${s}</option>`).join("");
+  document.getElementById("fEvent").innerHTML = `<option value="">なし（印刷用紙など）</option>` +
+    events.map(e=>`<option value="${e.id}">${esc(eventLabel(e))}</option>`).join("");
+}
+// 差し入れ先の選択肢：その回の申込に出てくるジェンヌさん＋共通
+function fillJenneSelect(){
+  const evId = document.getElementById("fEvent").value;
+  const ids = new Set();
+  if(evId && evId === selectedEventId()) submissions.forEach(r=>rowJenneIds(r).forEach(id=>ids.add(id)));
+  const list = [...ids].map(id=>({ id, ...(jenneMap[id] || {}) })).sort((a,b)=>periodNum(a.period) - periodNum(b.period));
+  document.getElementById("fJenne").innerHTML =
+    list.map(j=>`<option value="${j.id}">${esc(j.period || "")} ${esc(nm(j.name))}さん</option>`).join("") +
+    `<option value="${SHARED}">共通（特定のジェンヌさんではない）</option>`;
+}
+document.getElementById("fEvent").addEventListener("change", fillJenneSelect);
+
+document.getElementById("saveBtn").addEventListener("click", async ()=>{
+  const btn = document.getElementById("saveBtn");
+  const amount = Math.round(Number(document.getElementById("fAmount").value));
+  const staff = document.getElementById("fStaff").value;
+  const category = document.getElementById("fCategory").value.trim();
+  const date = document.getElementById("fDate").value || todayJST();
+  const eventId = document.getElementById("fEvent").value || null;
+  const jenneVal = document.getElementById("fJenne").value;
+
+  if(!amount || amount <= 0){ showStatus("金額を入力してください。", true); return; }
+  if(!staff){ showStatus("担当者を選んでください。", true); return; }
+  if(!category){ showStatus("内容を入力してください（下のボタンからも選べます）。", true); return; }
+
+  const row = {
+    entry_date: date,
+    event_id: eventId,
+    kind: currentKind,
+    category,
+    jenne_id: currentKind === "out" && jenneVal && jenneVal !== SHARED ? jenneVal : null,
+    staff_name: staff,
+    amount,
+    memo: document.getElementById("fMemo").value.trim()
+  };
+
+  btn.disabled = true; btn.textContent = "保存中…";
+  try{
+    const { error } = await supabase.from("gift_ledger").insert(row);
+    if(error) throw error;
+    await reloadLedger();
+    renderAll();
+    // 続けて入力しやすいように、金額とメモだけ空にする（担当・日付・観劇会はそのまま）
+    document.getElementById("fAmount").value = "";
+    document.getElementById("fMemo").value = "";
+    showStatus(`保存しました：${row.kind === "in" ? "入金" : "出金"} ${yen(amount)}`, false);
+  }catch(err){
+    console.error(err);
+    showStatus("保存できませんでした：" + (err.message || err), true);
+  }finally{
+    btn.disabled = false; btn.textContent = "保存する";
+  }
+});
+
+// 削除
+document.getElementById("ledgerBody").addEventListener("click", async e=>{
+  const b = e.target.closest("[data-del]");
+  if(!b) return;
+  const r = ledger.find(x=>x.id === b.dataset.del);
+  if(!r) return;
+  if(!confirm(`${shortDate(r.entry_date)}「${r.category}」${yen(r.amount)} を削除しますか？`)) return;
+  b.disabled = true;
+  try{
+    const { error } = await supabase.from("gift_ledger").delete().eq("id", r.id);
+    if(error) throw error;
+    await reloadLedger();
+    renderAll();
+  }catch(err){
+    console.error(err);
+    alert("削除できませんでした：" + (err.message || err));
+    b.disabled = false;
+  }
+});
+
+document.getElementById("onlyEvent").addEventListener("change", renderLedger);
+document.getElementById("printBtn").addEventListener("click", ()=>window.print());
+
+// ---------- 観劇会の切り替え ----------
+async function onEventChange(){
+  const sel = document.getElementById("eventSelect");
+  const opt = sel.options[sel.selectedIndex];
+  document.getElementById("eventSelectDisplay").textContent = opt ? opt.textContent : "";
+  const ev = selectedEvent();
+  if(ev) applyTroupeTheme(ev.troupe);
+  document.getElementById("fEvent").value = sel.value;
+  try{
+    await loadSubmissions(sel.value);
+  }catch(err){ console.error(err); }
+  fillJenneSelect();
+  renderAll();
+}
+document.getElementById("eventSelect").addEventListener("change", onEventChange);
+
+// ---------- 起動 ----------
+(async ()=>{
+  document.getElementById("fDate").value = todayJST();
+  setKind("out");
+  try{
+    await loadAll();
+  }catch(err){
+    console.error(err);
+    const msg = /gift_ledger/.test(err.message || "") ? "帳簿テーブルがまだありません（SQLの実行が必要です）" : "読み込みエラー";
+    document.getElementById("eventSummary").innerHTML = `<div class="empty">${msg}</div>`;
+    return;
+  }
+  const sel = document.getElementById("eventSelect");
+  sel.innerHTML = events.map(e=>`<option value="${e.id}">${esc(eventLabel(e))}公演</option>`).join("");
+  fillFormSelects();
+  // 今日に一番近い過去〜当日の回（お菓子を買うのは観劇会の前後なので、直近の回）
+  const today = todayJST();
+  const upcoming = events.filter(e=>e.event_date >= today).sort((a,b)=>a.event_date.localeCompare(b.event_date));
+  const recentPast = events.filter(e=>e.event_date < today)[0];
+  // 他のページから ?event=〇〇 付きで開かれたら、その回を表示
+  const fromUrl = events.find(e=>e.id === new URLSearchParams(location.search).get("event"));
+  const def = fromUrl || upcoming[0] || recentPast || events[0];
+  if(def) sel.value = def.id;
+  await onEventChange();
+})();
+</script>
+</body>
+</html>

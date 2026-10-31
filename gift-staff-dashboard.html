@@ -170,6 +170,13 @@ tr.paid-row td{background:var(--green-soft)}
         <div class="status" id="reportStatus"></div>
       </div>
 
+      <!-- 差し入れ会計への入口 -->
+      <div class="section">
+        <h2>🧾 差し入れ会計</h2>
+        <p class="sub">お菓子を買ったら、領収書の合計金額（袋代込み）を記録してください。ジェンヌさんごとの予算と購入額、次回への繰越がわかります。</p>
+        <a id="ledgerLink" class="big-btn" href="gift-ledger.html" style="display:block;text-align:center;text-decoration:none;background:linear-gradient(145deg,#fff8f4,#f5dddd);color:var(--green-dark)">購入金額を記録する</a>
+      </div>
+
       <!-- ③ のし紙を作る -->
       <div class="section">
         <h2>🎀 のし紙を作る</h2>
@@ -335,6 +342,9 @@ function syncEventDisplay(){
   const display = document.getElementById("eventSelectDisplay");
   const opt = sel.options[sel.selectedIndex];
   display.textContent = opt ? opt.textContent : "";
+  // 会計ページは選んでいる観劇会のまま開く
+  const ledgerLink = document.getElementById("ledgerLink");
+  if(ledgerLink) ledgerLink.href = sel.value ? `gift-ledger.html?event=${encodeURIComponent(sel.value)}` : "gift-ledger.html";
   const ev = eventsData.find(e=>e.id === sel.value);
   if(ev) applyTroupeTheme(ev.troupe);
 }
