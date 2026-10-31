@@ -492,16 +492,36 @@ function fillFormSelects(){
     events.map(e=>`<option value="${e.id}">${esc(eventLabel(e))}</option>`).join("");
 }
 // 差し入れ先の選択肢：その回の申込に出てくるジェンヌさん＋共通
-function fillJenneSelect(){
+// 入力欄で選んだ観劇会のジェンヌさんを、その都度データベースから読み込む
+// （差し入れ先の登録＝event_gifts と、申込で選ばれたジェンヌさんの両方）
+async function fillJenneSelect(){
+  const sel = document.getElementById("fJenne");
   const evId = document.getElementById("fEvent").value;
   const ids = new Set();
-  if(evId && evId === selectedEventId()) submissions.forEach(r=>rowJenneIds(r).forEach(id=>ids.add(id)));
+  if(evId){
+    sel.innerHTML = `<option value="${SHARED}">読み込み中…</option>`;
+    try{
+      const [g, s] = await Promise.all([
+        supabase.from("event_gifts").select("jenne_id").eq("event_id", evId),
+        supabase.from("gift_letter_submissions").select("jenne_id, jenne_ids").eq("event_id", evId)
+      ]);
+      (g.data || []).forEach(r=>{ if(r.jenne_id) ids.add(r.jenne_id); });
+      (s.data || []).forEach(r=>rowJenneIds(r).forEach(id=>ids.add(id)));
+    }catch(err){ console.error(err); }
+    if(evId !== document.getElementById("fEvent").value) return; // 読み込み中に選び直された
+  }
   const list = [...ids].map(id=>({ id, ...(jenneMap[id] || {}) })).sort((a,b)=>periodNum(a.period) - periodNum(b.period));
   document.getElementById("fJenne").innerHTML =
     list.map(j=>`<option value="${j.id}">${esc(j.period || "")} ${esc(nm(j.name))}さん</option>`).join("") +
     `<option value="${SHARED}">共通（特定のジェンヌさんではない）</option>`;
 }
-document.getElementById("fEvent").addEventListener("change", fillJenneSelect);
+document.getElementById("fEvent").addEventListener("change", ()=>{
+  const v = document.getElementById("fEvent").value;
+  const top = document.getElementById("eventSelect");
+  // 入力欄で観劇会を選び直したら、上のまとめも同じ回に合わせる（「なし」の時はそのまま）
+  if(v && v !== top.value){ top.value = v; onEventChange(); }
+  else fillJenneSelect();
+});
 
 // 領収書の写真を軽くする：白黒・横900px・画質60% → 1枚あたりおよそ50〜120KB
 function compressReceipt(file, maxWidth = 900, quality = 0.6){
