@@ -78,6 +78,7 @@ button.sub{padding:9px 14px;border:0;border-radius:10px;background:var(--green-s
 .ledger .out{color:var(--out);font-weight:700}
 .ledger .bal{font-weight:600}
 .ledger .sub-info{font-size:11.5px;color:var(--muted)}
+.receipt-link{display:inline-block;margin-top:3px;font-size:12px;color:var(--green-dark);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:#fff}
 .del{border:0;background:none;color:#b9b2aa;font-size:16px;cursor:pointer;padding:0 2px}
 .filter-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px;color:var(--muted)}
 .filter-row label{display:flex;gap:5px;align-items:center}
@@ -159,6 +160,10 @@ button.sub{padding:9px 14px;border:0;border-radius:10px;background:var(--green-s
           <div class="full">
             <label class="f" for="fAmount">金額（円・税込／袋代込みでOK）</label>
             <input type="number" id="fAmount" inputmode="numeric" min="0" step="1" placeholder="例：3295">
+          </div>
+          <div class="full">
+            <label class="f" for="fPhoto">📄 領収書の写真（なくてもOK・自動で軽くして保存）</label>
+            <input type="file" id="fPhoto" accept="image/*">
           </div>
           <div class="full">
             <label class="f" for="fMemo">メモ（自由入力）</label>
@@ -326,11 +331,12 @@ function renderBalance(){
 
 // この回より前のお金（＝前回からの繰越）
 // ・観劇会がひもづく行：その観劇会の日付がこの回より前
-// ・観劇会なしの行（印刷用紙など）：入力日がこの回の日付より前
+// ・観劇会なしの行（印刷用紙・手元の余剰金など）：入力日がこの回の日付以前
 function carryInFor(ev){
   return ledger.reduce((s,r)=>{
     if(r.event_id === ev.id) return s;
-    const d = r.event_id ? eventDateOf(r.event_id) : r.entry_date;
+    if(!r.event_id) return r.entry_date <= ev.event_date ? s + signed(r) : s;
+    const d = eventDateOf(r.event_id);
     return d && d < ev.event_date ? s + signed(r) : s;
   }, 0);
 }
@@ -452,7 +458,7 @@ function renderLedger(){
     const info = [ev ? `第${ev.event_number ?? "?"}回` : "", who, r.staff_name ? `担当：${r.staff_name}` : "", r.memo].filter(Boolean).map(esc).join("・");
     return `<tr>
       <td class="date">${shortDate(r.entry_date)}</td>
-      <td>${esc(r.category || (r.kind === "in" ? "入金" : "出金"))}${info ? `<div class="sub-info">${info}</div>` : ""}</td>
+      <td>${esc(r.category || (r.kind === "in" ? "入金" : "出金"))}${info ? `<div class="sub-info">${info}</div>` : ""}${r.receipt_url ? `<a class="receipt-link" href="${esc(r.receipt_url)}" target="_blank" rel="noopener">📄 領収書</a>` : ""}</td>
       <td class="num ${r.kind}">${r.kind === "in" ? "＋" : "−"}${yen(r.amount)}</td>
       <td class="num bal">${yen(r.bal)}</td>
       <td class="no-print"><button class="del" data-del="${r.id}" aria-label="削除">✕</button></td>
@@ -497,6 +503,48 @@ function fillJenneSelect(){
 }
 document.getElementById("fEvent").addEventListener("change", fillJenneSelect);
 
+// 領収書の写真を軽くする：白黒・横900px・画質60% → 1枚あたりおよそ50〜120KB
+function compressReceipt(file, maxWidth = 900, quality = 0.6){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = e=>{ img.src = e.target.result; };
+    reader.onerror = reject;
+    img.onload = ()=>{
+      const ratio = Math.min(1, maxWidth / img.width);
+      const w = Math.round(img.width * ratio), h = Math.round(img.height * ratio);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      // 白黒にして、文字をくっきりさせる
+      const data = ctx.getImageData(0, 0, w, h);
+      const px = data.data;
+      for(let i = 0; i < px.length; i += 4){
+        let g = 0.299*px[i] + 0.587*px[i+1] + 0.114*px[i+2];
+        g = Math.max(0, Math.min(255, (g - 128) * 1.25 + 140));
+        px[i] = px[i+1] = px[i+2] = g;
+      }
+      ctx.putImageData(data, 0, 0);
+      canvas.toBlob(blob=>{
+        if(!blob) return reject(new Error("画像の圧縮に失敗しました"));
+        resolve(blob);
+      }, "image/jpeg", quality);
+    };
+    img.onerror = ()=>reject(new Error("画像を読み込めませんでした"));
+    reader.readAsDataURL(file);
+  });
+}
+async function uploadReceipt(file){
+  const blob = await compressReceipt(file);
+  const path = `gift-ledger/${todayJST()}_${Date.now()}_${Math.random().toString(36).slice(2,8)}.jpg`;
+  const { error } = await supabase.storage.from("public photo").upload(path, blob, { contentType:"image/jpeg", upsert:false });
+  if(error) throw error;
+  const { data } = supabase.storage.from("public photo").getPublicUrl(path);
+  return { url: data.publicUrl, kb: Math.round(blob.size / 1024) };
+}
+
 document.getElementById("saveBtn").addEventListener("click", async ()=>{
   const btn = document.getElementById("saveBtn");
   const amount = Math.round(Number(document.getElementById("fAmount").value));
@@ -522,7 +570,15 @@ document.getElementById("saveBtn").addEventListener("click", async ()=>{
   };
 
   btn.disabled = true; btn.textContent = "保存中…";
+  let photoKb = 0;
   try{
+    const photo = document.getElementById("fPhoto").files?.[0];
+    if(photo){
+      btn.textContent = "写真を軽くして保存中…";
+      const up = await uploadReceipt(photo);
+      row.receipt_url = up.url;
+      photoKb = up.kb;
+    }
     const { error } = await supabase.from("gift_ledger").insert(row);
     if(error) throw error;
     await reloadLedger();
@@ -530,7 +586,8 @@ document.getElementById("saveBtn").addEventListener("click", async ()=>{
     // 続けて入力しやすいように、金額とメモだけ空にする（担当・日付・観劇会はそのまま）
     document.getElementById("fAmount").value = "";
     document.getElementById("fMemo").value = "";
-    showStatus(`保存しました：${row.kind === "in" ? "入金" : "出金"} ${yen(amount)}`, false);
+    document.getElementById("fPhoto").value = "";
+    showStatus(`保存しました：${row.kind === "in" ? "入金" : "出金"} ${yen(amount)}${photoKb ? `（領収書 ${photoKb}KB）` : ""}`, false);
   }catch(err){
     console.error(err);
     showStatus("保存できませんでした：" + (err.message || err), true);
