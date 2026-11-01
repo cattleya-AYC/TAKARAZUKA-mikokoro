@@ -137,6 +137,26 @@
       <p class="note">写真を選んだ時だけ、すべての送信(テスト送信を含む)のメールに画像と「大きな画像で見る」ボタンが入ります。</p>
     </div>
 
+    <div class="deban-box">
+      <div class="group-label" style="margin-top:0">🎁 差し入れのお品(のし付き写真・載せたい時だけ)</div>
+      <div class="actions" style="margin-top:0;margin-bottom:10px">
+        <button type="button" class="secondary" id="giftUseReportBtn" style="display:none">担当者が登録したのし付き写真を使う</button>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="giftFile">または、写真を選ぶ</label>
+        <input type="file" id="giftFile" accept="image/*">
+      </div>
+      <div id="giftArea" style="display:none">
+        <div class="photo-list" id="giftList"></div>
+        <div class="field" style="margin:10px 0 0">
+          <label for="giftLead">写真の上に入る文</label>
+          <textarea id="giftLead" class="small" style="min-height:96px"></textarea>
+        </div>
+      </div>
+      <p class="status" id="giftStatus"></p>
+      <p class="note">写真を入れた時だけ、差し入れのご案内のすぐ上に「🎁 今回の差し入れ」として全員に表示されます(協力されなかった方にも届くので、次回の協力のお誘いになります)。</p>
+    </div>
+
     <div class="group-label">🍽 お食事ありの方向け <span class="count-badge" id="mealYesCount"></span></div>
     <textarea id="mealYesText"></textarea>
     <div class="actions">
@@ -185,6 +205,8 @@
   const OFFICIAL_LINE_URL = "https://lin.ee/S21MDzhw";
   let debanPhotos = [];  // 出番表・直筆メッセージ [{url, name}]
   let placePhotos = [];  // 集合場所の写真 [{url, name}]
+  let giftPhotos = [];   // 差し入れのお品(のし付き)の写真 [{url, name}]
+  function listOf(kind){ return kind === 'deban' ? debanPhotos : kind === 'place' ? placePhotos : giftPhotos; }
 
   function escapeHtml(str){
     return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -228,6 +250,9 @@ ${footnote ? `<tr><td style="padding:0 18px 16px; font-size:12px; color:#8f747d;
   function buildPlaceHtml(t){
     return photoBlockHtml(t, '📍 集合場所', document.getElementById('placeLead').value.trim(), placePhotos, '');
   }
+  function buildGiftPhotoHtml(t){
+    return photoBlockHtml(t, '🎁 今回の差し入れ', document.getElementById('giftLead').value.trim(), giftPhotos, '');
+  }
   function buildDebanHtml(t){
     return photoBlockHtml(t, '🎭 出番表', document.getElementById('debanLead').value.trim(), debanPhotos,
       '※ジェンヌさんからの大切なお手紙です。SNSへの掲載や外部への転送はご遠慮ください。', true);
@@ -237,6 +262,7 @@ ${footnote ? `<tr><td style="padding:0 18px 16px; font-size:12px; color:#8f747d;
     const t = getTroupeEmailTheme(troupe);
     const placeHtml = buildPlaceHtml(t);
     const debanHtml = buildDebanHtml(t);
+    const giftPhotoHtml = buildGiftPhotoHtml(t);
     const name = escapeHtml(recipientName);
     const title = escapeHtml(eventTitle);
     const paragraphs = escapeHtml(bodyText).split(/\n\s*\n/).map(p =>
@@ -275,6 +301,7 @@ ${footnote ? `<tr><td style="padding:0 18px 16px; font-size:12px; color:#8f747d;
 ${paragraphs}
 ${placeHtml}
 ${debanHtml}
+${giftPhotoHtml}
 ${giftNoteHtml}
 </td></tr>
 <tr><td style="padding:10px 28px 30px;">
@@ -448,6 +475,7 @@ ${meetingTime}　${meetingPlace}へお集まりください
   }
 
   const PLACE_LEAD_DEFAULT = '今回は集合場所がいつもと異なります。\n下の写真で場所をご確認ください。';
+  const GIFT_LEAD_DEFAULT = '今回は皆さまのご協力のおかげで、このようなお品をご用意いたしました🎁\nあたたかいお気持ちを、のしにお名前を添えてお届けいたします。\n次回もぜひ、差し入れへのご協力をお待ちしております✨';
   // 出番表の文：お名前から自動で作る(手で書き換えたら、以後は自動で上書きしない)
   let debanLeadEdited = false;
   function autoDebanLead(){
@@ -463,7 +491,8 @@ ${meetingTime}　${meetingPlace}へお集まりください
   function savePhotos(){
     try{
       localStorage.setItem(storeKey(), JSON.stringify({
-        deban: debanPhotos, place: placePhotos,
+        deban: debanPhotos, place: placePhotos, gift: giftPhotos,
+        giftLead: document.getElementById('giftLead').value,
         debanLead: document.getElementById('debanLead').value, debanLeadEdited,
         placeLead: document.getElementById('placeLead').value
       }));
@@ -471,32 +500,59 @@ ${meetingTime}　${meetingPlace}へお集まりください
   }
   // 同じ公演なら、ページを開き直しても選んだ写真を覚えておく(この端末だけ)
   function restorePhotos(){
-    debanPhotos = []; placePhotos = []; debanLeadEdited = false;
+    debanPhotos = []; placePhotos = []; giftPhotos = []; debanLeadEdited = false;
     let saved = null;
     try{ saved = JSON.parse(localStorage.getItem(storeKey()) || 'null'); }catch(e){}
     if(saved){
-      debanPhotos = saved.deban || []; placePhotos = saved.place || [];
+      debanPhotos = saved.deban || []; placePhotos = saved.place || []; giftPhotos = saved.gift || [];
+      document.getElementById('giftLead').value = saved.giftLead || GIFT_LEAD_DEFAULT;
       debanLeadEdited = !!saved.debanLeadEdited;
       document.getElementById('debanLead').value = saved.debanLead || '';
       document.getElementById('placeLead').value = saved.placeLead || PLACE_LEAD_DEFAULT;
     } else {
       document.getElementById('placeLead').value = PLACE_LEAD_DEFAULT;
+      document.getElementById('giftLead').value = GIFT_LEAD_DEFAULT;
     }
     refreshDebanLead();
-    ['debanFile','placeFile'].forEach(id=>document.getElementById(id).value = '');
-    ['debanStatus','placeStatus'].forEach(id=>{ const el = document.getElementById(id); el.className = 'status'; el.textContent = ''; });
+    ['debanFile','placeFile','giftFile'].forEach(id=>document.getElementById(id).value = '');
+    ['debanStatus','placeStatus','giftStatus'].forEach(id=>{ const el = document.getElementById(id); el.className = 'status'; el.textContent = ''; });
     renderPhotos();
+    loadGiftReportPhoto();
   }
 
+  // 担当者が「差し入れ完了報告」で登録したのし付き写真を、ワンタップで使えるようにする
+  async function loadGiftReportPhoto(){
+    const btn = document.getElementById('giftUseReportBtn');
+    btn.style.display = 'none';
+    if(!selectedEvent) return;
+    try{
+      const { data } = await sb.from('event_gift_report').select('gift_photo_url').eq('event_id', selectedEvent.id).maybeSingle();
+      if(data?.gift_photo_url){
+        btn.dataset.url = data.gift_photo_url;
+        btn.style.display = giftPhotos.some(p=>p.url === data.gift_photo_url) ? 'none' : 'inline-block';
+      }
+    }catch(e){ console.warn(e); }
+  }
+  document.getElementById('giftUseReportBtn').addEventListener('click', e=>{
+    const url = e.currentTarget.dataset.url;
+    if(!url) return;
+    giftPhotos.push({ url, name: '' });
+    savePhotos(); renderPhotos();
+    e.currentTarget.style.display = 'none';
+    const st = document.getElementById('giftStatus');
+    st.className = 'status ok';
+    st.textContent = '✓ 担当者が登録したのし付き写真を入れました。';
+  });
+
   function renderList(kind){
-    const photos = kind === 'deban' ? debanPhotos : placePhotos;
+    const photos = listOf(kind);
     document.getElementById(kind + 'Area').style.display = photos.length ? 'block' : 'none';
     document.getElementById(kind + 'List').innerHTML = photos.map((ph, i)=>`
       <div class="photo-item">
         <a href="${escapeHtml(ph.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(ph.url)}" alt=""></a>
         <div>
           <input type="text" data-kind="${kind}" data-i="${i}" class="photo-name" value="${escapeHtml(ph.name || '')}"
-            placeholder="${kind === 'deban' ? 'お名前(例:峰果とわ)' : '写真の説明(空欄でもOK)'}">
+            placeholder="${kind === 'deban' ? 'お名前(例:峰果とわ)' : kind === 'gift' ? '説明(例:峰果とわさんへ)・空欄でもOK' : '写真の説明(空欄でもOK)'}">
           <div class="row">
             <a class="secondary" href="${escapeHtml(ph.url)}" target="_blank" rel="noopener">開いて確認</a>
             <button type="button" class="secondary photo-del" data-kind="${kind}" data-i="${i}">外す</button>
@@ -504,7 +560,7 @@ ${meetingTime}　${meetingPlace}へお集まりください
         </div>
       </div>`).join('');
   }
-  function renderPhotos(){ renderList('deban'); renderList('place'); }
+  function renderPhotos(){ renderList('deban'); renderList('place'); renderList('gift'); }
 
   function wirePhotoInput(kind, folder){
     document.getElementById(kind + 'File').addEventListener('change', async e=>{
@@ -516,7 +572,7 @@ ${meetingTime}　${meetingPlace}へお集まりください
       st.textContent = '写真を軽くしてアップロード中…';
       try{
         const up = await uploadPhoto(file, folder);
-        (kind === 'deban' ? debanPhotos : placePhotos).push({ url: up.url, name: '' });
+        listOf(kind).push({ url: up.url, name: '' });
         if(kind === 'deban') refreshDebanLead();
         savePhotos(); renderPhotos();
         st.classList.add('ok');
@@ -532,19 +588,20 @@ ${meetingTime}　${meetingPlace}へお集まりください
   }
   wirePhotoInput('deban', 'deban');
   wirePhotoInput('place', 'meeting-place');
+  wirePhotoInput('gift', 'notice-gift');
 
   // お名前・説明の入力
   document.addEventListener('input', e=>{
     const el = e.target;
     if(el.classList.contains('photo-name')){
-      const list = el.dataset.kind === 'deban' ? debanPhotos : placePhotos;
+      const list = listOf(el.dataset.kind);
       if(list[el.dataset.i]) list[el.dataset.i].name = el.value;
       if(el.dataset.kind === 'deban') refreshDebanLead();
       savePhotos();
     } else if(el.id === 'debanLead'){
       debanLeadEdited = el.value.trim() !== '' && el.value !== autoDebanLead();
       savePhotos();
-    } else if(el.id === 'placeLead'){
+    } else if(el.id === 'placeLead' || el.id === 'giftLead'){
       savePhotos();
     }
   });
@@ -553,7 +610,7 @@ ${meetingTime}　${meetingPlace}へお集まりください
     const b = e.target.closest('.photo-del');
     if(!b) return;
     if(!confirm('この写真をメールから外しますか?')) return;
-    const list = b.dataset.kind === 'deban' ? debanPhotos : placePhotos;
+    const list = listOf(b.dataset.kind);
     list.splice(Number(b.dataset.i), 1);
     if(b.dataset.kind === 'deban') refreshDebanLead();
     savePhotos(); renderPhotos();
