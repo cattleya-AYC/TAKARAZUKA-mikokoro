@@ -47,6 +47,15 @@
   .group-label{ font-size:13px; font-weight:700; color:var(--cream); margin:14px 0 6px; }
   .count-badge{ font-size:11.5px; color:var(--muted); font-weight:400; }
   .note{ font-size:11.5px; color:var(--muted); margin-top:8px; line-height:1.7; }
+  .deban-box{ border:1px dashed var(--gold); border-radius:10px; padding:14px; margin-bottom:14px; background:var(--navy-card-2); }
+  .deban-box input[type=file]{ width:100%; font-size:13px; }
+  .photo-list{ display:grid; gap:10px; margin-top:10px; }
+  .photo-item{ display:grid; grid-template-columns:84px 1fr; gap:10px; align-items:start; background:var(--navy-card); border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .photo-item img{ width:84px; height:84px; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#fff; }
+  .photo-item input[type=text]{ padding:8px 10px; font-size:13px; }
+  .photo-item .row{ display:flex; gap:6px; margin-top:6px; }
+  .photo-item .row a, .photo-item .row button{ font-size:12px; padding:6px 10px; border-radius:6px; text-decoration:none; font-weight:700; }
+  textarea.small{ min-height:70px; font-size:13px; }
 
   #authGate{ position:fixed; inset:0; z-index:9999; background:var(--navy-deep); display:flex; align-items:center; justify-content:center; padding:20px; }
   #authGate .box{ max-width:340px; width:100%; background:var(--navy-card); border:1px solid var(--gold); border-radius:14px; padding:28px 24px; }
@@ -57,7 +66,7 @@
   #authGate button{ width:100%; padding:13px; border:1px solid var(--gold-soft); border-radius:8px; background:linear-gradient(180deg, var(--gold) 0%, var(--gold-soft) 100%); color:#fffaf3; font-weight:700; font-size:15px; cursor:pointer; font-family:'Shippori Mincho','Noto Sans JP',sans-serif; }
   #authGate .err{ text-align:center; font-size:12.5px; color:var(--rose); margin-top:12px; display:none; }
   #logoutBtn{ position:fixed; top:10px; right:10px; z-index:1000; padding:6px 12px; border:1px solid var(--gold-soft); border-radius:20px; background:var(--navy-card); color:var(--gold-soft); font-size:11px; font-weight:700; cursor:pointer; display:none; }
-</style>
+</style></style>
 </head>
 <body>
 
@@ -93,6 +102,40 @@
 
   <div class="section" id="previewSection" style="display:none">
     <h2>② 文面を確認・編集してから送信</h2>
+
+    <div class="deban-box">
+      <div class="group-label" style="margin-top:0">📍 集合場所の写真(集合場所を変えた時だけ)</div>
+      <div class="field" style="margin-bottom:0">
+        <label for="placeFile">写真を選ぶ</label>
+        <input type="file" id="placeFile" accept="image/*">
+      </div>
+      <div id="placeArea" style="display:none">
+        <div class="photo-list" id="placeList"></div>
+        <div class="field" style="margin:10px 0 0">
+          <label for="placeLead">写真の上に入る文</label>
+          <textarea id="placeLead" class="small"></textarea>
+        </div>
+      </div>
+      <p class="status" id="placeStatus"></p>
+      <p class="note">写真を選んだ時だけ、本文のすぐ下に「📍 集合場所」として写真が入ります。</p>
+    </div>
+
+    <div class="deban-box">
+      <div class="group-label" style="margin-top:0">🎭 出番表・直筆メッセージ(ある時だけ・複数枚OK)</div>
+      <div class="field" style="margin-bottom:0">
+        <label for="debanFile">写真を選ぶ(1枚ずつ追加できます)</label>
+        <input type="file" id="debanFile" accept="image/*">
+      </div>
+      <div id="debanArea" style="display:none">
+        <div class="photo-list" id="debanList"></div>
+        <div class="field" style="margin:10px 0 0">
+          <label for="debanLead">写真の上に入る文(お名前を入れると自動で作られます・自由に書き換えOK)</label>
+          <textarea id="debanLead" class="small"></textarea>
+        </div>
+      </div>
+      <p class="status" id="debanStatus"></p>
+      <p class="note">写真を選んだ時だけ、すべての送信(テスト送信を含む)のメールに画像と「大きな画像で見る」ボタンが入ります。</p>
+    </div>
 
     <div class="group-label">🍽 お食事ありの方向け <span class="count-badge" id="mealYesCount"></span></div>
     <textarea id="mealYesText"></textarea>
@@ -140,6 +183,8 @@
   let mealNoRecipients = [];
   let mealBothRecipients = [];
   const OFFICIAL_LINE_URL = "https://lin.ee/S21MDzhw";
+  let debanPhotos = [];  // 出番表・直筆メッセージ [{url, name}]
+  let placePhotos = [];  // 集合場所の写真 [{url, name}]
 
   function escapeHtml(str){
     return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -158,8 +203,40 @@
   }
 
   // 前日集合案内メール用のHTMLテンプレート(組カラーに自動追従・差し入れ・お手紙のご案内を全員向けに固定表示)
+  // メールに入れる写真ブロック(写真が選ばれている時だけ)
+  function leadToHtml(text){
+    return escapeHtml(text).replace(/\n/g,'<br>');
+  }
+  function photoBlockHtml(t, title, lead, photos, footnote, honorific){
+    if(!photos.length) return '';
+    const items = photos.map(ph=>{
+      const url = escapeHtml(ph.url);
+      const label = (ph.name || '').trim();
+      const shown = label && honorific ? label.replace(/さん$/,'') + 'さん' : label;
+      const cap = shown ? `<tr><td style="padding:4px 18px 6px; font-size:13.5px; font-weight:bold; color:${t.accent};">${escapeHtml(shown)}</td></tr>` : '';
+      return `${cap}
+<tr><td align="center" style="padding:0 12px 10px;"><a href="${url}" target="_blank" style="text-decoration:none;"><img src="${url}" alt="${escapeHtml(ph.name || title)}" width="560" style="display:block; width:100%; max-width:560px; height:auto; border:1px solid #eee6dc; border-radius:6px;"></a></td></tr>
+<tr><td align="center" style="padding:0 18px 14px;"><a href="${url}" target="_blank" style="display:inline-block; background:${t.accent}; color:#ffffff; text-decoration:none; font-size:13px; font-weight:bold; padding:9px 20px; border-radius:7px;">大きな画像で見る</a></td></tr>`;
+    }).join('');
+    return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px; background:#ffffff; border:1px solid ${t.headerBorder}; border-radius:10px;">
+<tr><td style="padding:16px 18px 6px; font-size:15px; font-weight:bold; color:${t.title};">${title}</td></tr>
+${lead ? `<tr><td style="padding:0 18px 12px; font-size:14px; color:#4b4145; line-height:1.9;">${leadToHtml(lead)}</td></tr>` : ''}
+${items}
+${footnote ? `<tr><td style="padding:0 18px 16px; font-size:12px; color:#8f747d; line-height:1.8;">${footnote}</td></tr>` : ''}
+</table>`;
+  }
+  function buildPlaceHtml(t){
+    return photoBlockHtml(t, '📍 集合場所', document.getElementById('placeLead').value.trim(), placePhotos, '');
+  }
+  function buildDebanHtml(t){
+    return photoBlockHtml(t, '🎭 出番表', document.getElementById('debanLead').value.trim(), debanPhotos,
+      '※ジェンヌさんからの大切なお手紙です。SNSへの掲載や外部への転送はご遠慮ください。', true);
+  }
+
   function buildNoticeEmailHtml({ recipientName, eventTitle, bodyText, isTest, troupe }){
     const t = getTroupeEmailTheme(troupe);
+    const placeHtml = buildPlaceHtml(t);
+    const debanHtml = buildDebanHtml(t);
     const name = escapeHtml(recipientName);
     const title = escapeHtml(eventTitle);
     const paragraphs = escapeHtml(bodyText).split(/\n\s*\n/).map(p =>
@@ -196,6 +273,8 @@
 <tr><td style="padding:32px 28px 16px; font-size:15px; line-height:1.9;">
 <p style="margin:0 0 22px; font-weight:bold; color:#4a3d42;">${name}様${isTest ? '<span style="font-weight:normal; color:#9a858c;">（テスト送信です）</span>' : ''}</p>
 ${paragraphs}
+${placeHtml}
+${debanHtml}
 ${giftNoteHtml}
 </td></tr>
 <tr><td style="padding:10px 28px 30px;">
@@ -324,6 +403,7 @@ ${meetingTime}　${meetingPlace}へお集まりください
       document.getElementById('mealNoCount').textContent = `(${mealNoRecipients.length}名)`;
       document.getElementById('mealBothCount').textContent = `(${mealBothRecipients.length}名)`;
       document.getElementById('previewSection').style.display = 'block';
+      restorePhotos();
 
       statusEl.classList.add('ok');
       statusEl.textContent = `お食事あり:${mealYesRecipients.length}名、お食事なし:${mealNoRecipients.length}名を読み込みました。`;
@@ -335,6 +415,148 @@ ${meetingTime}　${meetingPlace}へお集まりください
       statusEl.classList.add('err');
       statusEl.textContent = '読み込みに失敗しました:' + (err.message || err);
     }
+  });
+
+  // ===== 集合場所・出番表の写真 =====
+  // 手書きの細かい文字が読めるよう、長辺2000px・画質85%までにとどめて軽くする
+  function compressPhoto(file, maxSide = 2000, quality = 0.85){
+    return new Promise((resolve, reject)=>{
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = e=>{ img.src = e.target.result; };
+      reader.onerror = reject;
+      img.onload = ()=>{
+        const ratio = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.round(img.width * ratio), h = Math.round(img.height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('画像の変換に失敗しました')), 'image/jpeg', quality);
+      };
+      img.onerror = ()=>reject(new Error('画像を読み込めませんでした(HEICの場合は「写真」アプリから選び直してください)'));
+      reader.readAsDataURL(file);
+    });
+  }
+  async function uploadPhoto(file, folder){
+    const blob = await compressPhoto(file);
+    const path = `${folder}/${selectedEvent.id}_${Date.now()}.jpg`;
+    const { error } = await sb.storage.from('public photo').upload(path, blob, { contentType:'image/jpeg', upsert:false });
+    if(error) throw error;
+    return { url: sb.storage.from('public photo').getPublicUrl(path).data.publicUrl, kb: Math.round(blob.size/1024) };
+  }
+
+  const PLACE_LEAD_DEFAULT = '今回は集合場所がいつもと異なります。\n下の写真で場所をご確認ください。';
+  // 出番表の文：お名前から自動で作る(手で書き換えたら、以後は自動で上書きしない)
+  let debanLeadEdited = false;
+  function autoDebanLead(){
+    const names = debanPhotos.map(p=>(p.name||'').trim().replace(/さん$/,'')).filter(Boolean);
+    const who = names.length ? names.map(n=>n+'さん').join('・') + 'から、' : '';
+    return `${who}直筆のメッセージをいただきました✨\n観劇前にぜひご覧ください。`;
+  }
+  function refreshDebanLead(){
+    if(!debanLeadEdited) document.getElementById('debanLead').value = autoDebanLead();
+  }
+
+  function storeKey(){ return selectedEvent ? 'notice_photos_' + selectedEvent.id : ''; }
+  function savePhotos(){
+    try{
+      localStorage.setItem(storeKey(), JSON.stringify({
+        deban: debanPhotos, place: placePhotos,
+        debanLead: document.getElementById('debanLead').value, debanLeadEdited,
+        placeLead: document.getElementById('placeLead').value
+      }));
+    }catch(e){}
+  }
+  // 同じ公演なら、ページを開き直しても選んだ写真を覚えておく(この端末だけ)
+  function restorePhotos(){
+    debanPhotos = []; placePhotos = []; debanLeadEdited = false;
+    let saved = null;
+    try{ saved = JSON.parse(localStorage.getItem(storeKey()) || 'null'); }catch(e){}
+    if(saved){
+      debanPhotos = saved.deban || []; placePhotos = saved.place || [];
+      debanLeadEdited = !!saved.debanLeadEdited;
+      document.getElementById('debanLead').value = saved.debanLead || '';
+      document.getElementById('placeLead').value = saved.placeLead || PLACE_LEAD_DEFAULT;
+    } else {
+      document.getElementById('placeLead').value = PLACE_LEAD_DEFAULT;
+    }
+    refreshDebanLead();
+    ['debanFile','placeFile'].forEach(id=>document.getElementById(id).value = '');
+    ['debanStatus','placeStatus'].forEach(id=>{ const el = document.getElementById(id); el.className = 'status'; el.textContent = ''; });
+    renderPhotos();
+  }
+
+  function renderList(kind){
+    const photos = kind === 'deban' ? debanPhotos : placePhotos;
+    document.getElementById(kind + 'Area').style.display = photos.length ? 'block' : 'none';
+    document.getElementById(kind + 'List').innerHTML = photos.map((ph, i)=>`
+      <div class="photo-item">
+        <a href="${escapeHtml(ph.url)}" target="_blank" rel="noopener"><img src="${escapeHtml(ph.url)}" alt=""></a>
+        <div>
+          <input type="text" data-kind="${kind}" data-i="${i}" class="photo-name" value="${escapeHtml(ph.name || '')}"
+            placeholder="${kind === 'deban' ? 'お名前(例:峰果とわ)' : '写真の説明(空欄でもOK)'}">
+          <div class="row">
+            <a class="secondary" href="${escapeHtml(ph.url)}" target="_blank" rel="noopener">開いて確認</a>
+            <button type="button" class="secondary photo-del" data-kind="${kind}" data-i="${i}">外す</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+  function renderPhotos(){ renderList('deban'); renderList('place'); }
+
+  function wirePhotoInput(kind, folder){
+    document.getElementById(kind + 'File').addEventListener('change', async e=>{
+      const file = e.target.files?.[0];
+      const st = document.getElementById(kind + 'Status');
+      st.className = 'status';
+      if(!file) return;
+      if(!selectedEvent){ st.classList.add('err'); st.textContent = '先に公演を選んで読み込んでください。'; e.target.value = ''; return; }
+      st.textContent = '写真を軽くしてアップロード中…';
+      try{
+        const up = await uploadPhoto(file, folder);
+        (kind === 'deban' ? debanPhotos : placePhotos).push({ url: up.url, name: '' });
+        if(kind === 'deban') refreshDebanLead();
+        savePhotos(); renderPhotos();
+        st.classList.add('ok');
+        st.textContent = `✓ 写真を追加しました(${up.kb}KB)。` + (kind === 'deban' ? 'お名前を入れてください。' : '') + 'テスト送信で見え方を確認できます。';
+      }catch(err){
+        console.error(err);
+        st.classList.add('err');
+        st.textContent = 'アップロードに失敗しました:' + (err.message || err);
+      }finally{
+        e.target.value = '';  // 続けて次の写真を選べるように
+      }
+    });
+  }
+  wirePhotoInput('deban', 'deban');
+  wirePhotoInput('place', 'meeting-place');
+
+  // お名前・説明の入力
+  document.addEventListener('input', e=>{
+    const el = e.target;
+    if(el.classList.contains('photo-name')){
+      const list = el.dataset.kind === 'deban' ? debanPhotos : placePhotos;
+      if(list[el.dataset.i]) list[el.dataset.i].name = el.value;
+      if(el.dataset.kind === 'deban') refreshDebanLead();
+      savePhotos();
+    } else if(el.id === 'debanLead'){
+      debanLeadEdited = el.value.trim() !== '' && el.value !== autoDebanLead();
+      savePhotos();
+    } else if(el.id === 'placeLead'){
+      savePhotos();
+    }
+  });
+  // 外す
+  document.addEventListener('click', e=>{
+    const b = e.target.closest('.photo-del');
+    if(!b) return;
+    if(!confirm('この写真をメールから外しますか?')) return;
+    const list = b.dataset.kind === 'deban' ? debanPhotos : placePhotos;
+    list.splice(Number(b.dataset.i), 1);
+    if(b.dataset.kind === 'deban') refreshDebanLead();
+    savePhotos(); renderPhotos();
   });
 
   function wireCopyButton(btnId, textareaId){
