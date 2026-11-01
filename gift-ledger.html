@@ -369,8 +369,9 @@ function renderEventSummary(){
   });
   budgets.sort((a,b)=>periodNum(a.period) - periodNum(b.period));
 
-  const diffCell = d => d === 0 ? `<td class="num">±0円</td>`
-    : `<td class="num ${d > 0 ? "diff-plus" : "diff-minus"}">${d > 0 ? "＋" : "−"}${yen(Math.abs(d))}</td>`;
+  // 記号（＋−）は向きが紛らわしいので「余り／不足」と言葉で表示
+  const diffCell = d => d === 0 ? `<td class="num">ぴったり</td>`
+    : `<td class="num ${d > 0 ? "diff-plus" : "diff-minus"}">${yen(Math.abs(d))}<br><span style="font-size:11.5px">${d > 0 ? "余り" : "不足"}</span></td>`;
 
   let jenneTable = "";
   if(budgets.length || spentBy[SHARED]){
@@ -390,7 +391,7 @@ function renderEventSummary(){
     const tS = Object.values(spentBy).reduce((s,v)=>s + v, 0);
     jenneTable = `
       <h2 style="margin-top:16px">🎁 ジェンヌさん別　予算と購入額</h2>
-      <p class="note">差額が<span class="diff-plus">＋</span>なら予算内（余り）、<span class="diff-minus">−</span>なら予算オーバーです。</p>
+      <p class="note">差額は「予算 − 購入額」です。<span class="diff-plus">余り</span>は予算内、<span class="diff-minus">不足</span>は予算オーバーです。</p>
       <div style="overflow-x:auto"><table>
         <thead><tr><th>差し入れ先</th><th class="num">予算</th><th class="num">購入額</th><th class="num">差額</th></tr></thead>
         <tbody>${body}${shared}
