@@ -229,13 +229,18 @@
   function leadToHtml(text){
     return escapeHtml(text).replace(/\n/g,'<br>');
   }
-  function photoBlockHtml(t, title, lead, photos, footnote, honorific){
+  function photoBlockHtml(t, title, lead, photos, footnote, honorific, small){
     if(!photos.length) return '';
     const items = photos.map(ph=>{
       const url = escapeHtml(ph.url);
       const label = (ph.name || '').trim();
       const shown = label && honorific ? label.replace(/さん$/,'') + 'さん' : label;
       const cap = shown ? `<tr><td style="padding:4px 18px 6px; font-size:13.5px; font-weight:bold; color:${t.accent};">${escapeHtml(shown)}</td></tr>` : '';
+      // small=true(差し入れの写真)は、小さめに表示してリンク・「大きな画像で見る」ボタンを付けない
+      if(small){
+        return `${cap}
+<tr><td align="center" style="padding:0 12px 14px;"><img src="${url}" alt="${escapeHtml(ph.name || title)}" width="320" style="display:block; width:100%; max-width:320px; height:auto; border:1px solid #eee6dc; border-radius:6px;"></td></tr>`;
+      }
       return `${cap}
 <tr><td align="center" style="padding:0 12px 10px;"><a href="${url}" target="_blank" style="text-decoration:none;"><img src="${url}" alt="${escapeHtml(ph.name || title)}" width="560" style="display:block; width:100%; max-width:560px; height:auto; border:1px solid #eee6dc; border-radius:6px;"></a></td></tr>
 <tr><td align="center" style="padding:0 18px 14px;"><a href="${url}" target="_blank" style="display:inline-block; background:${t.accent}; color:#ffffff; text-decoration:none; font-size:13px; font-weight:bold; padding:9px 20px; border-radius:7px;">大きな画像で見る</a></td></tr>`;
@@ -251,7 +256,7 @@ ${footnote ? `<tr><td style="padding:0 18px 16px; font-size:12px; color:#8f747d;
     return photoBlockHtml(t, '📍 集合場所', document.getElementById('placeLead').value.trim(), placePhotos, '');
   }
   function buildGiftPhotoHtml(t){
-    return photoBlockHtml(t, '🎁 今回の差し入れ', document.getElementById('giftLead').value.trim(), giftPhotos, '');
+    return photoBlockHtml(t, '🎁 今回の差し入れ', document.getElementById('giftLead').value.trim(), giftPhotos, '', false, true);
   }
   function buildDebanHtml(t){
     return photoBlockHtml(t, '🎭 出番表', document.getElementById('debanLead').value.trim(), debanPhotos,
