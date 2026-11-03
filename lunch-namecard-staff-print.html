@@ -262,6 +262,12 @@
     return { menu: shortMenu, drink: shortDrink };
   }
 
+  // 末尾に「様」を付ける。すでに「様」「さま」で終わっていれば付け足さない(例:「お子様」→「お子様様」を防ぐ)
+  function withSama(text){
+    const t = (text || '').trim();
+    return /(様|さま)$/.test(t) ? t : t + '様';
+  }
+
   document.getElementById('loadBtn').addEventListener('click', async ()=>{
     const statusEl = document.getElementById('loadStatus');
     statusEl.className = 'status'; statusEl.textContent = '';
@@ -287,7 +293,7 @@
           const fmt = formatCardMenuDrink(i1.menu_name, i1.drink || '');
           cards.push({
             header,
-            name: `${o.representative_name}様`,
+            name: withSama(o.representative_name),
             menu: fmt.menu,
             drink: fmt.drink,
             isCompanion:false
@@ -297,8 +303,8 @@
           const fmt2 = formatCardMenuDrink(i2.menu_name, i2.drink || '');
           cards.push({
             header,
-            name: `${o.representative_name}様`,
-            relationLine: (o.relation && o.relation !== 'その他') ? `${o.relation}様` : 'ご同伴者様',
+            name: withSama(o.representative_name),
+            relationLine: (o.relation && o.relation !== 'その他') ? withSama(o.relation) : 'ご同伴者様',
             menu: fmt2.menu,
             drink: fmt2.drink,
             isCompanion:true
