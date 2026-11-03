@@ -96,6 +96,11 @@
     .pnamecard .nc-drink{ font-size:11pt; color:#222; margin-top:1mm; }
     .pnamecard.blank{ }
   }
+  /* 模様は背景ではなく<img>で入れる(印刷設定で背景がオフ・iPhoneでも必ず印刷される) */
+  .namecard, .pnamecard{ position:relative; }
+  .nc-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; pointer-events:none;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .namecard > :not(.nc-bg), .pnamecard > :not(.nc-bg){ position:relative; z-index:1; }
   #printArea{ display:none; }
 </style>
 </head>
@@ -356,9 +361,22 @@
     return '1.4mm';
   }
 
+  // 模様(背景)を<img>タグで返す。CSS背景だと印刷で省かれることがあるため
+  function bgImgTag(){
+    return bgUrl ? `<img class="nc-bg" src="${bgUrl}" alt="">` : '';
+  }
+
+  // 印刷エリアの画像がすべて読み込まれてから印刷する
+  function printWhenImagesReady(){
+    const imgs = Array.from(document.querySelectorAll('#printGrid img'));
+    const waits = imgs.map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
+    const timeout = new Promise(r => setTimeout(r, 5000));
+    Promise.race([Promise.all(waits), timeout]).then(()=> setTimeout(()=> window.print(), 100));
+  }
+
   function cardHtml(c, cls){
     return `
-      <div class="${cls}" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}">
+      <div class="${cls}" >${bgImgTag()}
         <div class="nc-header" style="font-size:${headerFontSizeMm(c.header)};line-height:1.3;">${c.header}</div>
         ${c.isCompanion
           ? `<div class="nc-name-small nc-editable" contenteditable="true">${c.name}</div>
@@ -379,15 +397,15 @@
   document.getElementById('printBtn').addEventListener('click', ()=>{
     const previewCards = document.querySelectorAll('#previewGrid .namecard');
     let html = Array.from(previewCards).map(el=>{
-      return `<div class="pnamecard" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}">${el.innerHTML}</div>`;
+      return `<div class="pnamecard">${el.innerHTML}</div>`;
     }).join('');
     const remainder = previewCards.length % 10;
     if(remainder !== 0){
       const blanks = 10 - remainder;
-      for(let i=0;i<blanks;i++) html += `<div class="pnamecard blank" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}"></div>`;
+      for(let i=0;i<blanks;i++) html += `<div class="pnamecard blank" >${bgImgTag()}</div>`;
     }
     document.getElementById('printGrid').innerHTML = html;
-    setTimeout(()=> window.print(), 50);
+    printWhenImagesReady();
   });
 
   // --- 背景デザインのライブラリ(複数登録・スタッフ画面で選択) ---

@@ -51,6 +51,12 @@
   .bg-choice .lbl{ padding:5px; font-size:11px; text-align:center; }
   .bg-choice.none{ display:flex; align-items:center; justify-content:center; aspect-ratio:91/55; color:var(--muted); font-size:11px; }
 
+  .blank-print-box{ margin-top:16px; padding:12px 14px; border:1px dashed var(--line); border-radius:10px; background:var(--navy-card-2); }
+  .blank-title{ font-weight:700; font-size:14px; }
+  .blank-note{ font-size:12px; color:var(--muted); margin:4px 0 10px; line-height:1.6; }
+  .blank-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .blank-row select{ width:auto; }
+
   .card-count{ font-size:13px; color:var(--muted); margin-bottom:10px; }
   .preview-grid{ display:flex; flex-wrap:wrap; gap:10px; }
   .namecard{
@@ -88,6 +94,11 @@
     .pnamecard .nc-drink{ font-size:11pt; color:#222; margin-top:1mm; }
     .pnamecard.blank{ }
   }
+  /* 模様は背景ではなく<img>で入れる(印刷設定で背景がオフ・iPhoneでも必ず印刷される) */
+  .namecard, .pnamecard{ position:relative; }
+  .nc-bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; pointer-events:none;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .namecard > :not(.nc-bg), .pnamecard > :not(.nc-bg){ position:relative; z-index:1; }
   #printArea{ display:none; }
 </style>
 </head>
@@ -114,6 +125,19 @@
   <div class="section">
     <h2>② 背景デザインを選ぶ</h2>
     <div class="bg-grid" id="bgGrid"><p class="status" style="color:var(--muted)">読み込み中…</p></div>
+    <div class="blank-print-box">
+      <div class="blank-title">🖨 模様だけ印刷(文字なし)</div>
+      <div class="blank-note">選んだ背景の模様だけを、文字を入れずにA4に10枚並べて印刷します。予備・手書き用に。公演を選ばなくても使えます。</div>
+      <div class="blank-row">
+        <select id="blankPages">
+          <option value="1">1ページ(10枚)</option>
+          <option value="2">2ページ(20枚)</option>
+          <option value="3">3ページ(30枚)</option>
+        </select>
+        <button type="button" class="secondary" id="blankPrintBtn">模様だけ印刷する</button>
+      </div>
+      <p class="status" id="blankStatus"></p>
+    </div>
   </div>
 
   <div class="section" id="cardsSection" style="display:none">
@@ -301,9 +325,22 @@
     return '1.4mm';
   }
 
+  // 模様(背景)を<img>タグで返す。CSS背景だと印刷で省かれることがあるため
+  function bgImgTag(){
+    return bgUrl ? `<img class="nc-bg" src="${bgUrl}" alt="">` : '';
+  }
+
+  // 印刷エリアの画像がすべて読み込まれてから印刷する
+  function printWhenImagesReady(){
+    const imgs = Array.from(document.querySelectorAll('#printGrid img'));
+    const waits = imgs.map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
+    const timeout = new Promise(r => setTimeout(r, 5000));
+    Promise.race([Promise.all(waits), timeout]).then(()=> setTimeout(()=> window.print(), 100));
+  }
+
   function cardHtml(c, cls){
     return `
-      <div class="${cls}" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}">
+      <div class="${cls}" >${bgImgTag()}
         <div class="nc-header" style="font-size:${headerFontSizeMm(c.header)};line-height:1.3;">${c.header}</div>
         ${c.isCompanion
           ? `<div class="nc-name-small">${c.name}</div>
@@ -326,10 +363,26 @@
     const remainder = cards.length % 10;
     if(remainder !== 0){
       const blanks = 10 - remainder;
-      for(let i=0;i<blanks;i++) html += `<div class="pnamecard blank" style="${bgUrl ? `background-image:url(${bgUrl})` : ''}"></div>`;
+      for(let i=0;i<blanks;i++) html += `<div class="pnamecard blank" >${bgImgTag()}</div>`;
     }
     document.getElementById('printGrid').innerHTML = html;
-    setTimeout(()=> window.print(), 50);
+    printWhenImagesReady();
+  });
+
+  // 模様だけ(文字なし)を印刷する。名前の入ったカードとは別に、予備・手書き用
+  document.getElementById('blankPrintBtn').addEventListener('click', ()=>{
+    const statusEl = document.getElementById('blankStatus');
+    statusEl.className = 'status'; statusEl.textContent = '';
+    if(!bgUrl){
+      statusEl.classList.add('err');
+      statusEl.textContent = '先に上の一覧から背景デザインを選んでください。';
+      return;
+    }
+    const pages = parseInt(document.getElementById('blankPages').value, 10) || 1;
+    let html = '';
+    for(let i=0;i<pages*10;i++) html += `<div class="pnamecard blank">${bgImgTag()}</div>`;
+    document.getElementById('printGrid').innerHTML = html;
+    printWhenImagesReady();
   });
 
   async function init(){
