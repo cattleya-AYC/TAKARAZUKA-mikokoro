@@ -691,14 +691,14 @@ function buildThanksHtml({ dateStr, workLabel, jenneNames, receiptUrl, giftUrl, 
       </p>
 
       <p>
-        また、このたびは<strong>${jenneNames}様</strong>への差し入れにも
+        また、このたびは<strong>${jenneNames}</strong>への差し入れにも
         ご賛同、ご協力を賜り、誠にありがとうございました🎁
       </p>
 
       <p>
         皆さまからお預かりいたしましたお気持ちは、
         心を込めてお品物としてご用意し、
-        ${jenneNames}様へお届けいたしました。
+        ${jenneNames}へお届けいたしました。
       </p>
 
       <p>
@@ -879,8 +879,22 @@ document.getElementById("photoUploadBtn").addEventListener("click", async ()=>{
     const ev = eventsData.find(e=>e.id === eventId);
     const dateStr = formatEventDate(ev?.event_date);
     const workLabel = ev?.work_title ? `${ev.troupe||""}組「${ev.work_title}」` : `${ev?.troupe||""}組`;
-    const jenneNamesArr = [...new Set(currentRows.map(r=>r.jennes?.name).filter(Boolean))];
-    const jenneNames = jenneNamesArr.length ? jenneNamesArr.join("・") : "ジェンヌさん";
+    // 差し入れ先は、その回に登録した全員(event_gifts)を上級生順で並べる。
+    // 以前は申込の先頭1名(jenne_id)だけを拾っていたため、複数選択の回で人数が欠けていた。
+    let giftIds = [];
+    try{
+      const { data: gifts, error: gErr } = await supabase
+        .from("event_gifts").select("jenne_id").eq("event_id", eventId);
+      if(gErr) throw gErr;
+      giftIds = (gifts || []).map(g=>g.jenne_id);
+    }catch(e){ console.warn("event_giftsの取得に失敗:", e); }
+    // 念のため、申込で選ばれた方(jenne_ids)も合わせる
+    currentRows.forEach(r=>rowJenneIds(r).forEach(id=>giftIds.push(id)));
+    const jenneNamesArr = [...new Set(giftIds)]
+      .filter(id=>jenneMap[id])
+      .sort((a,b)=>periodNum(jenneMap[a].period) - periodNum(jenneMap[b].period))
+      .map(id=>nm(jenneMap[id].name) + "様");
+    const jenneNames = jenneNamesArr.length ? jenneNamesArr.join("、") : "ジェンヌさん";
 
     generatedEmailHtml = buildThanksHtml({ dateStr, workLabel, jenneNames, receiptUrl, giftUrl, candyUrl });
     document.getElementById("thanksPreview").innerHTML = generatedEmailHtml;
