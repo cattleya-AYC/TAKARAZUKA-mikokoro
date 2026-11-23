@@ -691,6 +691,14 @@
       <button type="button" id="mealMenuTestSendBtn" style="background:transparent;color:var(--ok);border:1px solid var(--ok);border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">テスト送信(mari247k@gmail.com宛)</button>
       <button type="button" id="mealMenuSendBtn" style="background:var(--ok);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">お食事メニューご案内メールを送信(お食事ご参加の方のみ)</button>
     </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);">
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:var(--rose);">🔁 未入力の方だけに再送</p>
+      <p style="margin:0 0 8px;font-size:11.5px;color:var(--muted);">上のURL・締切・補足メッセージを使います。ご入力済みの方は自動で除きます。2名参加で1名分だけ未入力の方には「あと1名様分」とお知らせします。</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="mealRemindTestSendBtn" style="background:transparent;color:var(--rose);border:1px solid var(--rose);border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">再送版をテスト送信(mari247k@gmail.com宛)</button>
+        <button type="button" id="mealRemindSendBtn" style="background:var(--rose);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">未入力の方だけに再送する</button>
+      </div>
+    </div>
     <p class="status-msg" id="mealMenuStatus" style="padding:8px 0 0;text-align:left;"></p>
   </div>
 </div>
@@ -754,8 +762,21 @@
   }
 
   // お食事メニュー案内メール用のHTMLテンプレート(色は開催回の組カラーに自動追従)
-  function buildMealMenuEmailHtml({ recipientName, eventTitle, formUrl, deadlineShort, extraBody, isTest, troupe }){
+  // isReminder=true のときは未入力の方向けの再送文面になる。
+  // partyCount=2・missingCount=1 のように渡すと「2名様分のうち、あと1名様分」と案内する。
+  function buildMealMenuEmailHtml({ recipientName, eventTitle, formUrl, deadlineShort, extraBody, isTest, troupe, isReminder, partyCount, missingCount }){
     const t = getTroupeEmailTheme(troupe);
+    const subTitle = isReminder ? 'お食事メニューご登録のお願い（再送）' : 'お食事メニューご登録のお願い';
+    const isPartial = isReminder && partyCount >= 2 && missingCount > 0 && missingCount < partyCount;
+    const introHtml = isReminder
+      ? (isPartial
+          ? `<p style="margin:0 0 18px;">さて、当日のお食事メニューとお飲み物につきまして、観劇会は<strong style="color:${t.title};">${partyCount}名様</strong>でお申し込みいただいておりますが、お食事のご登録は<strong style="color:${t.title};">${partyCount - missingCount}名様分</strong>のみとなっております（<strong style="color:${t.title};">あと${missingCount}名様分</strong>）。</p>
+<p style="margin:0 0 18px;">お手数をおかけいたしますが、下記フォームで<strong>参加人数を「${partyCount}人」</strong>にしていただき、<strong>${partyCount}名様分をまとめて</strong>あらためてご入力ください。前回のご登録内容は、新しい内容に上書きされます。</p>`
+          : `<p style="margin:0 0 18px;">さて、当日のお食事メニューとお飲み物につきまして、まだご入力が確認できておりません。</p>
+<p style="margin:0 0 18px;">お手数をおかけいたしますが、下記フォームよりご選択・ご入力をお願いいたします。</p>`)
+        + `<p style="margin:0 0 26px;">レストランへの手配のため、締め切りまでにご入力いただけますと幸いです。なお、本メールと行き違いでご入力いただいている場合は、何卒ご容赦ください。</p>`
+      : `<p style="margin:0 0 18px;">さて、当日のお食事メニューとお飲み物につきまして、下記フォームより選択・ご入力をお願いいたします。</p>
+<p style="margin:0 0 26px;">ご入力いただいた内容をもとに、レストランへの手配を進めさせていただきます。お手数をおかけいたしますが、締め切りまでにご入力いただけますと幸いです。</p>`;
     const name = escapeHtml(recipientName);
     const title = escapeHtml(eventTitle);
     const url = escapeHtml(formUrl);
@@ -768,7 +789,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${title} お食事メニューご登録のお願い</title>
+<title>${title} ${subTitle}</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f8f5f6; font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Yu Gothic',YuGothic,Meiryo,sans-serif; color:#4b4145;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f8f5f6;">
@@ -777,15 +798,14 @@
 <tr><td align="center" style="padding:32px 20px 26px; background-color:${t.headerBg}; border-bottom:1px solid ${t.headerBorder};">
 <div style="font-size:12px; letter-spacing:3px; color:#a67c52; margin-bottom:10px;">OBAYASHI TAKARAZUKA CLUB</div>
 <div style="font-family:Georgia,'Times New Roman',serif; font-size:25px; line-height:1.5; color:${t.title}; font-weight:bold;">${title}</div>
-<div style="margin-top:8px; font-size:14px; color:#8f747d; letter-spacing:1px;">お食事メニューご登録のお願い</div>
+<div style="margin-top:8px; font-size:14px; color:#8f747d; letter-spacing:1px;">${subTitle}</div>
 <div style="width:48px; height:1px; background:#c7a16b; margin:18px auto 0;"></div>
 </td></tr>
 <tr><td style="padding:32px 28px 16px; font-size:15px; line-height:1.9;">
 <p style="margin:0 0 24px; font-weight:bold; color:#4a3d42;">${name}様${isTest ? '<span style="font-weight:normal; color:#9a858c;">（テスト送信です）</span>' : ''}</p>
 <p style="margin:0 0 18px;">この度は、<strong style="color:${t.title};">${title}</strong>にお申し込みいただき、誠にありがとうございました。</p>
 <p style="margin:0 0 18px;">またこの度は、お食事会からのご参加もいただき、重ねてお礼申し上げます。</p>
-<p style="margin:0 0 18px;">さて、当日のお食事メニューとお飲み物につきまして、下記フォームより選択・ご入力をお願いいたします。</p>
-<p style="margin:0 0 26px;">ご入力いただいた内容をもとに、レストランへの手配を進めさせていただきます。お手数をおかけいたしますが、締め切りまでにご入力いただけますと幸いです。</p>
+${introHtml}
 ${extraHtml}
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:8px 0 24px; background:#fff9fa; border:1px solid #ead6dc; border-radius:12px;">
 <tr><td align="center" style="padding:26px 18px;">
@@ -1997,6 +2017,205 @@ ${body}
     btn.disabled = false;
   }
 
+  // ---- お食事メニュー：未入力の方だけに再送 ----
+  // 判定は lunch-summary.html と同じ:代表者名(空白除去)で meal_orders を照合し、
+  // 参加人数分の「メニュー+飲み物」がそろっていなければ未入力とする。
+  function normalizeMealName(name){
+    return (name || '').replace(/[\s　]/g, '');
+  }
+
+  async function findMealUnfilledRecipients(eventId){
+    const { data: orderRows, error: orderErr } = await sb
+      .from('meal_orders').select('id, representative_name').eq('event_id', eventId);
+    if(orderErr) throw orderErr;
+    const ids = (orderRows || []).map(o => o.id);
+    let itemRows = [];
+    if(ids.length){
+      const { data, error } = await sb
+        .from('meal_order_items').select('meal_order_id, person_no, menu_name, drink')
+        .in('meal_order_id', ids);
+      if(error) throw error;
+      itemRows = data || [];
+    }
+    const orders = (orderRows || []).map(o => ({
+      ...o,
+      items: itemRows.filter(i => i.meal_order_id === o.id).sort((a,b) => a.person_no - b.person_no)
+    }));
+
+    const targets = currentRows.filter(r => r.status === '参加決定' && r.answers?.meal === 'ご参加');
+    const recipients = [];
+    const noEmailNames = [];
+    const seen = new Set();
+    targets.forEach(r => {
+      const name = r.answers?.full_name || r.participants?.name || 'ご参加者';
+      const partyCount = Number(r.answers?.participant_count) || 1;
+      const order = orders.find(o => normalizeMealName(o.representative_name) === normalizeMealName(name));
+      let filled = 0;
+      for(let i = 0; i < partyCount; i++){
+        const it = order?.items?.[i];
+        if(it && it.menu_name && it.drink) filled++;
+      }
+      const missingCount = partyCount - filled;
+      if(missingCount <= 0) return; // 入力済みの方は除く
+
+      const email = (r.answers?.email || '').trim();
+      if(!email){ noEmailNames.push(name); return; }
+      if(seen.has(email)) return;
+      seen.add(email);
+      recipients.push({ email, name, partyCount, missingCount });
+    });
+    return { recipients, noEmailNames };
+  }
+
+  function readMealMenuInputs(statusEl){
+    const formUrl = document.getElementById('mealMenuFormUrl').value.trim();
+    if(!formUrl){
+      statusEl.classList.add('err');
+      statusEl.textContent = 'メニュー選択フォームのURLを入力してください。';
+      return null;
+    }
+    const deadlineDateStr = document.getElementById('mealMenuDeadline').value;
+    if(!deadlineDateStr){
+      statusEl.classList.add('err');
+      statusEl.textContent = 'お食事フォームに設定した締切日を入力してください。';
+      return null;
+    }
+    return {
+      formUrl,
+      deadlineDateStr,
+      deadlineShort: formatDeadlineShortJp(deadlineDateStr),
+      extraBody: document.getElementById('mealMenuBody').value.trim()
+    };
+  }
+
+  async function sendMealRemindEmail(){
+    const statusEl = document.getElementById('mealMenuStatus');
+    statusEl.className = 'status-msg'; statusEl.textContent = '';
+
+    const ev = events.find(e => e.id === currentEventId);
+    if(!ev){
+      statusEl.classList.add('err');
+      statusEl.textContent = '先に公演を選んでください。';
+      return;
+    }
+    const inputs = readMealMenuInputs(statusEl);
+    if(!inputs) return;
+
+    const btn = document.getElementById('mealRemindSendBtn');
+    btn.disabled = true;
+    statusEl.textContent = '未入力の方を確認中…';
+
+    let recipients, noEmailNames;
+    try{
+      ({ recipients, noEmailNames } = await findMealUnfilledRecipients(ev.id));
+    }catch(err){
+      console.warn('未入力者の確認に失敗:', err);
+      statusEl.className = 'status-msg err';
+      statusEl.textContent = '未入力の方の確認に失敗しました:' + (err.message || '');
+      btn.disabled = false;
+      return;
+    }
+    statusEl.textContent = '';
+
+    const noEmailNote = noEmailNames.length
+      ? `\n\n※メールアドレスがないため送れない方:${noEmailNames.join('、')}`
+      : '';
+    if(recipients.length === 0){
+      statusEl.className = 'status-msg ok';
+      statusEl.textContent = '未入力の方はいません。全員ご入力済みです。' + (noEmailNames.length ? `(メールアドレスなし:${noEmailNames.join('、')})` : '');
+      btn.disabled = false;
+      return;
+    }
+
+    const listText = recipients.map(r =>
+      r.partyCount >= 2 && r.missingCount < r.partyCount
+        ? `・${r.name}様(${r.partyCount}名中${r.missingCount}名分未入力)`
+        : `・${r.name}様`
+    ).join('\n');
+    if(!confirm(`次の ${recipients.length}名に再送します。締切は${formatDateJp(inputs.deadlineDateStr)}です。\n\n${listText}${noEmailNote}\n\nよろしいですか？`)){
+      btn.disabled = false;
+      return;
+    }
+
+    const title = `第${ev.event_number ?? ''}回 ${ev.troupe||''}観劇会`;
+    const subject = `【小林タカラヅカ倶楽部】${title} お食事メニューご登録のお願い（再送）`;
+    let successCount = 0;
+    const failedNames = [];
+
+    for(let i = 0; i < recipients.length; i++){
+      const r = recipients[i];
+      statusEl.className = 'status-msg';
+      statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
+      const message = buildMealMenuEmailHtml({
+        recipientName: r.name, eventTitle: title, formUrl: inputs.formUrl,
+        deadlineShort: inputs.deadlineShort, extraBody: inputs.extraBody,
+        isTest: false, troupe: ev.troupe,
+        isReminder: true, partyCount: r.partyCount, missingCount: r.missingCount
+      });
+      try{
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+          email: r.email, subject, message
+        });
+        successCount++;
+      }catch(err){
+        console.warn('送信失敗:', r.email, err);
+        failedNames.push(r.name);
+      }
+    }
+
+    statusEl.className = 'status-msg';
+    const noEmailText = noEmailNames.length ? `　※メールアドレスなしで未送信:${noEmailNames.join('、')}` : '';
+    if(failedNames.length === 0){
+      statusEl.classList.add('ok');
+      statusEl.textContent = `再送完了:未入力の${successCount}名に送信しました。${noEmailText}`;
+    } else {
+      statusEl.classList.add('err');
+      statusEl.textContent = `再送完了:${successCount}名成功 / ${failedNames.length}名失敗(${failedNames.join('、')})${noEmailText}`;
+    }
+    btn.disabled = false;
+  }
+
+  async function sendMealRemindTestEmail(){
+    const statusEl = document.getElementById('mealMenuStatus');
+    statusEl.className = 'status-msg'; statusEl.textContent = '';
+
+    const ev = events.find(e => e.id === currentEventId);
+    if(!ev){
+      statusEl.classList.add('err');
+      statusEl.textContent = '先に公演を選んでください。';
+      return;
+    }
+    const inputs = readMealMenuInputs(statusEl);
+    if(!inputs) return;
+
+    const title = `第${ev.event_number ?? ''}回 ${ev.troupe||''}観劇会`;
+    const subject = `【テスト送信】【小林タカラヅカ倶楽部】${title} お食事メニューご登録のお願い（再送）`;
+    // テストでは「2名中1名分未入力」の文面を確認できるようにする
+    const message = buildMealMenuEmailHtml({
+      recipientName: 'テスト太郎', eventTitle: title, formUrl: inputs.formUrl,
+      deadlineShort: inputs.deadlineShort, extraBody: inputs.extraBody,
+      isTest: true, troupe: ev.troupe,
+      isReminder: true, partyCount: 2, missingCount: 1
+    });
+
+    const btn = document.getElementById('mealRemindTestSendBtn');
+    btn.disabled = true;
+    statusEl.className = 'status-msg';
+    statusEl.textContent = `テスト送信中… (${TEST_EMAIL})`;
+    try{
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
+        email: TEST_EMAIL, subject, message
+      });
+      statusEl.className = 'status-msg ok';
+      statusEl.textContent = `テスト送信完了:${TEST_EMAIL} に「2名中1名分未入力」の再送文面を送信しました。(一斉送信は行われていません)`;
+    }catch(err){
+      console.warn('テスト送信失敗:', err);
+      statusEl.className = 'status-msg err';
+      statusEl.textContent = 'テスト送信に失敗しました。';
+    }
+    btn.disabled = false;
+  }
+
   async function sendEmergencyEmail(){
     const statusEl = document.getElementById('emergencyStatus');
     statusEl.className = 'status-msg'; statusEl.textContent = '';
@@ -2123,6 +2342,8 @@ ${body}
       document.getElementById('giftLetterSendBtn').addEventListener('click', sendGiftLetterEmail);
       document.getElementById('mealMenuSendBtn').addEventListener('click', sendMealMenuEmail);
       document.getElementById('mealMenuTestSendBtn').addEventListener('click', sendMealMenuTestEmail);
+      document.getElementById('mealRemindSendBtn').addEventListener('click', sendMealRemindEmail);
+      document.getElementById('mealRemindTestSendBtn').addEventListener('click', sendMealRemindTestEmail);
       document.getElementById('emergencyTestSendBtn').addEventListener('click', sendEmergencyTestEmail);
       document.getElementById('giftLetterTestSendBtn').addEventListener('click', sendGiftLetterTestEmail);
       document.querySelectorAll('th.sortable').forEach(th=>{
