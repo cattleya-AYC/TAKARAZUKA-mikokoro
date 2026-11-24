@@ -647,30 +647,6 @@
   <a href="admin-summary-recent7.html">📋 直近7回 申込者一覧</a>
 </div>
 
-<div class="net-score-summary-wrap print-hide-block" id="resultMailSection">
-  <div class="net-score-summary" style="padding:16px;margin-top:14px;min-width:0;">
-    <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:var(--gold-soft);">📩 参加決定・お断りのご連絡メール</p>
-    <p style="margin:0 0 12px;font-size:11.5px;color:var(--muted);">一覧で✓/✕を付け終わってから送ってください。一度送った方には二重に送らないので、あとから決定・お断りを付けた方だけに追加で送れます。</p>
-
-    <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:var(--ok);">✓ 参加決定の方へ</p>
-    <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">補足メッセージ(任意)</label>
-    <textarea id="decidedMailBody" placeholder="例:当日の集合時間・場所は、前日にあらためてご案内いたします。" style="width:100%;min-height:80px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-      <button type="button" id="decidedMailTestBtn" style="background:transparent;color:var(--ok);border:1px solid var(--ok);border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">テスト送信(mari247k@gmail.com宛)</button>
-      <button type="button" id="decidedMailSendBtn" style="background:var(--ok);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">参加決定の方に一斉送信</button>
-    </div>
-
-    <p style="margin:18px 0 6px;font-size:13px;font-weight:700;color:var(--rose);">✕ お断りの方へ</p>
-    <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;">補足メッセージ(任意)</label>
-    <textarea id="declinedMailBody" placeholder="例:次回は◯月頃に募集を予定しております。" style="width:100%;min-height:80px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--navy-card-2);color:var(--cream);font-size:13px;font-family:inherit;line-height:1.7;resize:vertical;"></textarea>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-      <button type="button" id="declinedMailTestBtn" style="background:transparent;color:var(--rose);border:1px solid var(--rose);border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">テスト送信(mari247k@gmail.com宛)</button>
-      <button type="button" id="declinedMailSendBtn" style="background:var(--rose);color:#fff;border:0;border-radius:8px;padding:11px 15px;font-weight:700;cursor:pointer;">お断りの方に一斉送信</button>
-    </div>
-    <p class="status-msg" id="resultMailStatus" style="padding:8px 0 0;text-align:left;"></p>
-  </div>
-</div>
-
 <div class="net-score-summary-wrap print-hide-block" id="emergencySection">
   <div class="net-score-summary" style="padding:16px;margin-top:14px;min-width:0;">
     <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:var(--rose);">🚨 緊急連絡メール(公演中止・台風等)</p>
@@ -752,6 +728,8 @@
       </div>
     </div>
     <p class="status-msg" id="resultMailStatus" style="padding:8px 0 0;text-align:left;"></p>
+
+    <div id="resultSentLists" style="margin-top:14px;display:grid;gap:12px;"></div>
   </div>
 </div>
 
@@ -765,6 +743,16 @@
   const EMAILJS_GENERIC_TEMPLATE_ID = "template_khkmzni";
   const GIFT_LETTER_FORM_URL = "https://takarazuka-mikokoro.vercel.app/gift-letter-form.html";
   const OFFICIAL_LINE_URL = "https://lin.ee/S21MDzhw";
+  // メール冒頭に出す「送信専用・お問い合わせは公式LINEへ」の目立つ案内(HTMLメール共通)
+  const NO_REPLY_BANNER_HTML = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px; border:2px solid #d9534f; border-radius:10px; background:#fff5f5;">
+<tr><td align="center" style="padding:16px 14px;">
+<div style="font-size:16px; font-weight:bold; color:#c9302c; line-height:1.6;">⚠️ このメールは送信専用です</div>
+<div style="margin-top:8px; font-size:13.5px; color:#5a4a4e; line-height:1.8;"><span style="display:inline-block;">このメールにご返信いただいても、</span><span style="display:inline-block;"><strong style="color:#c9302c;">どなたにも届きません。</strong></span></div>
+<div style="margin-top:8px; font-size:13.5px; color:#5a4a4e; line-height:1.8;"><span style="display:inline-block;">お問い合わせ・ご連絡は、</span><span style="display:inline-block;"><strong style="color:#06a148;">必ず公式LINE</strong>からお願いいたします。</span></div>
+<a href="${OFFICIAL_LINE_URL}" style="display:inline-block; margin-top:12px; background:#06c755; color:#ffffff; text-decoration:none; font-size:15px; font-weight:bold; padding:12px 30px; border-radius:8px;">公式LINEでお問い合わせ</a>
+</td></tr>
+</table>`;
+  const NO_REPLY_TEXT = '⚠️ このメールは送信専用です。ご返信いただいても届きません。\nお問い合わせは必ず公式LINEからお願いいたします：' + OFFICIAL_LINE_URL;
 
   function getSb(){
     if(!window.supabase){
@@ -854,6 +842,7 @@
 <div style="width:48px; height:1px; background:#c7a16b; margin:18px auto 0;"></div>
 </td></tr>
 <tr><td style="padding:32px 28px 16px; font-size:15px; line-height:1.9;">
+${NO_REPLY_BANNER_HTML}
 <p style="margin:0 0 24px; font-weight:bold; color:#4a3d42;">${name}様${isTest ? '<span style="font-weight:normal; color:#9a858c;">（テスト送信です）</span>' : ''}</p>
 <p style="margin:0 0 18px;">この度は、<strong style="color:${t.title};">${title}</strong>にお申し込みいただき、誠にありがとうございました。</p>
 <p style="margin:0 0 18px;">またこの度は、お食事会からのご参加もいただき、重ねてお礼申し上げます。</p>
@@ -1024,6 +1013,7 @@ ${extraHtml}
     if(error) throw error;
 
     currentRows = data || [];
+    renderResultSentLists();
     console.log('[DEBUG] ①Supabase取得直後の件数:', currentRows.length);
     console.log('[DEBUG] ①participants結合結果:', currentRows.map(r => ({
       id: r.id, name: r.participants?.name, participant_id: r.participants?.id, hasParticipant: !!r.participants
@@ -1230,6 +1220,7 @@ ${extraHtml}
   }
 
   function renderTable(rows){
+    renderResultSentLists();
     const tbody = document.getElementById('tableBody');
     const table = document.getElementById('dataTable');
     const countBadge = document.getElementById('countBadge');
@@ -1705,6 +1696,7 @@ ${j.photo_url
 <div style="width:48px; height:1px; background:#c7a16b; margin:18px auto 0;"></div>
 </td></tr>
 <tr><td style="padding:32px 28px 16px; font-size:15px; line-height:1.9;">
+${NO_REPLY_BANNER_HTML}
 ${isTest ? '<p style="margin:0 0 18px; padding:10px 12px; background:#fff4e5; border-radius:8px; font-size:13px; color:#9a6a2f;">※これはテスト送信です。参加者の皆さまには送信されていません。</p>' : ''}
 <p style="margin:0 0 24px; font-weight:bold; color:#4a3d42;">${name}様</p>
 <p style="margin:0 0 18px;">この度は、<strong style="color:${t.title};">${sub}</strong>の観劇会にご参加いただき、誠にありがとうございます。</p>
@@ -1767,7 +1759,11 @@ ${extraHtml}
 【緊急連絡事項】
 ${body}
 
-小林タカラヅカ倶楽部`;
+小林タカラヅカ倶楽部
+
+━━━━━━━━━━━━
+${NO_REPLY_TEXT}
+━━━━━━━━━━━━`;
   }
 
   const TEST_EMAIL = 'mari247k@gmail.com';
@@ -2069,229 +2065,49 @@ ${body}
     btn.disabled = false;
   }
 
-  // ---- 参加決定・お断りのご連絡メール ----
-  // kind: 'decided'(参加決定) / 'declined'(お断り)
-  // 送信済みの記録は registrations.answers に保存する(DB変更不要):
-  //   decided_mail_sent_at / declined_mail_sent_at
-  const RESULT_MAIL = {
-    decided: {
-      status: '参加決定', label: '参加決定', sentKey: 'decided_mail_sent_at',
-      bodyId: 'decidedMailBody', sendBtnId: 'decidedMailSendBtn', testBtnId: 'decidedMailTestBtn',
-      subTitle: 'ご参加決定のお知らせ'
-    },
-    declined: {
-      status: 'お断り', label: 'お断り', sentKey: 'declined_mail_sent_at',
-      bodyId: 'declinedMailBody', sendBtnId: 'declinedMailSendBtn', testBtnId: 'declinedMailTestBtn',
-      subTitle: 'お申し込み結果のご連絡'
-    }
-  };
-
-  function resultMailTitles(ev){
-    return {
-      title: `第${ev.event_number ?? ''}回 ${ev.troupe||''}組観劇会`,
-      sub: `${formatDateJp(ev.event_date)}${ev.show_time ? ' ' + ev.show_time : ''} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`
-    };
-  }
-
-  function buildResultEmailHtml({ kind, recipientName, ev, ticketCount, hasMeal, extraBody, isTest }){
-    const t = getTroupeEmailTheme(ev.troupe);
-    const cfg = RESULT_MAIL[kind];
-    const { title, sub } = resultMailTitles(ev);
-    const name = escapeHtml(recipientName);
-    const titleH = escapeHtml(title);
-    const subH = escapeHtml(sub);
-    const extraHtml = extraBody
-      ? `<p style="margin:0 0 18px;">${escapeHtml(extraBody).replace(/\n/g, '<br>')}</p>`
-      : '';
-
-    const row = (label, value) => `
-<tr><td style="padding:8px 0; border-bottom:1px dashed #e5d9dd; font-size:13px; color:#8c747c; width:90px; vertical-align:top;">${label}</td>
-<td style="padding:8px 0; border-bottom:1px dashed #e5d9dd; font-size:15px; font-weight:bold; color:${t.boxValue};">${value}</td></tr>`;
-
-    const mainHtml = kind === 'decided'
-      ? `<p style="margin:0 0 18px;">この度は、<strong style="color:${t.title};">${subH}</strong>の観劇会にお申し込みいただき、誠にありがとうございます。</p>
-<p style="margin:0 0 22px;">お申し込みいただきました観劇会につきまして、<strong style="color:${t.title};">ご参加が決定いたしました</strong>ので、お知らせいたします。</p>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px; background:${t.boxBg}; border-left:4px solid ${t.boxBorder}; border-radius:6px;">
-<tr><td style="padding:14px 18px;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-${row('公演', subH)}
-${row('枚数', `${escapeHtml(String(ticketCount))}枚`)}
-${row('お食事会', hasMeal ? 'ご参加' : 'ご参加なし')}
-</table>
-</td></tr>
-</table>
-<p style="margin:0 0 18px;">チケットは、観劇会当日にお渡しいたします。${hasMeal ? 'お食事メニューのご登録につきましては、別途メールにてご案内いたします。' : ''}</p>
-<p style="margin:0 0 18px;">なお、ご参加決定後のキャンセル・変更は原則お受けできませんので、あらかじめご了承ください。</p>
-${extraHtml}
-<p style="margin:0 0 28px;">当日、皆さまにお会いできますことを、スタッフ一同楽しみにしております。</p>`
-      : `<p style="margin:0 0 18px;">この度は、<strong style="color:${t.title};">${subH}</strong>の観劇会にお申し込みいただき、誠にありがとうございました。</p>
-<p style="margin:0 0 18px;">今回は大変多くのお申し込みをいただき、ご用意できるお席に限りがございましたため、誠に残念ながら、ご希望に沿うことができませんでした。</p>
-<p style="margin:0 0 18px;">せっかくお申し込みいただきましたのに、誠に申し訳ございません。</p>
-${extraHtml}
-<p style="margin:0 0 28px;">次回以降の観劇会にも、ぜひお申し込みいただけましたら幸いです。</p>`;
-
-    return `<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${titleH} ${cfg.subTitle}</title>
-</head>
-<body style="margin:0; padding:0; background-color:#f8f5f6; font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','Yu Gothic',YuGothic,Meiryo,sans-serif; color:#4b4145;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f8f5f6;">
-<tr><td align="center" style="padding:24px 12px;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:620px; background:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #eadfe3;">
-<tr><td align="center" style="padding:32px 20px 26px; background-color:${t.headerBg}; border-bottom:1px solid ${t.headerBorder};">
-<div style="font-size:12px; letter-spacing:3px; color:#a67c52; margin-bottom:10px;">OBAYASHI TAKARAZUKA CLUB</div>
-<div style="font-family:Georgia,'Times New Roman',serif; font-size:25px; line-height:1.5; color:${t.title}; font-weight:bold;">${titleH}</div>
-<div style="margin-top:8px; font-size:14px; color:#8f747d; letter-spacing:1px;">${cfg.subTitle}</div>
-<div style="width:48px; height:1px; background:#c7a16b; margin:18px auto 0;"></div>
-</td></tr>
-<tr><td style="padding:32px 28px 16px; font-size:15px; line-height:1.9;">
-${isTest ? '<p style="margin:0 0 18px; padding:10px 12px; background:#fff4e5; border-radius:8px; font-size:13px; color:#9a6a2f;">※これはテスト送信です。参加者の皆さまには送信されていません。</p>' : ''}
-<p style="margin:0 0 24px; font-weight:bold; color:#4a3d42;">${name}様</p>
-${mainHtml}
-<p style="margin:0 0 6px;">どうぞよろしくお願いいたします。</p>
-<p style="margin:0; font-weight:bold; color:#755563;">小林タカラヅカ倶楽部</p>
-</td></tr>
-<tr><td style="padding:10px 28px 30px;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#faf8f8; border-radius:10px;">
-<tr><td align="center" style="padding:22px 18px;">
-<div style="font-size:14px; font-weight:bold; color:#62565a; margin-bottom:12px;">お問い合わせは公式LINEへ</div>
-<a href="${OFFICIAL_LINE_URL}" style="display:inline-block; background:#06c755; color:#ffffff; text-decoration:none; font-size:14px; font-weight:bold; padding:12px 28px; border-radius:7px;">公式LINEを開く</a>
-</td></tr>
-</table>
-</td></tr>
-<tr><td style="padding:24px 28px 30px; background:#f4f0f1; border-top:1px solid #e5dcdf;">
-<div style="font-size:12px; line-height:1.8; color:#887a7f;">
-※このメールは送信専用のアドレスからお送りしております。<br><br>
-大変恐れ入りますが、本メールに直接ご返信いただいても内容を確認することができず、どなたにも届かない仕組みとなっております。<br><br>
-お問い合わせ・ご報告・ご確認などがございましたら、お手数をおかけいたしますが、上記の<strong>公式LINE</strong>よりご連絡くださいますようお願い申し上げます。
-</div>
-<div style="width:42px; height:1px; background:#c8a87a; margin:22px auto;"></div>
-<div style="text-align:center; font-size:11px; letter-spacing:1px; color:#a39499;">小林タカラヅカ倶楽部</div>
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-  }
-
-  function resultMailSubject(kind, ev){
-    const { title } = resultMailTitles(ev);
-    return `【小林タカラヅカ倶楽部】${title} ${RESULT_MAIL[kind].subTitle}`;
-  }
-
-  async function sendResultMail(kind){
-    const cfg = RESULT_MAIL[kind];
-    const statusEl = document.getElementById('resultMailStatus');
-    statusEl.className = 'status-msg'; statusEl.textContent = '';
-
-    const ev = events.find(e => e.id === currentEventId);
-    if(!ev){
-      statusEl.classList.add('err');
-      statusEl.textContent = '先に公演を選んでください。';
-      return;
-    }
-
-    const targets = currentRows.filter(r => r.status === cfg.status);
-    const alreadySent = targets.filter(r => r.answers?.[cfg.sentKey]);
-    const noEmail = targets.filter(r => !r.answers?.[cfg.sentKey] && !(r.answers?.email || '').trim());
-    const toSend = targets.filter(r => !r.answers?.[cfg.sentKey] && (r.answers?.email || '').trim());
-    const nameOf = r => r.answers?.full_name || r.participants?.name || 'ご参加者';
-
-    if(toSend.length === 0){
-      statusEl.classList.add(targets.length ? 'ok' : 'err');
-      statusEl.textContent = targets.length
-        ? `${cfg.label}の方は全員送信済みです。(送信済み${alreadySent.length}名${noEmail.length ? ` / メールアドレスなし:${noEmail.map(nameOf).join('、')}` : ''})`
-        : `${cfg.label}の方がいません。`;
-      return;
-    }
-
-    const pendingCount = currentRows.filter(r => (r.status || '審査中') === '審査中').length;
-    const notes = [];
-    if(pendingCount > 0) notes.push(`⚠️ まだ「審査中」の方が${pendingCount}名います。`);
-    if(alreadySent.length) notes.push(`送信済みの${alreadySent.length}名は除きます。`);
-    if(noEmail.length) notes.push(`メールアドレスがないため送れない方:${noEmail.map(nameOf).join('、')}`);
-    const listText = toSend.map(r => `・${nameOf(r)}様`).join('\n');
-    if(!confirm(`${notes.length ? notes.join('\n') + '\n\n' : ''}「${cfg.label}」の ${toSend.length}名に送信します。\n\n${listText}\n\nよろしいですか？`)) return;
-
-    const extraBody = document.getElementById(cfg.bodyId).value.trim();
-    const subject = resultMailSubject(kind, ev);
-    const btn = document.getElementById(cfg.sendBtnId);
-    btn.disabled = true;
-    let successCount = 0;
-    const failedNames = [];
-    const unsavedNames = [];
-
-    for(let i = 0; i < toSend.length; i++){
-      const r = toSend[i];
-      const name = nameOf(r);
-      statusEl.className = 'status-msg';
-      statusEl.textContent = `送信中… (${i+1}/${toSend.length}) ${name}様`;
-      const message = buildResultEmailHtml({
-        kind, recipientName: name, ev,
-        ticketCount: r.answers?.participant_count || '1',
-        hasMeal: r.answers?.meal === 'ご参加',
-        extraBody, isTest: false
-      });
-      try{
-        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
-          email: r.answers.email.trim(), subject, message
-        });
-        successCount++;
-      }catch(err){
-        console.warn('送信失敗:', r.answers?.email, err);
-        failedNames.push(name);
-        continue;
-      }
-      // 送信済みを記録(次に押したとき二重に送らないため)
-      try{
-        const newAnswers = { ...(r.answers || {}), [cfg.sentKey]: new Date().toISOString() };
-        const { data: upd, error } = await sb.from('registrations')
-          .update({ answers: newAnswers }).eq('id', r.id).select('id');
-        if(error || !upd || upd.length === 0) throw error || new Error('0件更新');
-        r.answers = newAnswers;
-      }catch(err){
-        console.warn('送信済みの記録に失敗:', name, err);
-        unsavedNames.push(name);
-      }
-    }
-
-    statusEl.className = 'status-msg';
-    const parts = [`送信完了:${successCount}名に送信しました。`];
-    if(failedNames.length) parts.push(`送信失敗:${failedNames.join('、')}(もう一度ボタンを押すと、この方たちだけに送れます)`);
-    if(unsavedNames.length) parts.push(`⚠️ 送信済みの記録に失敗:${unsavedNames.join('、')}(もう一度押すと二重に届くので、この方たちは手動で確認してください)`);
-    if(noEmail.length) parts.push(`メールアドレスなしで未送信:${noEmail.map(nameOf).join('、')}`);
-    statusEl.classList.add(failedNames.length || unsavedNames.length ? 'err' : 'ok');
-    statusEl.textContent = parts.join('　');
-    btn.disabled = false;
-  }
-
-  async function sendResultTestMail(kind){
-    const cfg = RESULT_MAIL[kind];
-    const statusEl = document.getElementById('resultMailStatus');
-    statusEl.className = 'status-msg'; statusEl.textContent = '';
-    const ev = events.find(e => e.id === currentEventId);
-    if(!ev){
-      statusEl.classList.add('err');
-      statusEl.textContent = '先に公演を選んでください。';
-      return;
-    }
-    const message = buildResultEmailHtml({
-      kind, recipientName: 'テスト太郎', ev, ticketCount: '2', hasMeal: true,
-      extraBody: document.getElementById(cfg.bodyId).value.trim(), isTest: true
-    });
-    await sendSimpleTestEmail({
-      statusId: 'resultMailStatus', btnId: cfg.testBtnId,
-      subject: resultMailSubject(kind, ev), message
-    });
-  }
-
   // ---- 参加結果のご連絡メール(決定・お断り) ----
   function resultEventSub(ev){
     return `${formatDateJp(ev.event_date)}${ev.show_time ? ' ' + ev.show_time + '公演' : ''} ${ev.troupe||''}組公演${ev.work_title ? `『${ev.work_title}』` : ''}`;
+  }
+
+  // 送信済み者リスト(決定・お断り)。currentRows が変わるたびに描き直す
+  function renderResultSentLists(){
+    const wrap = document.getElementById('resultSentLists');
+    if(!wrap) return;
+    if(!currentEventId){ wrap.innerHTML = ''; return; }
+    const nameOf = r => r.answers?.full_name || r.participants?.name || 'ご参加者';
+    const block = (type) => {
+      const isDecided = type === 'decided';
+      const sentKey = isDecided ? 'decided_mail_sent_at' : 'declined_mail_sent_at';
+      const targetStatus = isDecided ? '参加決定' : 'お断り';
+      const color = isDecided ? 'var(--ok)' : 'var(--rose)';
+      const sent = currentRows.filter(r => r.answers?.[sentKey])
+        .sort((a, b) => String(a.answers[sentKey]).localeCompare(String(b.answers[sentKey])));
+      const unsent = currentRows.filter(r => r.status === targetStatus && !r.answers?.[sentKey]);
+      const rowsHtml = sent.map((r, i) => {
+        const changed = r.status !== targetStatus
+          ? ` <span style="color:var(--rose);font-weight:700;">(今は「${escapeHtml(r.status || '審査中')}」)</span>` : '';
+        return `<tr>
+<td style="padding:6px 4px;border-bottom:1px solid var(--line);color:var(--muted);">${i+1}</td>
+<td style="padding:6px 4px;border-bottom:1px solid var(--line);">${escapeHtml(nameOf(r))}様${changed}</td>
+<td style="padding:6px 4px;border-bottom:1px solid var(--line);white-space:nowrap;">${isDecided ? escapeHtml(String(r.answers?.participant_count || '1')) + '枚' : ''}</td>
+<td style="padding:6px 4px;border-bottom:1px solid var(--line);white-space:nowrap;color:var(--muted);">${escapeHtml(formatDateTimeJp(r.answers[sentKey]))}</td>
+</tr>`;
+      }).join('');
+      const unsentHtml = unsent.length
+        ? `<p style="margin:8px 0 0;font-size:12px;color:var(--rose);">まだ送っていない「${targetStatus}」の方:${unsent.length}名(${unsent.map(r => escapeHtml(nameOf(r)) + '様').join('、')})</p>`
+        : `<p style="margin:8px 0 0;font-size:12px;color:var(--muted);">「${targetStatus}」の方で未送信の方はいません。</p>`;
+      return `<div style="padding:12px;border:1px solid ${color};border-radius:10px;min-width:0;">
+<p style="margin:0 0 8px;font-size:13px;font-weight:700;color:${color};">${isDecided ? '✓ 決定メール' : '✕ お断りメール'} 送信済み:${sent.length}名</p>
+${sent.length
+  ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:12.5px;color:var(--cream);">
+<tr><th style="text-align:left;padding:4px;font-size:11px;color:var(--muted);">#</th><th style="text-align:left;padding:4px;font-size:11px;color:var(--muted);">お名前</th><th style="text-align:left;padding:4px;font-size:11px;color:var(--muted);">${isDecided ? '枚数' : ''}</th><th style="text-align:left;padding:4px;font-size:11px;color:var(--muted);">送信日時</th></tr>
+${rowsHtml}</table></div>`
+  : '<p style="margin:0;font-size:12px;color:var(--muted);">まだ送信していません。</p>'}
+${unsentHtml}
+</div>`;
+    };
+    wrap.innerHTML = block('decided') + block('declined');
   }
 
   function updateResultMailPreview(){
@@ -2351,6 +2167,7 @@ ${extraHtml}
 <div style="width:48px; height:1px; background:#c7a16b; margin:18px auto 0;"></div>
 </td></tr>
 <tr><td style="padding:32px 28px 16px; font-size:15px; line-height:1.9;">
+${NO_REPLY_BANNER_HTML}
 ${isTest ? '<p style="margin:0 0 18px; padding:10px 12px; background:#fff4e5; border-radius:8px; font-size:13px; color:#9a6a2f;">※これはテスト送信です。参加者の皆さまには送信されていません。</p>' : ''}
 <p style="margin:0 0 24px; font-weight:bold; color:#4a3d42;">${name}様</p>
 ${bodyHtml}
@@ -2422,26 +2239,33 @@ ${bodyHtml}
     const targetStatus = isDecided ? '参加決定' : 'お断り';
     const label = isDecided ? '参加決定のお知らせ' : 'お断りのご連絡';
     const extraBody = document.getElementById(isDecided ? 'decidedMailBody' : 'declinedMailBody').value.trim();
+    // 送信済みの記録(二重送信防止)。registrations.answers に保存する(DB変更不要)
+    const sentKey = isDecided ? 'decided_mail_sent_at' : 'declined_mail_sent_at';
 
     const recipients = [];
     const noEmailNames = [];
-    const seen = new Set();
+    const alreadySentNames = [];
+    const byEmail = new Map();
     currentRows.filter(r => r.status === targetStatus).forEach(r => {
       const name = r.answers?.full_name || r.participants?.name || 'ご参加者';
+      if(r.answers?.[sentKey]){ alreadySentNames.push(name); return; }
       const email = (r.answers?.email || '').trim();
       if(!email){ noEmailNames.push(name); return; }
-      if(seen.has(email)) return;
-      seen.add(email);
-      recipients.push({
-        email, name,
+      if(byEmail.has(email)){ byEmail.get(email).rowIds.push(r.id); return; }
+      const rec = {
+        email, name, rowIds: [r.id],
         ticketCount: String(r.answers?.participant_count || '1'),
         hasMeal: r.answers?.meal === 'ご参加'
-      });
+      };
+      byEmail.set(email, rec);
+      recipients.push(rec);
     });
 
     if(recipients.length === 0){
-      statusEl.classList.add('err');
-      statusEl.textContent = `「${targetStatus}」の方でメールアドレスが登録されている人が見つかりませんでした。`;
+      statusEl.classList.add(alreadySentNames.length ? 'ok' : 'err');
+      statusEl.textContent = alreadySentNames.length
+        ? `「${targetStatus}」の方は全員送信済みです。(送信済み${alreadySentNames.length}名${noEmailNames.length ? ` / メールアドレスなし:${noEmailNames.join('、')}` : ''})`
+        : `「${targetStatus}」の方でメールアドレスが登録されている人が見つかりませんでした。`;
       return;
     }
 
@@ -2452,14 +2276,18 @@ ${bodyHtml}
     const noEmailWarn = noEmailNames.length
       ? `\n\n※メールアドレスがないため送れない方:${noEmailNames.join('、')}`
       : '';
+    const sentWarn = alreadySentNames.length
+      ? `※送信済みの${alreadySentNames.length}名(${alreadySentNames.join('、')})には送りません。\n\n`
+      : '';
     const listText = recipients.map(r => `・${r.name}様`).join('\n');
-    if(!confirm(`${pendingWarn}「${targetStatus}」の ${recipients.length}名に「${label}」メールを送信します。\n\n${listText}${noEmailWarn}\n\nよろしいですか？`)) return;
+    if(!confirm(`${pendingWarn}${sentWarn}「${targetStatus}」の ${recipients.length}名に「${label}」メールを送信します。\n\n${listText}${noEmailWarn}\n\nよろしいですか？`)) return;
 
     const subject = resultMailSubject(type, ev);
     const btn = document.getElementById(isDecided ? 'decidedSendBtn' : 'declinedSendBtn');
     btn.disabled = true;
     let successCount = 0;
     const failedNames = [];
+    const unsavedNames = [];
 
     for(let i = 0; i < recipients.length; i++){
       const r = recipients[i];
@@ -2477,19 +2305,35 @@ ${bodyHtml}
       }catch(err){
         console.warn('送信失敗:', r.email, err);
         failedNames.push(r.name);
+        continue;
+      }
+      // 送信済みを記録(次に押したとき同じ方に二重に送らないため)
+      const sentAt = new Date().toISOString();
+      for(const rowId of r.rowIds){
+        try{
+          const row = currentRows.find(x => x.id === rowId);
+          const newAnswers = { ...(row?.answers || {}), [sentKey]: sentAt };
+          const { data: upd, error } = await sb.from('registrations')
+            .update({ answers: newAnswers }).eq('id', rowId).select('id');
+          if(error || !upd || upd.length === 0) throw error || new Error('0件更新');
+          if(row) row.answers = newAnswers;
+        }catch(err){
+          console.warn('送信済みの記録に失敗:', r.name, err);
+          if(!unsavedNames.includes(r.name)) unsavedNames.push(r.name);
+        }
       }
     }
 
     statusEl.className = 'status-msg';
-    const noEmailText = noEmailNames.length ? `　※メールアドレスなしで未送信:${noEmailNames.join('、')}` : '';
-    if(failedNames.length === 0){
-      statusEl.classList.add('ok');
-      statusEl.textContent = `送信完了:「${targetStatus}」の${successCount}名に送信しました。${noEmailText}`;
-    } else {
-      statusEl.classList.add('err');
-      statusEl.textContent = `送信完了:${successCount}名成功 / ${failedNames.length}名失敗(${failedNames.join('、')})${noEmailText}`;
-    }
+    const parts = [`送信完了:「${targetStatus}」の${successCount}名に送信しました。`];
+    if(alreadySentNames.length) parts.push(`送信済みのため除いた方:${alreadySentNames.length}名`);
+    if(failedNames.length) parts.push(`送信失敗:${failedNames.join('、')}(もう一度ボタンを押すと、この方たちだけに送れます)`);
+    if(unsavedNames.length) parts.push(`⚠️ 送信済みの記録に失敗:${unsavedNames.join('、')}(もう一度押すとこの方たちには二重に届きます)`);
+    if(noEmailNames.length) parts.push(`メールアドレスなしで未送信:${noEmailNames.join('、')}`);
+    statusEl.classList.add(failedNames.length || unsavedNames.length ? 'err' : 'ok');
+    statusEl.textContent = parts.join('　');
     btn.disabled = false;
+    renderResultSentLists();
   }
 
   // ---- お食事メニュー：未入力の方だけに再送 ----
@@ -2820,10 +2664,6 @@ ${bodyHtml}
       document.getElementById('mealMenuSendBtn').addEventListener('click', sendMealMenuEmail);
       document.getElementById('mealMenuTestSendBtn').addEventListener('click', sendMealMenuTestEmail);
       document.getElementById('mealRemindSendBtn').addEventListener('click', sendMealRemindEmail);
-      document.getElementById('decidedMailSendBtn').addEventListener('click', ()=>sendResultMail('decided'));
-      document.getElementById('declinedMailSendBtn').addEventListener('click', ()=>sendResultMail('declined'));
-      document.getElementById('decidedMailTestBtn').addEventListener('click', ()=>sendResultTestMail('decided'));
-      document.getElementById('declinedMailTestBtn').addEventListener('click', ()=>sendResultTestMail('declined'));
       document.getElementById('mealRemindTestSendBtn').addEventListener('click', sendMealRemindTestEmail);
       document.getElementById('decidedSendBtn').addEventListener('click', ()=>sendResultEmail('decided'));
       document.getElementById('declinedSendBtn').addEventListener('click', ()=>sendResultEmail('declined'));
