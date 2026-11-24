@@ -584,7 +584,8 @@
           <p class="meal-venue-caution">※都合により、変更となる場合がございます。</p>
         </div>
         <div class="toggle-group" id="mealGroup">
-          <label class="toggle-opt"><input type="radio" name="meal" value="ご参加" required>出席</label>
+          <label class="toggle-opt"><input type="radio" name="meal" value="ご参加" required><span id="mealYesLabel">出席</span></label>
+          <label class="toggle-opt" id="mealOneOpt" style="display:none;"><input type="radio" name="meal" value="ご参加1">1名のみ出席</label>
           <label class="toggle-opt"><input type="radio" name="meal" value="食事は欠席">欠席</label>
         </div>
         <p class="notice-box small" id="mealPlaceNotice" style="margin-top:10px; margin-bottom:0;">お食事会の場所・ご予算につきましては、後日あらためてご連絡いたします。</p>
@@ -1216,8 +1217,45 @@
 
   renderCompanions(1); // デフォルト:同伴者なし・1枚
   document.getElementById('countGroup').addEventListener('change', (e)=>{
-    if(e.target.name==='participant_count') renderCompanions(e.target.value);
+    if(e.target.name==='participant_count'){ renderCompanions(e.target.value); syncMealOneOpt(); }
   });
+
+  // 同伴者ありのときだけ、お食事に「1名のみ出席」を出す(チケット2枚・お食事1名)
+  function syncMealOneOpt(){
+    const cnt = form.querySelector('input[name="participant_count"]:checked')?.value || '1';
+    const opt = document.getElementById('mealOneOpt');
+    const yesLabel = document.getElementById('mealYesLabel');
+    opt.style.display = cnt === '2' ? '' : 'none';
+    yesLabel.textContent = cnt === '2' ? '2名とも出席' : '出席';
+    const one = opt.querySelector('input');
+    if(cnt !== '2' && one.checked){
+      one.checked = false;
+      opt.classList.remove('checked');
+      const yes = form.querySelector('input[name="meal"][value="ご参加"]');
+      yes.checked = true;
+      yes.closest('.toggle-opt')?.classList.add('checked');
+    }
+  }
+
+  // お食事の値をそろえる:「1名のみ出席」は meal='ご参加' + meal_count='1'。
+  // 出席なら meal_count=チケット枚数、欠席なら meal_count なし。
+  function normalizeMealFields(data){
+    if(data.meal === 'ご参加1'){
+      data.meal = 'ご参加';
+      data.meal_count = String(data.participant_count) === '2' ? '1' : String(data.participant_count || '1');
+    } else if(data.meal === 'ご参加'){
+      data.meal_count = String(data.participant_count || '1');
+    } else {
+      delete data.meal_count;
+    }
+    return data;
+  }
+  function mealLabelOf(a){
+    if(!a || a.meal !== 'ご参加') return '欠席';
+    const t = Number(a.participant_count) || 1;
+    const m = Number(a.meal_count);
+    return (m >= 1 && m < t) ? `出席(${m}名のみ)` : '出席';
+  }
 
   // ラジオ/トグルボタンの選択ハイライト
   form.addEventListener('change', (e)=>{
@@ -1369,7 +1407,7 @@
     } else {
       rows.push(['同伴者', 'なし']);
     }
-    rows.push(['お食事のご参加', data.meal === 'ご参加' ? '出席' : '欠席']);
+    rows.push(['お食事のご参加', mealLabelOf(data)]);
     rows.push(['緊急連絡先(携帯)', data.emergency_phone]);
     rows.push(['メールアドレス', data.email]);
 
@@ -1419,6 +1457,7 @@
     const fd = new FormData(form);
     const data = Object.fromEntries(fd.entries());
     data.agree = form.querySelector('[name=agree]').checked;
+    normalizeMealFields(data);
 
     // ここでは送信せず、確認画面へ切り替える
     pendingData = data;
@@ -1568,8 +1607,8 @@ ${deadlineLine}
         // 2回目以降の送信 → 内容を更新し、変更として記録
         // (締切前の変更はペナルティなし、締切後の変更のみペナルティを自動加算)
         const before = existingReg.answers || {};
-        const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${before.meal === 'ご参加' ? '参加' : '不参加'}`;
-        const afterSummary = `枚数${data.participant_count || '1'}枚 / 食事${data.meal === 'ご参加' ? '参加' : '不参加'}`;
+        const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${mealLabelOf(before).replace('出席', '参加').replace('欠席', '不参加')}`;
+        const afterSummary = `枚数${data.participant_count || '1'}枚 / 食事${mealLabelOf(data).replace('出席', '参加').replace('欠席', '不参加')}`;
         const isAfterDeadline = currentEvent.application_deadline
           ? new Date() > new Date(currentEvent.application_deadline)
           : false;
@@ -1638,7 +1677,7 @@ ${deadlineLine}
           event_date: formatDateJp(currentEvent.event_date),
           show_time: currentEvent.show_time || '',
           ticket_count: data.participant_count,
-          meal: data.meal,
+          meal: mealLabelOf(data) === '出席' ? data.meal : (data.meal === 'ご参加' ? `ご参加(${data.meal_count}名のみ)` : data.meal),
           // EmailJSテンプレート側に {{{meal_form_button}}}(波かっこ3つ)を置くと表示される。対象外の人は空欄
           meal_form_button: buildMealButtonHtml(mealInfo, currentEvent.troupe),
           meal_form_url: mealInfo ? mealInfo.url : ''

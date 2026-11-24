@@ -471,6 +471,7 @@
       <label style="margin-top:14px;">お食事</label>
       <div class="toggle-group">
         <label class="toggle-opt"><input type="radio" name="changeMeal" value="ご参加">出席</label>
+        <label class="toggle-opt" id="changeMealOneOpt"><input type="radio" name="changeMeal" value="ご参加1">1名のみ出席</label>
         <label class="toggle-opt"><input type="radio" name="changeMeal" value="食事は欠席">欠席</label>
       </div>
 
@@ -746,10 +747,10 @@
   // メール冒頭に出す「送信専用・お問い合わせは公式LINEへ」の目立つ案内(HTMLメール共通)
   const NO_REPLY_BANNER_HTML = `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 24px; border:2px solid #d9534f; border-radius:10px; background:#fff5f5;">
 <tr><td align="center" style="padding:16px 14px;">
-<div style="font-size:16px; font-weight:bold; color:#c9302c; line-height:1.6;">⚠️ このメールは送信専用です</div>
-<div style="margin-top:8px; font-size:13.5px; color:#5a4a4e; line-height:1.8;"><span style="display:inline-block;">このメールにご返信いただいても、</span><span style="display:inline-block;"><strong style="color:#c9302c;">どなたにも届きません。</strong></span></div>
-<div style="margin-top:8px; font-size:13.5px; color:#5a4a4e; line-height:1.8;"><span style="display:inline-block;">お問い合わせ・ご連絡は、</span><span style="display:inline-block;"><strong style="color:#06a148;">必ず公式LINE</strong>からお願いいたします。</span></div>
-<a href="${OFFICIAL_LINE_URL}" style="display:inline-block; margin-top:12px; background:#06c755; color:#ffffff; text-decoration:none; font-size:15px; font-weight:bold; padding:12px 30px; border-radius:8px;">公式LINEでお問い合わせ</a>
+<div style="font-size:14px; font-weight:bold; color:#c9302c; line-height:1.6;">⚠️ このメールは送信専用です</div>
+<div style="margin-top:8px; font-size:12.5px; color:#5a4a4e; line-height:1.8;"><span style="display:inline-block;">このメールにご返信いただいても、</span><span style="display:inline-block;"><strong style="color:#c9302c;">どなたにも届きません。</strong></span></div>
+<div style="margin-top:8px; font-size:12.5px; color:#5a4a4e; line-height:1.8;"><span style="display:inline-block;">お問い合わせ・ご連絡は、</span><span style="display:inline-block;"><strong style="color:#06a148;">必ず公式LINE</strong>からお願いいたします。</span></div>
+<a href="${OFFICIAL_LINE_URL}" style="display:inline-block; margin-top:12px; background:#06c755; color:#ffffff; text-decoration:none; font-size:13.5px; font-weight:bold; padding:11px 22px; border-radius:8px;">公式LINEでお問い合わせ</a>
 </td></tr>
 </table>`;
   const NO_REPLY_TEXT = '⚠️ このメールは送信専用です。ご返信いただいても届きません。\nお問い合わせは必ず公式LINEからお願いいたします：' + OFFICIAL_LINE_URL;
@@ -810,7 +811,7 @@
     const isPartial = isReminder && partyCount >= 2 && missingCount > 0 && missingCount < partyCount;
     const introHtml = isReminder
       ? (isPartial
-          ? `<p style="margin:0 0 18px;">さて、当日のお食事メニューとお飲み物につきまして、観劇会は<strong style="color:${t.title};">${partyCount}名様</strong>でお申し込みいただいておりますが、お食事のご登録は<strong style="color:${t.title};">${partyCount - missingCount}名様分</strong>のみとなっております（<strong style="color:${t.title};">あと${missingCount}名様分</strong>）。</p>
+          ? `<p style="margin:0 0 18px;">さて、当日のお食事メニューとお飲み物につきまして、お食事会は<strong style="color:${t.title};">${partyCount}名様</strong>でのご参加とうかがっておりますが、お食事のご登録は<strong style="color:${t.title};">${partyCount - missingCount}名様分</strong>のみとなっております（<strong style="color:${t.title};">あと${missingCount}名様分</strong>）。</p>
 <p style="margin:0 0 18px;">お手数をおかけいたしますが、下記フォームで<strong>参加人数を「${partyCount}人」</strong>にしていただき、<strong>${partyCount}名様分をまとめて</strong>あらためてご入力ください。前回のご登録内容は、新しい内容に上書きされます。</p>`
           : `<p style="margin:0 0 18px;">さて、当日のお食事メニューとお飲み物につきまして、まだご入力が確認できておりません。</p>
 <p style="margin:0 0 18px;">お手数をおかけいたしますが、下記フォームよりご選択・ご入力をお願いいたします。</p>`)
@@ -1115,8 +1116,7 @@ ${extraHtml}
     const pendingTickets = countTickets(pendingRows);
 
     const meals = activeRows
-      .filter(r => r.answers?.meal === 'ご参加')
-      .reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
+      .reduce((sum, r) => sum + mealCountOf(r.answers), 0);
 
     document.getElementById('sumAllCount').textContent = allCount + '件';
     document.getElementById('sumAllTickets').textContent = allTickets + '枚';
@@ -1273,7 +1273,7 @@ ${extraHtml}
                 ? '<span class="mark-circle seat-lottery" title="抽選">抽</span>'
                 : '-'}</td>
         <td class="tight-col">${a.meal === 'ご参加'
-              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
+              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>' + (mealCountOf(a) < (Number(a.participant_count) || 1) ? `<span style="font-size:10px;font-weight:700;">${mealCountOf(a)}名</span>` : '')
               : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
         <td><span class="badge ${statusClass[status] || 'pending'}">${statusLabel[status] || status}</span></td>
       `;
@@ -1316,7 +1316,7 @@ ${extraHtml}
         const mealOn = a.meal === 'ご参加';
         const seatOn = a.seat_pref === '連席希望';
         const mealMark = mealOn
-          ? '<span class="status-mark status-meal">食</span>'
+          ? ('<span class="status-mark status-meal">食</span>' + (mealCountOf(a) < (Number(a.participant_count) || 1) ? `<span style="font-size:9px;">${mealCountOf(a)}名</span>` : ''))
           : '<span class="status-mark status-none">-</span>';
         const seatMark = seatOn
           ? '<span class="status-mark status-pair">連</span>'
@@ -1561,6 +1561,22 @@ ${extraHtml}
       saveBtn.textContent = '記録する';
     }
   });
+
+  // ---- お食事の人数 ----
+  // answers.meal_count:お食事に出る人数(チケット2枚でも食事1名のときは '1')。
+  // 未設定の申込(以前のもの)はチケット枚数と同じとみなす。
+  function mealCountOf(a){
+    if(!a || a.meal !== 'ご参加') return 0;
+    const tickets = Number(a.participant_count) || 1;
+    const m = Number(a.meal_count);
+    return (m >= 1 && m <= tickets) ? m : tickets;
+  }
+  function mealLabelOf(a){
+    const n = mealCountOf(a);
+    if(!n) return '不参加';
+    const tickets = Number(a?.participant_count) || 1;
+    return n < tickets ? `参加(${n}名のみ)` : '参加';
+  }
 
   function escapeHtml(str){
     return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2119,7 +2135,53 @@ ${unsentHtml}
   }
 
   // type: 'decided'(参加決定) / 'declined'(お断り)。色は開催回の組カラーに自動追従
-  function buildResultEmailHtml({ type, recipientName, ev, ticketCount, hasMeal, extraBody, isTest }){
+  // 決定メール用:その回の食事フォーム(lunch-entry.html)の情報。entry-form.html の確認メールと同じ条件
+  //   = メニューが1つ以上登録済み(meal_menus.active) かつ 締切(+猶予2日)を過ぎていない。満たさなければ null
+  const LUNCH_ENTRY_BASE = 'https://takarazuka-mikokoro.vercel.app/lunch-entry.html';
+  async function getResultMealFormInfo(ev){
+    try{
+      const { data: menus, error: mErr } = await sb
+        .from('meal_menus').select('id').eq('event_id', ev.id).eq('active', true).limit(1);
+      if(mErr || !menus || menus.length === 0) return null;
+      const { data: settings } = await sb
+        .from('meal_settings').select('deadline').eq('event_id', ev.id).maybeSingle();
+      const deadline = settings?.deadline || '';
+      if(deadline){
+        const today = new Date(); today.setHours(0,0,0,0);
+        const closeDay = new Date(deadline + 'T00:00:00');
+        closeDay.setDate(closeDay.getDate() + 2);
+        if(today > closeDay) return null;
+      }
+      return { url: `${LUNCH_ENTRY_BASE}?event_id=${ev.id}`, deadline };
+    }catch(e){
+      console.warn('食事フォームの確認に失敗:', e);
+      return null;
+    }
+  }
+
+  // meal: { count, missing, form } … count=お食事の人数、missing=未入力の人数(不明なら null)、form=getResultMealFormInfo の結果
+  function buildResultMealHtml(meal, ticketCount, t){
+    const count = meal?.count || Number(ticketCount) || 1;
+    const missing = meal?.missing;
+    const form = meal?.form;
+    if(missing === 0){
+      return '<p style="margin:0 0 18px;">お食事メニュー・お飲み物は、<strong>すでにご登録いただいております</strong>。ありがとうございます。</p>';
+    }
+    if(missing > 0 && form){
+      const partial = missing < count
+        ? `<strong style="color:${t.title};">${count}名様分のうち、あと${missing}名様分</strong>のご登録が`
+        : 'ご登録が';
+      return `<p style="margin:0 0 14px;">お食事メニュー・お飲み物の${partial}、まだ確認できておりません。お手数ですが、<strong>お早めに</strong>下記よりご登録をお願いいたします。</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 22px;">
+<tr><td align="center">
+<a href="${escapeHtml(form.url)}" style="display:inline-block; background:${t.title}; color:#ffffff; text-decoration:none; font-size:14px; font-weight:bold; padding:12px 26px; border-radius:8px;">🍽 お食事メニューを登録する</a>
+</td></tr>
+</table>`;
+    }
+    return '<p style="margin:0 0 18px;">お食事メニューのご登録につきましては、あらためてメールにてご案内いたします。</p>';
+  }
+
+  function buildResultEmailHtml({ type, recipientName, ev, ticketCount, hasMeal, meal, extraBody, isTest }){
     const t = getTroupeEmailTheme(ev.troupe);
     const isDecided = type === 'decided';
     const name = escapeHtml(recipientName);
@@ -2137,10 +2199,10 @@ ${unsentHtml}
 <tr><td style="padding:16px 18px; font-size:14px; line-height:2;">
 <div><span style="color:#8c747c; font-size:12px;">公演</span>　<strong style="color:${t.boxValue};">${sub}</strong></div>
 <div><span style="color:#8c747c; font-size:12px;">ご参加枚数</span>　<strong style="color:${t.boxValue};">${escapeHtml(ticketCount)}枚</strong></div>
-<div><span style="color:#8c747c; font-size:12px;">お食事会</span>　<strong style="color:${t.boxValue};">${hasMeal ? 'ご参加' : 'ご欠席'}</strong></div>
+<div><span style="color:#8c747c; font-size:12px;">お食事会</span>　<strong style="color:${t.boxValue};">${!hasMeal ? 'ご欠席' : ((Number(ticketCount) || 1) >= 2 ? `ご参加(${meal?.count || Number(ticketCount) || 1}名様)` : 'ご参加')}</strong></div>
 </td></tr>
 </table>
-${hasMeal ? '<p style="margin:0 0 18px;">お食事メニューのご登録につきましては、あらためてメールにてご案内いたします。</p>' : ''}
+${hasMeal ? buildResultMealHtml(meal, ticketCount, t) : ''}
 ${extraHtml}
 <p style="margin:0 0 28px;">当日、皆さまにお会いできますことを、スタッフ一同心より楽しみにしております。</p>`
       : `<p style="margin:0 0 18px;">この度は、<strong style="color:${t.title};">${sub}</strong>の観劇会にお申し込みいただき、誠にありがとうございました。</p>
@@ -2214,8 +2276,11 @@ ${bodyHtml}
       return;
     }
     const isDecided = type === 'decided';
+    // 見本は「2枚・お食事2名・まだ1名分未入力」の文面(フォームが未完成の回は従来の一文)
+    const form = isDecided ? await getResultMealFormInfo(ev) : null;
     const message = buildResultEmailHtml({
       type, recipientName: 'テスト太郎', ev, ticketCount: '2', hasMeal: true,
+      meal: { count: 2, missing: 1, form },
       extraBody: document.getElementById(isDecided ? 'decidedMailBody' : 'declinedMailBody').value.trim(),
       isTest: true
     });
@@ -2253,7 +2318,7 @@ ${bodyHtml}
       if(!email){ noEmailNames.push(name); return; }
       if(byEmail.has(email)){ byEmail.get(email).rowIds.push(r.id); return; }
       const rec = {
-        email, name, rowIds: [r.id],
+        email, name, rowIds: [r.id], row: r,
         ticketCount: String(r.answers?.participant_count || '1'),
         hasMeal: r.answers?.meal === 'ご参加'
       };
@@ -2285,6 +2350,15 @@ ${bodyHtml}
     const subject = resultMailSubject(type, ev);
     const btn = document.getElementById(isDecided ? 'decidedSendBtn' : 'declinedSendBtn');
     btn.disabled = true;
+
+    // 決定メール:お食事の入力済み/未入力を一人ずつ調べる(失敗したら従来の一文になる)
+    let mealOrders = null, mealForm = null;
+    if(isDecided && recipients.some(r => r.hasMeal)){
+      statusEl.className = 'status-msg';
+      statusEl.textContent = 'お食事の入力状況を確認中…';
+      try{ mealOrders = await loadMealOrders(ev.id); }catch(err){ console.warn('食事申込の読込に失敗:', err); }
+      mealForm = await getResultMealFormInfo(ev);
+    }
     let successCount = 0;
     const failedNames = [];
     const unsavedNames = [];
@@ -2293,9 +2367,14 @@ ${bodyHtml}
       const r = recipients[i];
       statusEl.className = 'status-msg';
       statusEl.textContent = `送信中… (${i+1}/${recipients.length}) ${r.name}様`;
+      let meal = null;
+      if(isDecided && r.hasMeal){
+        const fill = mealOrders ? mealFillOf(r.row, mealOrders) : null;
+        meal = { count: mealCountOf(r.row.answers), missing: fill ? fill.missingCount : null, form: mealForm };
+      }
       const message = buildResultEmailHtml({
         type, recipientName: r.name, ev, ticketCount: r.ticketCount, hasMeal: r.hasMeal,
-        extraBody, isTest: false
+        meal, extraBody, isTest: false
       });
       try{
         await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_GENERIC_TEMPLATE_ID, {
@@ -2343,7 +2422,8 @@ ${bodyHtml}
     return (name || '').replace(/[\s　]/g, '');
   }
 
-  async function findMealUnfilledRecipients(eventId){
+  // その回の食事申込(meal_orders + meal_order_items)をまとめて読む
+  async function loadMealOrders(eventId){
     const { data: orderRows, error: orderErr } = await sb
       .from('meal_orders').select('id, representative_name').eq('event_id', eventId);
     if(orderErr) throw orderErr;
@@ -2356,10 +2436,27 @@ ${bodyHtml}
       if(error) throw error;
       itemRows = data || [];
     }
-    const orders = (orderRows || []).map(o => ({
+    return (orderRows || []).map(o => ({
       ...o,
       items: itemRows.filter(i => i.meal_order_id === o.id).sort((a,b) => a.person_no - b.person_no)
     }));
+  }
+
+  // 1件の申込について、お食事の人数分「メニュー+飲み物」がそろっているか
+  function mealFillOf(r, orders){
+    const name = r.answers?.full_name || r.participants?.name || 'ご参加者';
+    const partyCount = mealCountOf(r.answers) || 1;
+    const order = orders.find(o => normalizeMealName(o.representative_name) === normalizeMealName(name));
+    let filled = 0;
+    for(let i = 0; i < partyCount; i++){
+      const it = order?.items?.[i];
+      if(it && it.menu_name && it.drink) filled++;
+    }
+    return { partyCount, filled, missingCount: partyCount - filled };
+  }
+
+  async function findMealUnfilledRecipients(eventId){
+    const orders = await loadMealOrders(eventId);
 
     const targets = currentRows.filter(r => r.status === '参加決定' && r.answers?.meal === 'ご参加');
     const recipients = [];
@@ -2367,14 +2464,7 @@ ${bodyHtml}
     const seen = new Set();
     targets.forEach(r => {
       const name = r.answers?.full_name || r.participants?.name || 'ご参加者';
-      const partyCount = Number(r.answers?.participant_count) || 1;
-      const order = orders.find(o => normalizeMealName(o.representative_name) === normalizeMealName(name));
-      let filled = 0;
-      for(let i = 0; i < partyCount; i++){
-        const it = order?.items?.[i];
-        if(it && it.menu_name && it.drink) filled++;
-      }
-      const missingCount = partyCount - filled;
+      const { partyCount, missingCount } = mealFillOf(r, orders);
       if(missingCount <= 0) return; // 入力済みの方は除く
 
       const email = (r.answers?.email || '').trim();
@@ -2792,22 +2882,39 @@ ${bodyHtml}
     const a = target.answers || {};
     box.classList.remove('empty');
     box.textContent =
-      `現在の内容:枚数${a.participant_count || '1'}枚 ／ お食事:${a.meal === 'ご参加' ? '参加' : '不参加'} ／ 状態:${statusLabel[target.status || '審査中']}`;
+      `現在の内容:枚数${a.participant_count || '1'}枚 ／ お食事:${mealLabelOf(a)} ／ 状態:${statusLabel[target.status || '審査中']}`;
 
     fields.style.display = 'block';
     // 現在の値をトグルに反映
     const countRadio = document.querySelector(`input[name=changeCount][value="${a.participant_count || '1'}"]`);
     if(countRadio) countRadio.checked = true;
-    const mealRadio = document.querySelector(`input[name=changeMeal][value="${a.meal || 'ご参加'}"]`);
+    const curMealValue = (a.meal || 'ご参加') === 'ご参加'
+      ? (mealCountOf({ ...a, meal: 'ご参加' }) < (Number(a.participant_count) || 1) ? 'ご参加1' : 'ご参加')
+      : a.meal;
+    const mealRadio = document.querySelector(`input[name=changeMeal][value="${curMealValue}"]`);
     if(mealRadio) mealRadio.checked = true;
     document.querySelectorAll('#changeFields .toggle-opt').forEach(opt=>{
       const input = opt.querySelector('input');
       opt.classList.toggle('checked', input.checked);
     });
+    syncChangeMealOneOpt();
     checkChangeSaveEnabled();
   });
 
+  function syncChangeMealOneOpt(){
+    const cnt = document.querySelector('input[name=changeCount]:checked')?.value || '1';
+    const opt = document.getElementById('changeMealOneOpt');
+    if(!opt) return;
+    opt.style.display = cnt === '2' ? '' : 'none';
+    const one = opt.querySelector('input');
+    if(cnt !== '2' && one.checked){
+      one.checked = false; opt.classList.remove('checked');
+      const full = document.querySelector('input[name=changeMeal][value="ご参加"]');
+      full.checked = true; full.closest('.toggle-opt')?.classList.add('checked');
+    }
+  }
   document.getElementById('changeFields').addEventListener('change', (e)=>{
+    if(e.target.name === 'changeCount') syncChangeMealOneOpt();
     if(e.target.type === 'radio'){
       const group = document.querySelectorAll(`input[name="${e.target.name}"]`);
       group.forEach(g => g.closest('.toggle-opt')?.classList.remove('checked'));
@@ -2831,22 +2938,27 @@ ${bodyHtml}
     if(!target) return;
 
     const before = target.answers || {};
-    const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${before.meal === 'ご参加' ? '参加' : '不参加'} / 状態${statusLabel[target.status || '審査中']}`;
+    const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${mealLabelOf(before)} / 状態${statusLabel[target.status || '審査中']}`;
 
     const isCancel = document.getElementById('changeCancel').checked;
     const newCount = document.querySelector('input[name=changeCount]:checked')?.value || before.participant_count || '1';
-    const newMeal = document.querySelector('input[name=changeMeal]:checked')?.value || before.meal;
+    const newMealRaw = document.querySelector('input[name=changeMeal]:checked')?.value || before.meal;
+    const newMeal = newMealRaw === 'ご参加1' ? 'ご参加' : newMealRaw;
+    // お食事の人数:「1名のみ出席」は2枚のときだけ。出席なら枚数と同じ、欠席なら記録しない
+    const newMealCount = newMeal !== 'ご参加' ? null
+      : (newMealRaw === 'ご参加1' && newCount === '2') ? '1' : String(newCount);
     const note = document.getElementById('changeNote').value.trim();
     const addPenalty = document.getElementById('changePenalty').checked;
 
     const afterSummary = isCancel
       ? 'キャンセル'
-      : `枚数${newCount}枚 / 食事${newMeal === 'ご参加' ? '参加' : '不参加'}`;
+      : `枚数${newCount}枚 / 食事${mealLabelOf({ participant_count: newCount, meal: newMeal, meal_count: newMealCount })}`;
 
     saveBtn.disabled = true;
     saveBtn.textContent = '保存中…';
     try{
       const newAnswers = { ...before, participant_count: newCount, meal: newMeal };
+      if(newMealCount) newAnswers.meal_count = newMealCount; else delete newAnswers.meal_count;
       const updatePayload = { answers: newAnswers, wants_meal: newMeal === 'ご参加' };
       if(isCancel) updatePayload.status = 'キャンセル';
 

@@ -408,6 +408,7 @@
       <label style="margin-top:14px;">お食事</label>
       <div class="toggle-group">
         <label class="toggle-opt"><input type="radio" name="changeMeal" value="ご参加">出席</label>
+        <label class="toggle-opt" id="changeMealOneOpt"><input type="radio" name="changeMeal" value="ご参加1">1名のみ出席</label>
         <label class="toggle-opt"><input type="radio" name="changeMeal" value="食事は欠席">欠席</label>
       </div>
 
@@ -850,8 +851,7 @@
     const pendingTickets = countTickets(pendingRows);
 
     const meals = activeRows
-      .filter(r => r.answers?.meal === 'ご参加')
-      .reduce((sum, r) => sum + (Number(r.answers?.participant_count) || 1), 0);
+      .reduce((sum, r) => sum + mealCountOf(r.answers), 0);
 
     document.getElementById('sumAllCount').textContent = allCount + '件';
     document.getElementById('sumAllTickets').textContent = allTickets + '枚';
@@ -994,7 +994,7 @@
                 ? '<span class="mark-circle seat-lottery" title="抽選">抽</span>'
                 : '-'}</td>
         <td class="tight-col">${a.meal === 'ご参加'
-              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>'
+              ? '<span class="mark-circle meal-yes" title="お食事:参加">食</span>' + (mealCountOf(a) < (Number(a.participant_count) || 1) ? `<span style="font-size:10px;font-weight:700;">${mealCountOf(a)}名</span>` : '')
               : '<span class="mark-circle meal-no" title="お食事:不参加">-</span>'}</td>
         <td><span class="badge ${statusClass[status] || 'pending'}" title="${statusLabel[status] || status}">${statusShortLabel[status] || status}</span></td>
       `;
@@ -1035,7 +1035,7 @@
       const mealOn = a.meal === 'ご参加';
       const seatOn = a.seat_pref === '連席希望';
       const mealMark = mealOn
-        ? '<span class="status-mark status-meal">食</span>'
+        ? ('<span class="status-mark status-meal">食</span>' + (mealCountOf(a) < (Number(a.participant_count) || 1) ? `<span style="font-size:9px;">${mealCountOf(a)}名</span>` : ''))
         : '<span class="status-mark status-none">-</span>';
       const seatMark = seatOn
         ? '<span class="status-mark status-pair">連</span>'
@@ -1138,6 +1138,22 @@
       saveBtn.textContent = '記録する';
     }
   });
+
+  // ---- お食事の人数 ----
+  // answers.meal_count:お食事に出る人数(チケット2枚でも食事1名のときは '1')。
+  // 未設定の申込(以前のもの)はチケット枚数と同じとみなす。
+  function mealCountOf(a){
+    if(!a || a.meal !== 'ご参加') return 0;
+    const tickets = Number(a.participant_count) || 1;
+    const m = Number(a.meal_count);
+    return (m >= 1 && m <= tickets) ? m : tickets;
+  }
+  function mealLabelOf(a){
+    const n = mealCountOf(a);
+    if(!n) return '不参加';
+    const tickets = Number(a?.participant_count) || 1;
+    return n < tickets ? `参加(${n}名のみ)` : '参加';
+  }
 
   function escapeHtml(str){
     return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1314,22 +1330,39 @@
     const a = target.answers || {};
     box.classList.remove('empty');
     box.textContent =
-      `現在の内容:枚数${a.participant_count || '1'}枚 ／ お食事:${a.meal === 'ご参加' ? '参加' : '不参加'} ／ 状態:${statusLabel[target.status || '審査中']}`;
+      `現在の内容:枚数${a.participant_count || '1'}枚 ／ お食事:${mealLabelOf(a)} ／ 状態:${statusLabel[target.status || '審査中']}`;
 
     fields.style.display = 'block';
     // 現在の値をトグルに反映
     const countRadio = document.querySelector(`input[name=changeCount][value="${a.participant_count || '1'}"]`);
     if(countRadio) countRadio.checked = true;
-    const mealRadio = document.querySelector(`input[name=changeMeal][value="${a.meal || 'ご参加'}"]`);
+    const curMealValue = (a.meal || 'ご参加') === 'ご参加'
+      ? (mealCountOf({ ...a, meal: 'ご参加' }) < (Number(a.participant_count) || 1) ? 'ご参加1' : 'ご参加')
+      : a.meal;
+    const mealRadio = document.querySelector(`input[name=changeMeal][value="${curMealValue}"]`);
     if(mealRadio) mealRadio.checked = true;
     document.querySelectorAll('#changeFields .toggle-opt').forEach(opt=>{
       const input = opt.querySelector('input');
       opt.classList.toggle('checked', input.checked);
     });
+    syncChangeMealOneOpt();
     checkChangeSaveEnabled();
   });
 
+  function syncChangeMealOneOpt(){
+    const cnt = document.querySelector('input[name=changeCount]:checked')?.value || '1';
+    const opt = document.getElementById('changeMealOneOpt');
+    if(!opt) return;
+    opt.style.display = cnt === '2' ? '' : 'none';
+    const one = opt.querySelector('input');
+    if(cnt !== '2' && one.checked){
+      one.checked = false; opt.classList.remove('checked');
+      const full = document.querySelector('input[name=changeMeal][value="ご参加"]');
+      full.checked = true; full.closest('.toggle-opt')?.classList.add('checked');
+    }
+  }
   document.getElementById('changeFields').addEventListener('change', (e)=>{
+    if(e.target.name === 'changeCount') syncChangeMealOneOpt();
     if(e.target.type === 'radio'){
       const group = document.querySelectorAll(`input[name="${e.target.name}"]`);
       group.forEach(g => g.closest('.toggle-opt')?.classList.remove('checked'));
@@ -1353,22 +1386,27 @@
     if(!target) return;
 
     const before = target.answers || {};
-    const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${before.meal === 'ご参加' ? '参加' : '不参加'} / 状態${statusLabel[target.status || '審査中']}`;
+    const beforeSummary = `枚数${before.participant_count || '1'}枚 / 食事${mealLabelOf(before)} / 状態${statusLabel[target.status || '審査中']}`;
 
     const isCancel = document.getElementById('changeCancel').checked;
     const newCount = document.querySelector('input[name=changeCount]:checked')?.value || before.participant_count || '1';
-    const newMeal = document.querySelector('input[name=changeMeal]:checked')?.value || before.meal;
+    const newMealRaw = document.querySelector('input[name=changeMeal]:checked')?.value || before.meal;
+    const newMeal = newMealRaw === 'ご参加1' ? 'ご参加' : newMealRaw;
+    // お食事の人数:「1名のみ出席」は2枚のときだけ。出席なら枚数と同じ、欠席なら記録しない
+    const newMealCount = newMeal !== 'ご参加' ? null
+      : (newMealRaw === 'ご参加1' && newCount === '2') ? '1' : String(newCount);
     const note = document.getElementById('changeNote').value.trim();
     const addPenalty = document.getElementById('changePenalty').checked;
 
     const afterSummary = isCancel
       ? 'キャンセル'
-      : `枚数${newCount}枚 / 食事${newMeal === 'ご参加' ? '参加' : '不参加'}`;
+      : `枚数${newCount}枚 / 食事${mealLabelOf({ participant_count: newCount, meal: newMeal, meal_count: newMealCount })}`;
 
     saveBtn.disabled = true;
     saveBtn.textContent = '保存中…';
     try{
       const newAnswers = { ...before, participant_count: newCount, meal: newMeal };
+      if(newMealCount) newAnswers.meal_count = newMealCount; else delete newAnswers.meal_count;
       const updatePayload = { answers: newAnswers, wants_meal: newMeal === 'ご参加' };
       if(isCancel) updatePayload.status = 'キャンセル';
 

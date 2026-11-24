@@ -373,7 +373,12 @@
       .filter(r => r.answers?.meal === 'ご参加' && r.status === '参加決定')
       .map(r => ({
         name: r.answers?.full_name || r.participants?.name || '(不明)',
-        party_count: Number(r.answers?.participant_count || 1)
+        // お食事の人数(answers.meal_count。チケット2枚でも食事1名の方がいる)。未設定ならチケット枚数
+        party_count: (() => {
+          const t = Number(r.answers?.participant_count) || 1;
+          const m = Number(r.answers?.meal_count);
+          return (m >= 1 && m <= t) ? m : t;
+        })()
       }));
   }
 
